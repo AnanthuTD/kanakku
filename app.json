@@ -3,7 +3,7 @@
     "name": "Kanakku",
     "slug": "kanakku",
     "description": "Private Android spend journal built from your bank SMS, kept on this device.",
-    "version": "0.2.0",
+    "version": "0.2.0-beta.1",
     "scheme": "kanakku",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
