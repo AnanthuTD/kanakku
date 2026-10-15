@@ -81,4 +81,4 @@ __pycache__/
 
 # Play verification recording output (video + Maestro evidence)
 artifacts/play-verification/
-artifacts/play/
+artifacts/play/*.aab
