@@ -8,7 +8,9 @@ Checked boxes mean the named implementation or check is complete. Device accepta
 
 - [x] Review other agent’s native voice, payee, duplicate, overlay and documentation changes
 - [x] Fix review findings around duplicate provenance, masked account rules, avatar confirmation, voice session ownership and diagnostics; targeted host checks pass (combined device regression pending)
-- [ ] **In progress:** Expo EAS Update integration, manual check/download/restart with activity guards; native build and live delivery verification tracked separately
+- [x] Expo EAS Update integration: manual check/download/restart with activity guards; Settings card verified on the phone
+- [x] OTA runtime version made deterministic: the build profile is persisted to `kanakku-profile.json` (Gradle's fingerprint step ran without the env var and built the test APK with the personal runtime), and the in-tree compiled expo-updates Gradle plugin is ignored (its lock/history files changed the hash on every run). Shell and Gradle now agree (`d9e9788a…`); project initialised in git, which the fingerprint tool also needs to honour `.gitignore`
+- [x] Live delivery proven on the phone (15 Oct, 14:18): published update group 1c5bc73e to `e2e` (runtime `d9e9788a…`, equal to the installed APK), test app found it, downloaded it, restarted on confirmation and now reports "Downloaded update" instead of "APK version"; personal app untouched
 - [x] Implement on-device OCR/parser and temporary-photo cancellation/cleanup; 30 focused host checks pass
 - [ ] **In progress:** integrate editable structured bill receipt with an existing payment and voice context
 - [x] Bill-photo actions in the in-app and native floating companion; native camera opens only inside the foreground app

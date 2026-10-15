@@ -57,9 +57,9 @@ EAS Update hosting uses the owner's account and current limits; no particular fr
 - [x] Configuration tests: disabled without a real ID, UUID validation, isolated Android package/channel and native fingerprint policy.
 - [x] Owner project ID/owner/slug verified in the Expo dashboard and persisted as public project configuration.
 - [x] Browser-authorized CLI access verified; e2e/personal-beta server channels linked to separate empty branches, with no updates published.
-- [ ] Inspect generated update-enabled Android release manifest and fingerprint with the owner's real project configuration.
-- [ ] Real EAS **e2e** release APK: no update available; publish a compatible JS change; check → download → Later; keep the current session intact.
-- [ ] Confirm restart and verify the identifying change actually runs, then force-stop/reopen and verify it persists.
+- [x] Inspected the release APK's embedded fingerprint; it equals the CLI/library value once the profile is persisted and the compiled plugin directory is ignored.
+- [x] Real **e2e** release APK: published a compatible JS change (group 1c5bc73e), check → download → restart on the phone.
+- [x] Restart confirmed; the card reports "Downloaded update" (expo-updates `isEmbeddedLaunch` false). Force-stop/reopen check recorded in CHECKLIST.
 - [ ] Check/download offline and recover; close/background during download; failed-download state must not be shown as success.
 - [ ] Start recording/camera/journal work before confirming restart; guard must prevent interruption. Backgrounding dismisses the restart dialog.
 - [ ] Prove a changed native runtime does not install over an older APK; inspect the actual computed fingerprint, including local native module/model inputs.
