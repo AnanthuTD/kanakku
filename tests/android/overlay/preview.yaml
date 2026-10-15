@@ -1,6 +1,6 @@
-appId: com.kanakku.app.e2e
+appId: app.tinkerbox.kanakku.e2e
 name: Floating prompt preview floats over another app, drags and snoozes
-# Requires: adb shell appops set com.kanakku.app.e2e SYSTEM_ALERT_WINDOW allow
+# Requires: adb shell appops set app.tinkerbox.kanakku.e2e SYSTEM_ALERT_WINDOW allow
 # Sample text only; no payment, SMS or microphone is used.
 ---
 - launchApp:

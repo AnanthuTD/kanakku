@@ -22,7 +22,7 @@ Email **ananthu.td.dev@gmail.com** with "Kanakku security" in the subject, or us
 - Raw SMS is parsed and discarded; only the extracted payment fields are stored, encrypted.
 - Voice is transcribed on-device by a bundled Whisper model. Audio is held briefly in memory and never written to storage in the personal app.
 - Bill photos are read on-device by a bundled ML Kit model. OCR text and photos are not persisted in the personal app.
-- The isolated test build (`com.kanakku.app.e2e`) has an opt-in diagnostics switch that keeps recent voice clips and OCR text; the personal build cannot enable it.
+- The isolated test build (`app.tinkerbox.kanakku.e2e`) has an opt-in diagnostics switch that keeps recent voice clips and OCR text; the personal build cannot enable it.
 
 ## Verifying a release
 

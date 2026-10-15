@@ -11,7 +11,7 @@
     "backgroundColor": "#F7F5EE",
     "primaryColor": "#345D45",
     "android": {
-      "package": "com.kanakku.app",
+      "package": "app.tinkerbox.kanakku",
       "permissions": [
         "android.permission.READ_SMS",
         "android.permission.RECEIVE_SMS",

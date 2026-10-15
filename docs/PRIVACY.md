@@ -1,6 +1,6 @@
 # Kanakku privacy policy
 
-Last updated 15 October 2026. Applies to the Kanakku Android app (`com.kanakku.app`), published by Ananthu T D.
+Last updated 15 October 2026. Applies to the Kanakku Android app (`app.tinkerbox.kanakku`), published by Tinkerbox (Ananthu T D).
 
 ## The short version
 

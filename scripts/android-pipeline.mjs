@@ -11,7 +11,7 @@ const sdk =
   process.env.ANDROID_HOME || "/opt/homebrew/share/android-commandlinetools";
 const adb = join(sdk, "platform-tools/adb");
 const serial = "emulator-5580";
-const app = "com.kanakku.app.e2e";
+const app = "app.tinkerbox.kanakku.e2e";
 const avd = "Kanakku_API_36";
 const fixtures = JSON.parse(
   readFileSync(join(root, "tests/android/pipeline/fixtures.json"), "utf8"),

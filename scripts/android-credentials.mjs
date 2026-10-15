@@ -10,7 +10,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sdk =
   process.env.ANDROID_HOME || "/opt/homebrew/share/android-commandlinetools";
 const serial = "emulator-5580";
-const app = "com.kanakku.app.e2e";
+const app = "app.tinkerbox.kanakku.e2e";
 const avd = "Kanakku_API_36";
 const base = `/data/user/0/${app}`;
 // These satisfy input syntax but are deliberately invalid provider credentials.

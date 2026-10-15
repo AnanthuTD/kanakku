@@ -19,7 +19,7 @@ import wave
 ROOT = Path(__file__).resolve().parent.parent
 SERIAL = "emulator-5580"
 AVD = "Kanakku_API_36"
-PACKAGE = "com.kanakku.app.e2e"
+PACKAGE = "app.tinkerbox.kanakku.e2e"
 SDK = Path(os.environ.get("ANDROID_HOME", "/opt/homebrew/share/android-commandlinetools"))
 
 

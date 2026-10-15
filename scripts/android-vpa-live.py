@@ -4,7 +4,7 @@ from pathlib import Path
 import hashlib,json,os,re,subprocess,time,xml.etree.ElementTree as ET
 ROOT=Path(__file__).resolve().parent.parent
 ADB='/opt/homebrew/share/android-commandlinetools/platform-tools/adb'
-APP='com.kanakku.app.e2e'
+APP='app.tinkerbox.kanakku.e2e'
 ENV={**os.environ,'JAVA_HOME':'/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home','ANDROID_HOME':'/opt/homebrew/share/android-commandlinetools','MAESTRO_CLI_NO_ANALYTICS':'1'}
 def call(*args):
  r=subprocess.run([ADB,'-s','emulator-5580',*args],capture_output=True,text=True,timeout=15,check=True)

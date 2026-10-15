@@ -18,6 +18,18 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      # The hosted runner's free space (~14 GB) is not enough for the NDK, both ML models and a
+      # full R8 native build; the first release attempt died in dex merging with ENOSPC.
+      # Remove the preinstalled toolchains Kanakku never uses (~25 GB).
+      - name: Reclaim runner disk space
+        run: |
+          df -h / | tail -1
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift /usr/local/julia* \
+            /usr/share/miniconda /opt/az /usr/local/lib/node_modules 2>/dev/null || true
+          sudo docker image prune --all --force >/dev/null 2>&1 || true
+          sudo apt-get clean >/dev/null 2>&1 || true
+          df -h / | tail -1
       - uses: actions/setup-node@v7
         with:
           node-version: 24

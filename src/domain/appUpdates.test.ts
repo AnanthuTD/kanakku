@@ -223,7 +223,7 @@ function configWithEnv(projectId?: string, profile?: string) {
     return buildConfig({
       config: {
         name: "Kanakku",
-        android: { package: "com.kanakku.app", allowBackup: false },
+        android: { package: "app.tinkerbox.kanakku", allowBackup: false },
         extra: { other: true },
       },
     });
@@ -285,12 +285,12 @@ describe("OTA native build configuration", () => {
         profile: "e2e",
       });
       const later = configWithEnv("b609ea53-b8e5-42ff-9550-2e46880bcda4");
-      expect(later.android.package).toBe("com.kanakku.app.e2e");
+      expect(later.android.package).toBe("app.tinkerbox.kanakku.e2e");
       expect(later.updates.requestHeaders["expo-channel-name"]).toBe("e2e");
       configWithEnv("b609ea53-b8e5-42ff-9550-2e46880bcda4", "personal");
       expect(
         configWithEnv("b609ea53-b8e5-42ff-9550-2e46880bcda4").android.package,
-      ).toBe("com.kanakku.app");
+      ).toBe("app.tinkerbox.kanakku");
       expect(() =>
         configWithEnv("b609ea53-b8e5-42ff-9550-2e46880bcda4", "bogus"),
       ).toThrow("must be 'e2e' or 'personal'");
@@ -301,8 +301,8 @@ describe("OTA native build configuration", () => {
     // Explicit: with the profile persisted, "no env var" means "last used", never "personal".
     const personal = configWith(project, "personal");
     const e2e = configWith(project, "e2e");
-    expect(personal.android.package).toBe("com.kanakku.app");
-    expect(e2e.android.package).toBe("com.kanakku.app.e2e");
+    expect(personal.android.package).toBe("app.tinkerbox.kanakku");
+    expect(e2e.android.package).toBe("app.tinkerbox.kanakku.e2e");
     expect(e2e.android.allowBackup).toBe(false);
     expect(personal.updates.requestHeaders).toEqual({
       "expo-channel-name": "personal-beta",

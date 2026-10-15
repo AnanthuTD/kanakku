@@ -4,7 +4,7 @@ These are release gates alongside the automated browser suite. Record device/mod
 
 ## Automated native UI flows
 
-The Maestro flows in `maestro/` target **com.kanakku.app.e2e** only. This separate package has its own data and Keystore namespace. Each flow clears the test app, starts with sample data and denies permissions. They never target the personal app package or ingest real financial SMS. Do not change their appId to the personal package.
+The Maestro flows in `maestro/` target **app.tinkerbox.kanakku.e2e** only. This separate package has its own data and Keystore namespace. Each flow clears the test app, starts with sample data and denies permissions. They never target the personal app package or ingest real financial SMS. Do not change their appId to the personal package.
 
 Step-by-step phone setup, wireless pairing (`npm run adb:pair`), required developer settings and Maestro troubleshooting are in the Manual operations section of [CLAUDE.md](../../CLAUDE.md). With JDK 17, Android SDK, a test phone/emulator and [Maestro CLI](https://docs.maestro.dev/maestro-cli/) available:
 

@@ -11,7 +11,7 @@ export interface NativeStatus {
   offlineVoice: boolean;
   overlayEnabled: boolean;
   sounds: boolean;
-  /** True only for the isolated com.kanakku.app.e2e package. */
+  /** True only for the isolated app.tinkerbox.kanakku.e2e package. */
   testBuild?: boolean;
   diagnostics?: boolean;
   /** False on processors without ARMv8.2 fp16/dot-product support. */

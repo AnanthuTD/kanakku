@@ -17,7 +17,7 @@ Read-only authenticated connection / microphone-state check:
 .venv-android-tests/bin/python scripts/inject-emulator-audio.py --check-only
 ```
 
-Build/install the current isolated `com.kanakku.app.e2e` APK first. Coordinate exclusive device ownership with other Android tests. Open a sample payment's review, tap its microphone action, allow the Android microphone permission if requested, and wait until the app shows Listening. Then, while that app remains foreground:
+Build/install the current isolated `app.tinkerbox.kanakku.e2e` APK first. Coordinate exclusive device ownership with other Android tests. Open a sample payment's review, tap its microphone action, allow the Android microphone permission if requested, and wait until the app shows Listening. Then, while that app remains foreground:
 
 ```sh
 .venv-android-tests/bin/python scripts/inject-emulator-audio.py \

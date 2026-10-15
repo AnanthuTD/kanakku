@@ -12,7 +12,7 @@ The browser uses labeled sample data. SMS, SQLCipher/Keystore, real voice, camer
 
 - Money is integer paise. Deterministic ledger queries calculate all totals. Refunds subtract; income, transfers, cash, repayments and excluded items do not inflate spend. Category and transaction kind are separate.
 - Preserve originals, references, classifier provenance and user corrections. Replay/import deduplicates by ingestion identity. Cross-alert linking additionally requires parser-proven supplementary status, one unique referenced match and no competing supplementary row. Equal amounts/times alone, unknown legacy provenance and masked account suffixes cannot justify merging or reusable payee rules. Do not silently undo legacy linked/excluded rows or change already user-confirmed payments.
-- Reject OTP/authentication/unrelated messages before persistence/inference. Never log raw SMS, full account identifiers, audio, bill images/text or API keys. Do not persist raw SMS/audio; provider keys use only their Keystore-encrypted store. Audio is held briefly in native memory and recording begins only after the user's action. Sole audio exception, at the user's request: the isolated `com.kanakku.app.e2e` build has an opt-in Settings switch that keeps the last three raw clips and the app's text for each for recognition diagnosis; turning it off deletes them, and the personal app cannot enable it. Cancel on background/close and discard late voice answers.
+- Reject OTP/authentication/unrelated messages before persistence/inference. Never log raw SMS, full account identifiers, audio, bill images/text or API keys. Do not persist raw SMS/audio; provider keys use only their Keystore-encrypted store. Audio is held briefly in native memory and recording begins only after the user's action. Sole audio exception, at the user's request: the isolated `app.tinkerbox.kanakku.e2e` build has an opt-in Settings switch that keeps the last three raw clips and the app's text for each for recognition diagnosis; turning it off deletes them, and the personal app cannot enable it. Cancel on background/close and discard late voice answers.
 - Real ledger/rules/recurring decisions use SQLCipher, gated keys and a sealed background inbox. Background capture seals minimal data before model inference. Never silently downgrade storage or replace an inaccessible key. Device security/backing is capability-dependent.
 - Recurring patterns are local evidence-based suggestions, not proof of subscription enrolment or verified due dates. Confirm/ignore changes labels only. Decisions belong in encrypted `ledger_meta`; sample equivalents may use demo storage. Handle refunds, duplicate references, account separation and insufficient history conservatively.
 - Merchant lookup is disabled by default. Brave BYOK is encrypted with Android Keystore; no common key in bundles/environment/AsyncStorage. Automatic queries accept an exact public-brand allowlist; unknown public businesses require query review. A separate VPA flow may send exactly one full UPI address only after per-address disclosure/consent; editing/reopening revokes it. Never automatically search VPAs or send SMS, amounts, accounts, banks, notes or other payment IDs. Related search results do not identify a merchant; an exact address mention is evidence, not proof of ownership. Never let web evidence mutate a ledger or learn rules automatically.
@@ -45,7 +45,7 @@ Node 24 supports the SQLite host tests. JDK 17 and Kotlin 2.2.20+ on PATH suppor
 
 See [E2E instructions](tests/e2e/README.md) and [Android cases](tests/android/ACCEPTANCE.md). Host SQLite tests do not prove Android encryption; browser emulation does not prove SMS, voice, WorkManager or overlays. Build success is not phone acceptance. Keep unverified items unchecked. SQLCipher keys belong to a connection: repository writes use BEGIN IMMEDIATE/COMMIT/ROLLBACK on the existing keyed connection under serial(). Expo withExclusiveTransactionAsync creates a fresh unkeyed connection and must not be used for this ledger.
 
-Maestro smoke flows target the isolated `com.kanakku.app.e2e` package and clear only that test app. Never point clear-state flows at the personal package. `KANAKKU_BUILD_PROFILE=e2e` selects test metadata; ordinary prebuild restores personal metadata before building/distributing its APK. Do not overwrite the personal APK with a test-package build.
+Maestro smoke flows target the isolated `app.tinkerbox.kanakku.e2e` package and clear only that test app. Never point clear-state flows at the personal package. `KANAKKU_BUILD_PROFILE=e2e` selects test metadata; ordinary prebuild restores personal metadata before building/distributing its APK. Do not overwrite the personal APK with a test-package build.
 
 Use JDK 17 / Android SDK 36 for builds. Public releases are built and release-signed by `.github/workflows/release.yml` on a `v*` tag (see RELEASE.md); local builds keep the development key unless the `KANAKKU_RELEASE_*` variables are set. Never commit a keystore or password. Artifacts target arm64 Android 12+. Verify signature, package, ABI and bundled model hashes after rebuilding. Maintain installed model provenance/licenses. Do not claim every Indian bank/card format is supported without real fixture evidence.
 
@@ -151,7 +151,7 @@ Device authentication (screen lock) must be set for the encrypted ledger key. Ne
 
 ### Build APKs manually
 
-Isolated test build (package `com.kanakku.app.e2e`):
+Isolated test build (package `app.tinkerbox.kanakku.e2e`):
 
 ```sh
 KANAKKU_BUILD_PROFILE=e2e npx expo prebuild --platform android --no-install --clean
@@ -177,7 +177,7 @@ $BT/apksigner verify --print-certs android/app/build/outputs/apk/release/app-rel
 shasum -a 256 android/app/build/outputs/apk/release/app-release.apk
 ```
 
-Expect `com.kanakku.app`, `arm64-v8a` and the existing development certificate recorded in `artifacts/apk-verification.txt`. Run the read-only gate against the generated APK before copying it:
+Expect `app.tinkerbox.kanakku`, `arm64-v8a` and the existing development certificate recorded in `artifacts/apk-verification.txt`. Run the read-only gate against the generated APK before copying it:
 
 ```sh
 npm run verify:apk -- android/app/build/outputs/apk/release/app-release.apk
@@ -212,10 +212,10 @@ A run takes about four minutes; per-flow screenshots, hierarchy and logs land in
 Both builds keep a local JSON-lines log of errors and pipeline steps (app start, SMS ignored/captured/classified, import worker failures, prompt decisions, companion/voice stages and timings, errors shown to the user, uncaught native/JS errors). It is on by default during the beta; Settings › Beta diagnostics turns it off (deleting it) or clears it. It must never contain SMS text, notes, transcripts, payee names, account numbers, audio or keys; `Diagnostics.scrub` masks digit runs and addresses as a safeguard. Pull it with:
 
 ```sh
-adb -s SERIAL shell cat /sdcard/Android/data/com.kanakku.app/files/diagnostics/kanakku-diagnostics.jsonl
+adb -s SERIAL shell cat /sdcard/Android/data/app.tinkerbox.kanakku/files/diagnostics/kanakku-diagnostics.jsonl
 ```
 
-Use `com.kanakku.app.e2e` for the test build. The log rotates to `kanakku-diagnostics.1.jsonl` after 1 MB.
+Use `app.tinkerbox.kanakku.e2e` for the test build. The log rotates to `kanakku-diagnostics.1.jsonl` after 1 MB.
 
 ### Other manual checks
 
@@ -223,9 +223,9 @@ Use `com.kanakku.app.e2e` for the test build. The log rotates to `kanakku-diagno
 - Brand assets: edit `src/brand/mark.ts`, run `npm run brand:render`, then prebuild and rebuild.
 - Record a cold launch to check the splash hand-off:
   ```sh
-  adb -s SERIAL shell am force-stop com.kanakku.app.e2e
+  adb -s SERIAL shell am force-stop app.tinkerbox.kanakku.e2e
   adb -s SERIAL shell screenrecord --time-limit 6 /sdcard/launch.mp4 &
-  adb -s SERIAL shell monkey -p com.kanakku.app.e2e -c android.intent.category.LAUNCHER 1
+  adb -s SERIAL shell monkey -p app.tinkerbox.kanakku.e2e -c android.intent.category.LAUNCHER 1
   wait
   adb -s SERIAL pull /sdcard/launch.mp4 && adb -s SERIAL shell rm /sdcard/launch.mp4
   ```

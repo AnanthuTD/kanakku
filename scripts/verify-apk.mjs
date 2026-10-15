@@ -45,8 +45,8 @@ function check(condition, message) {
   if (!condition) throw new Error(message);
 }
 const packageName = flags.has("--e2e")
-  ? "com.kanakku.app.e2e"
-  : "com.kanakku.app";
+  ? "app.tinkerbox.kanakku.e2e"
+  : "app.tinkerbox.kanakku";
 const badging = run(join(bt, "aapt2"), ["dump", "badging", apk]);
 check(
   badging.includes(`package: name='${packageName}'`),

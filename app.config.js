@@ -43,7 +43,7 @@ module.exports = ({ config }) => {
     ...(testBuild
       ? {
           name: "Kanakku E2E",
-          android: { ...config.android, package: "com.kanakku.app.e2e" },
+          android: { ...config.android, package: "app.tinkerbox.kanakku.e2e" },
         }
       : {}),
     // Native dependency/plugin/model changes need an APK, not an OTA bundle.

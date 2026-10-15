@@ -76,3 +76,5 @@ modules/kanakku-native/android/src/main/assets/kanakku/*.onnx
 # Native module build output (sources stay tracked)
 modules/kanakku-native/android/build/
 modules/kanakku-native/android/.cxx/
+__pycache__/
+*.pyc

@@ -183,7 +183,7 @@ class KanakkuModule : Module() {
     AsyncFunction("cancelListening") { pcmRecorder.cancel();speech?.cancel();speech?.destroy();speech=null;speechPromise?.reject("CANCELLED","Recording stopped",null);speechPromise=null }.runOnQueue(Queues.MAIN)
   }
   companion object {
-    const val TEST_PACKAGE="com.kanakku.app.e2e"
+    const val TEST_PACKAGE="app.tinkerbox.kanakku.e2e"
     @Volatile var foreground=false
     private var instance:WeakReference<KanakkuModule>?=null
     fun notifyArrival() { instance?.get()?.sendEvent("onTransaction",emptyMap<String,Any>()) }

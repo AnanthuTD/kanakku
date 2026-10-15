@@ -1,4 +1,4 @@
-appId: com.kanakku.app.e2e
+appId: app.tinkerbox.kanakku.e2e
 name: Encrypted provider journal locks and survives restart
 ---
 - stopApp

@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SDK = Path(os.environ.get('ANDROID_HOME', '/opt/homebrew/share/android-commandlinetools'))
 SERIAL = 'emulator-5580'
 PHYSICAL = False
-APP = 'com.kanakku.app.e2e'
+APP = 'app.tinkerbox.kanakku.e2e'
 ENV = {**os.environ, 'ANDROID_HOME': str(SDK),
        'JAVA_HOME': '/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home',
        'MAESTRO_CLI_NO_ANALYTICS': '1'}

@@ -1,4 +1,4 @@
-appId: com.kanakku.app.e2e
+appId: app.tinkerbox.kanakku.e2e
 name: Theme setting survives app restart
 ---
 - launchApp:

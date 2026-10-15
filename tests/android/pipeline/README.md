@@ -2,7 +2,7 @@
 
 This test uses the real Android SMS content provider, WorkManager, device credential prompt and SQLCipher repository. Every SMS is invented and labeled synthetic in `fixtures.json`. It does not prove real bank coverage, real radio delivery, hardware Keystore backing, Malayalam/English microphone accuracy or background battery behavior.
 
-Build and install the current **E2E package** following `CLAUDE.md`. Start the dedicated AVD with `npm run emulator:start`. The harness refuses any device other than `emulator-5580` with AVD name `Kanakku_API_36`, refuses non-root provider access, and compares the installed APK hash to `artifacts/kanakku-e2e.apk`. It clears only `com.kanakku.app.e2e`; never run it on the personal package or a phone.
+Build and install the current **E2E package** following `CLAUDE.md`. Start the dedicated AVD with `npm run emulator:start`. The harness refuses any device other than `emulator-5580` with AVD name `Kanakku_API_36`, refuses non-root provider access, and compares the installed APK hash to `artifacts/kanakku-e2e.apk`. It clears only `app.tinkerbox.kanakku.e2e`; never run it on the personal package or a phone.
 
 The Google APIs test image permits `adb root`. Set the synthetic test PIN once, only after verifying the AVD name:
 

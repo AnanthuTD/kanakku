@@ -1,4 +1,4 @@
-appId: com.kanakku.app.e2e
+appId: app.tinkerbox.kanakku.e2e
 name: Reauthenticate to load staged synthetic alerts
 ---
 - assertVisible: "Unlock Kanakku"
