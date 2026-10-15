@@ -194,9 +194,19 @@ try {
     join(folder, "cli.log"),
     (result.stdout || "") + (result.stderr || ""),
   );
-  // Maestro reports "Back to overview" complete before the screen transition has rendered;
-  // linger so the overview and its imported total are the last thing on screen.
-  spawnSync("sleep", ["12"]);
+  // Maestro's final assertion passes while the overview is still mounted beneath the Settings
+  // screen, before the pop transition has drawn it. End the recording on what is actually on
+  // screen: poll the UI tree for overview-only text, then hold so the total is plainly visible.
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    shell("uiautomator dump /sdcard/kanakku-ui.xml >/dev/null 2>&1 || true");
+    const tree = shell("cat /sdcard/kanakku-ui.xml 2>/dev/null || true");
+    if (tree.includes("Room to breathe.") && !tree.includes("Make it yours."))
+      break;
+    spawnSync("sleep", ["1"]);
+  }
+  shell("rm -f /sdcard/kanakku-ui.xml");
+  spawnSync("sleep", ["8"]);
   stopSegment();
   if (result.status !== 0)
     throw new Error(`connect flow failed; see ${folder}/cli.log`);
