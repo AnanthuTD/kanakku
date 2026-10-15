@@ -47,7 +47,7 @@ See [E2E instructions](tests/e2e/README.md) and [Android cases](tests/android/AC
 
 Maestro smoke flows target the isolated `com.kanakku.app.e2e` package and clear only that test app. Never point clear-state flows at the personal package. `KANAKKU_BUILD_PROFILE=e2e` selects test metadata; ordinary prebuild restores personal metadata before building/distributing its APK. Do not overwrite the personal APK with a test-package build.
 
-Use JDK 17 / Android SDK 36 for builds. Personal beta artifacts retain their existing development signing identity and target arm64 Android 12+. Verify signature, package, ABI and bundled model hashes after rebuilding. Maintain installed model provenance/licenses. Do not claim every Indian bank/card format is supported without real fixture evidence.
+Use JDK 17 / Android SDK 36 for builds. Public releases are built and release-signed by `.github/workflows/release.yml` on a `v*` tag (see RELEASE.md); local builds keep the development key unless the `KANAKKU_RELEASE_*` variables are set. Never commit a keystore or password. Artifacts target arm64 Android 12+. Verify signature, package, ABI and bundled model hashes after rebuilding. Maintain installed model provenance/licenses. Do not claim every Indian bank/card format is supported without real fixture evidence.
 
 ## Collaboration
 

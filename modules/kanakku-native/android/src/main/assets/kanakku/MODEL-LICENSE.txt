@@ -1,0 +1,10 @@
+Model: sentence-transformers/all-MiniLM-L6-v2
+Publisher: Sentence Transformers
+Revision: 1110a243fdf4706b3f48f1d95db1a4f5529b4d41
+Source: https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+License: Apache License, Version 2.0
+ONNX quantization: onnx/model_qint8_arm64.onnx (provided by the model publisher)
+SHA-256: 4278337fd0ff3c68bfb6291042cad8ab363e1d9fbc43dcb499fe91c871902474
+
+Category prototype sentences and their embeddings were added by Kanakku.
+This is a sentence similarity model; similarity scores are not calibrated probabilities.

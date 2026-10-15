@@ -1,0 +1,137 @@
+package expo.modules.kanakku
+
+import android.app.KeyguardManager
+import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import android.util.AtomicFile
+import android.database.sqlite.SQLiteDatabase
+import org.json.JSONObject
+import java.io.File
+import java.security.KeyPairGenerator
+import java.security.KeyStore
+import java.security.KeyFactory
+import android.security.keystore.KeyInfo
+import java.security.SecureRandom
+import java.security.spec.MGF1ParameterSpec
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.OAEPParameterSpec
+import javax.crypto.spec.PSource
+import javax.crypto.spec.SecretKeySpec
+
+class Vault(private val context: Context) {
+  private val alias = "kanakku-sealed-inbox-v1"
+  private val store get() = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+  private val prefs get() = context.getSharedPreferences("kanakku-settings", Context.MODE_PRIVATE)
+  private val initialEpoch=prefs.getLong("vaultEpoch",0)
+  fun ready() = store.containsAlias(alias)
+  fun initialize() {
+    check(context.getSystemService(KeyguardManager::class.java).isDeviceSecure) { "Set a device PIN or biometric before connecting SMS." }
+    if (!ready()) KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore").apply {
+      initialize(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_DECRYPT).setKeySize(2048)
+        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP).setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA1)
+        .setUserAuthenticationRequired(true).setUserAuthenticationParameters(60, KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL).build())
+    }.generateKeyPair()
+  }
+  private fun b64(bytes: ByteArray) = Base64.encodeToString(bytes, Base64.NO_WRAP)
+  private fun decode(s: String) = Base64.decode(s, Base64.NO_WRAP)
+  private fun rsa(mode: Int) = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding").apply {
+    val key = if (mode == Cipher.ENCRYPT_MODE) store.getCertificate(alias).publicKey else store.getKey(alias, null)
+    init(mode, key, OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA1, PSource.PSpecified.DEFAULT))
+  }
+  private fun seal(bytes: ByteArray): String {
+    val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key) }
+    return JSONObject().put("key", b64(rsa(Cipher.ENCRYPT_MODE).doFinal(key.encoded))).put("iv", b64(cipher.iv)).put("data", b64(cipher.doFinal(bytes))).toString()
+  }
+  private fun unseal(text: String): ByteArray {
+    val j = JSONObject(text)
+    val key = SecretKeySpec(rsa(Cipher.DECRYPT_MODE).doFinal(decode(j.getString("key"))), "AES")
+    return Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, decode(j.getString("iv")))) }.doFinal(decode(j.getString("data")))
+  }
+  fun databaseKey(): String {
+    val file = AtomicFile(File(context.noBackupFilesDir, "ledger-key.envelope"))
+    if (!file.baseFile.exists()) {
+      val key = ByteArray(32).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
+      val out = file.startWrite()
+      try { out.write(seal(key.toByteArray()).toByteArray()); file.finishWrite(out) } catch (e: Exception) { file.failWrite(out); throw e }
+    }
+    return String(unseal(String(file.readFully())))
+  }
+  private fun inbox(): SQLiteDatabase = synchronized(inboxGuard) { SQLiteDatabase.openOrCreateDatabase(File(context.noBackupFilesDir, "sealed-inbox.db"), null).apply {
+    execSQL("CREATE TABLE IF NOT EXISTS inbox (id TEXT PRIMARY KEY, envelope TEXT NOT NULL, review INTEGER NOT NULL DEFAULT 1)")
+    val columns=rawQuery("PRAGMA table_info(inbox)",null).use { c -> buildList {while(c.moveToNext())add(c.getString(1))} }
+    if("review" !in columns) execSQL("ALTER TABLE inbox ADD COLUMN review INTEGER NOT NULL DEFAULT 1")
+    // Answers given to the floating companion; sealed with the public key so no unlock is needed.
+    execSQL("CREATE TABLE IF NOT EXISTS answers (id TEXT PRIMARY KEY, envelope TEXT NOT NULL)")
+  } }
+  private fun envelope(t:ParsedTransaction):String {
+    val classification=JSONObject().put("method",t.method).put("version",t.classifierVersion)
+    t.score?.let{classification.put("score",it)};t.margin?.let{classification.put("margin",it)}
+    val j = JSONObject().put("id",t.id).put("amount",t.amount).put("merchant",t.merchant).put("account",t.account).put("bank",t.bank).put("at",t.at).put("category",t.category).put("kind",t.kind).put("review",t.review).put("excluded",false).put("note","").put("source","sms").put("classification",classification).put("reason",if(t.review) "Needs your context" else when(t.method){"rule"->"Your merchant rule";"model"->"On-device semantic suggestion";else->"Local merchant match"})
+    t.reference?.let { j.put("reference", it) }
+    if(t.supplementaryAlert) j.put("supplementaryAlert", true)
+    return seal(j.toString().toByteArray())
+  }
+  fun capture(t: ParsedTransaction): Boolean = synchronized(lifecycleGuard) {
+    if (!ready() || initialEpoch!=prefs.getLong("vaultEpoch",0)) return false
+    inbox().use { db ->
+      val values = android.content.ContentValues().apply { put("id", t.id); put("envelope", envelope(t)); put("review",if(t.review)1 else 0) }
+      return db.insertWithOnConflict("inbox", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1L
+    }
+  }
+  /** Update only the still-staged event; never recreate an acknowledged/user-edited row. */
+  fun enrichPending(t:ParsedTransaction)=synchronized(lifecycleGuard) {
+    if(!ready() || initialEpoch!=prefs.getLong("vaultEpoch",0))return@synchronized
+    inbox().use { db ->
+      val values=android.content.ContentValues().apply {put("envelope",envelope(t));put("review",if(t.review)1 else 0)}
+      db.update("inbox",values,"id = ?",arrayOf(t.id))
+    }
+  }
+  /** Seal a companion answer for a payment; applied by the app on its next unlock. */
+  fun saveAnswer(id:String,note:String,category:String?):Boolean = synchronized(lifecycleGuard) {
+    if(!ready() || initialEpoch!=prefs.getLong("vaultEpoch",0)) return false
+    val j=JSONObject().put("id",id).put("note",note.take(500)).put("answeredAt",System.currentTimeMillis())
+    category?.let{j.put("category",it)}
+    inbox().use { db ->
+      val values=android.content.ContentValues().apply{put("id",id);put("envelope",seal(j.toString().toByteArray()))}
+      return db.insertWithOnConflict("answers",null,values,SQLiteDatabase.CONFLICT_REPLACE)!=-1L
+    }
+  }
+  fun answers(): List<String> = inbox().use { db -> db.rawQuery("SELECT envelope FROM answers LIMIT 250", null).use { c -> buildList { while(c.moveToNext()) add(String(unseal(c.getString(0)))) } } }
+  fun acknowledgeAnswers(ids: List<String>) = inbox().use { db -> db.beginTransaction(); try { ids.forEach { db.delete("answers", "id = ?", arrayOf(it)) }; db.setTransactionSuccessful() } finally { db.endTransaction() } }
+  fun answerCount(): Int = inbox().use { db -> db.rawQuery("SELECT COUNT(*) FROM answers", null).use { c -> c.moveToFirst(); c.getInt(0) } }
+  fun pending(): List<String> = inbox().use { db -> db.rawQuery("SELECT envelope FROM inbox LIMIT 250", null).use { c -> buildList { while(c.moveToNext()) add(String(unseal(c.getString(0)))) } } }
+  fun pendingCount(): Int = inbox().use { db -> db.rawQuery("SELECT COUNT(*) FROM inbox", null).use { c -> c.moveToFirst(); c.getInt(0) } }
+  fun pendingReviewCount(): Int = inbox().use { db -> db.rawQuery("SELECT COUNT(*) FROM inbox WHERE review = 1", null).use { c -> c.moveToFirst(); c.getInt(0) } }
+  fun acknowledge(ids: List<String>) = inbox().use { db -> db.beginTransaction(); try { ids.forEach { db.delete("inbox", "id = ?", arrayOf(it)) }; db.setTransactionSuccessful() } finally { db.endTransaction() } }
+  fun enabled() = prefs.getBoolean("capture", false)
+  fun setEnabled(value: Boolean) { val e=prefs.edit().putBoolean("capture",value);if(value&&!prefs.contains("captureSince"))e.putLong("captureSince",System.currentTimeMillis());e.commit() }
+  fun security():Map<String,Any> {
+    val secure=context.getSystemService(KeyguardManager::class.java).isDeviceSecure
+    val backing=if(!ready())"not-initialized" else runCatching {
+      val info=KeyFactory.getInstance("RSA","AndroidKeyStore").getKeySpec(store.getKey(alias,null),KeyInfo::class.java)
+      when(info.securityLevel){KeyProperties.SECURITY_LEVEL_STRONGBOX->"StrongBox";KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT->"Trusted environment";else->"Software"}
+    }.getOrDefault("Unknown")
+    return mapOf("deviceSecure" to secure,"vaultReady" to ready(),"backing" to backing)
+  }
+  fun reset()=synchronized(lifecycleGuard) {
+    prefs.edit().putBoolean("capture",false).putLong("vaultEpoch",prefs.getLong("vaultEpoch",0)+1).commit()
+    synchronized(inboxGuard) {
+      // Expo SQLite's default directory is filesDir/SQLite; React Native closes it before this reset.
+      val ledger=File(context.filesDir,"SQLite/kanakku-v1.db")
+      if(ledger.exists())check(SQLiteDatabase.deleteDatabase(ledger)){"Could not remove the journal database. Close Kanakku and retry."}
+      SQLiteDatabase.deleteDatabase(File(context.noBackupFilesDir,"sealed-inbox.db"))
+      AtomicFile(File(context.noBackupFilesDir,"ledger-key.envelope")).delete()
+      if(store.containsAlias(alias))store.deleteEntry(alias)
+      if(store.containsAlias("kanakku-merchant-fingerprints-v1"))store.deleteEntry("kanakku-merchant-fingerprints-v1")
+      context.getSharedPreferences("kanakku-merchant-rules",Context.MODE_PRIVATE).edit().clear().commit()
+      prefs.edit().remove("ledgerReviewCount").remove("lastReceipt").remove("captureSince").commit()
+    }
+  }
+  companion object { private val inboxGuard=Any();private val lifecycleGuard=Any() }
+}

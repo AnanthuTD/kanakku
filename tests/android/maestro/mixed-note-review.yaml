@@ -1,0 +1,183 @@
+appId: com.kanakku.app.e2e
+name: Mixed-purpose notes require an explicit category choice
+---
+- launchApp:
+    clearState: true
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: deny
+      android.permission.POST_NOTIFICATIONS: deny
+- extendedWaitUntil:
+    visible: "Room to breathe."
+    timeout: 120000
+- tapOn:
+    text: "Activity"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Search transactions"
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Search transactions"
+    focused: true
+- inputText: "Rahul S"
+- assertVisible:
+    text: "^Rahul S$"
+    focused: true
+- assertVisible: "Clear search"
+- assertNotVisible:
+    id: "transaction-sample-0"
+# Submit only after proving focus/input belong to Kanakku, then open the result.
+- pressKey: Enter
+- assertVisible:
+    id: "activity-count"
+    text: "1 TRANSACTIONS"
+- assertVisible:
+    id: "transaction-sample-1"
+- tapOn:
+    id: "transaction-sample-1"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Payment note"
+    waitToSettleTimeoutMs: 1000
+- inputText: "Taxi ride and takeaway dinner"
+- assertVisible: "Taxi ride and takeaway dinner"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Uncategorized"
+    direction: UP
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Uncategorized"
+    selected: true
+- scrollUntilVisible:
+    element: "Save category"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Save category"
+    waitToSettleTimeoutMs: 1000
+# Verify committed state rather than a brief notice that can expire while settling.
+- assertVisible: "Categorization: Confirmed by you.*"
+- launchApp:
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: deny
+      android.permission.POST_NOTIFICATIONS: deny
+- extendedWaitUntil:
+    visible: "Room to breathe."
+    timeout: 120000
+- tapOn:
+    text: "Activity"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Search transactions"
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Search transactions"
+    focused: true
+- inputText: "Rahul S"
+- assertVisible:
+    text: "^Rahul S$"
+    focused: true
+- assertVisible: "Clear search"
+- assertNotVisible:
+    id: "transaction-sample-0"
+# Submit only after proving focus/input belong to Kanakku, then open the result.
+- pressKey: Enter
+- assertVisible:
+    id: "activity-count"
+    text: "1 TRANSACTIONS"
+- assertVisible:
+    id: "transaction-sample-1"
+- tapOn:
+    id: "transaction-sample-1"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "What was this for?"
+- scrollUntilVisible:
+    element: "Taxi ride and takeaway dinner"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Taxi ride and takeaway dinner"
+- scrollUntilVisible:
+    element: "Uncategorized"
+    direction: DOWN
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Uncategorized"
+    selected: true
+- scrollUntilVisible:
+    element: "Transport"
+    direction: UP
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Transport"
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Transport"
+    selected: true
+- scrollUntilVisible:
+    element: "Save category"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Save category"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element: "TRANSACTION DETAILS"
+    direction: UP
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "TRANSACTION DETAILS"
+# A second process restart proves the explicit choice survives, along with the note.
+- launchApp:
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: deny
+      android.permission.POST_NOTIFICATIONS: deny
+- extendedWaitUntil:
+    visible: "Room to breathe."
+    timeout: 120000
+- tapOn:
+    text: "Activity"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Search transactions"
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Search transactions"
+    focused: true
+- inputText: "Rahul S"
+- assertVisible:
+    text: "^Rahul S$"
+    focused: true
+- assertVisible: "Clear search"
+- assertNotVisible:
+    id: "transaction-sample-0"
+# Submit only after proving focus/input belong to Kanakku, then open the result.
+- pressKey: Enter
+- assertVisible:
+    id: "activity-count"
+    text: "1 TRANSACTIONS"
+- tapOn:
+    id: "transaction-sample-1"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "TRANSACTION DETAILS"
+- scrollUntilVisible:
+    element: "Transport"
+    direction: DOWN
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Transport"
+    selected: true
+- scrollUntilVisible:
+    element: "Taxi ride and takeaway dinner"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Taxi ride and takeaway dinner"

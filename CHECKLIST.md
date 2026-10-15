@@ -23,6 +23,8 @@ Checked boxes mean the named implementation or check is complete. Device accepta
 - [ ] **In progress:** Android release build and real OCR instrumentation on the isolated emulator
 - [ ] **In progress:** browser regression fixes after first run (147/150 pass); receipt journeys all pass; companion width caused control overlap
 - [x] Link verified EAS project, authenticate owner access and create isolated personal-beta/e2e channels and branches
+- [x] Repository made public-ready: MIT licence, SECURITY.md (private reporting, no-upload promise), CONTRIBUTING.md, code of conduct, issue/PR templates, visitor README with fresh screenshots, repo description and topics
+- [x] Signed release pipeline: `release.yml` builds on a `v*` tag, fetches models by hash (`npm run models:fetch`), signs with the new RSA-4096 release key (secrets set on the repo), runs the production verifier and publishes APK + SHA256SUMS + certificate fingerprint + OTA runtime version; signing wired through the config plugin from environment only
 - [ ] Verify a real compatible published update on a release build
 
 ## Implemented baseline

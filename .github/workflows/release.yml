@@ -1,0 +1,78 @@
+name: Release
+# A tag like v0.2.0 builds the personal APK on CI from that exact commit, signs it with the
+# project's release key, verifies it, and publishes it with checksums so anyone can confirm
+# what they downloaded was built here from public source.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ github.ref }}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0 ndk;27.1.12297006 cmake;3.22.1"
+      - run: npm ci
+      - name: Fetch and verify bundled ML models
+        run: npm run models:fetch
+      - name: Check the tag matches package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          [ "$tag" = "$version" ] || { echo "Tag v$tag does not match package.json version $version"; exit 1; }
+      - name: Restore the release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          [ -n "$KEYSTORE_BASE64" ] || { echo "ANDROID_RELEASE_KEYSTORE_BASE64 secret is not set"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+      - name: Prebuild the personal package
+        run: KANAKKU_BUILD_PROFILE=personal npx expo prebuild --platform android --no-install
+      - name: Build and sign
+        env:
+          KANAKKU_RELEASE_STORE_FILE: ${{ runner.temp }}/release.keystore
+          KANAKKU_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          KANAKKU_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          KANAKKU_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --max-workers=4
+      - name: Verify the APK (production gate)
+        run: node scripts/verify-apk.mjs android/app/build/outputs/apk/release/app-release.apk --production
+      - name: Package
+        run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/release/app-release.apk "release/kanakku-${GITHUB_REF_NAME}-arm64.apk"
+          cd release
+          sha256sum *.apk > SHA256SUMS
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs *.apk | grep -E 'certificate (DN|SHA-256)' > SIGNING-CERTIFICATE.txt
+          echo "OTA runtime fingerprint: $(unzip -p *.apk assets/fingerprint)" > RUNTIME-VERSION.txt
+          cat SHA256SUMS SIGNING-CERTIFICATE.txt RUNTIME-VERSION.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body: |
+            Built by this workflow from the tagged commit and signed with the Kanakku release key.
+            Verify before installing: compare `SHA256SUMS` with `shasum -a 256` on the APK, and
+            `SIGNING-CERTIFICATE.txt` with `apksigner verify --print-certs`.
+
+            Requires Android 12+ (arm64). Kanakku has no account and no server; see SECURITY.md.

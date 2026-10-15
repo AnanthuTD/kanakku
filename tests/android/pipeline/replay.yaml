@@ -1,0 +1,44 @@
+appId: com.kanakku.app.e2e
+name: Provider replay preserves exact net spending
+---
+- tapOn:
+    text: "Open settings"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element: "4 months"
+    timeout: 60000
+- tapOn:
+    text: "4 months"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element: "Import selected history"
+    timeout: 60000
+- tapOn:
+    text: "Import selected history"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element: "History scan complete"
+    direction: UP
+    timeout: 180000
+- extendedWaitUntil:
+    visible: "History scan complete"
+    timeout: 180000
+- tapOn:
+    text: "Back to overview"
+    waitToSettleTimeoutMs: 1000
+- runFlow:
+    when:
+      visible: "Unlock Kanakku"
+    file: unlock.yaml
+- extendedWaitUntil:
+    visible:
+      id: "overview-total"
+      text: "₹300.25"
+    timeout: 30000
+- tapOn:
+    text: "Activity"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "4 TRANSACTIONS"
+- tapOn:
+    text: "Overview"
+    waitToSettleTimeoutMs: 1000

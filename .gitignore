@@ -56,8 +56,8 @@ artifacts/
 kanakku-profile.json
 
 # generated native project (prebuild recreates it)
-android/
-ios/
+/android/
+/ios/
 # local artifacts and test output
 maestro-output/
 test-results/
@@ -69,3 +69,10 @@ graphify-out/
 # Bundled ML models exceed GitHub file limits; restore with `npm run voice:model` and the MiniLM hash in artifacts/build-manifest.json
 modules/kanakku-native/android/src/main/assets/kanakku/*.bin
 modules/kanakku-native/android/src/main/assets/kanakku/*.onnx
+
+# Release signing lives outside the repo (~/.kanakku-release); never commit a keystore
+*.keystore
+
+# Native module build output (sources stay tracked)
+modules/kanakku-native/android/build/
+modules/kanakku-native/android/.cxx/

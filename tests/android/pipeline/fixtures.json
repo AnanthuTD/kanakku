@@ -1,0 +1,61 @@
+{
+  "description": "Synthetic provider fixtures only; not recordings or evidence of real bank format coverage.",
+  "expected": {
+    "windowMonths": 4,
+    "scanned": 9,
+    "captured": 5,
+    "currentMonthNetPaise": 30025
+  },
+  "messages": [
+    {
+      "sender": "VM-HDFCBK",
+      "daysAgo": 1,
+      "body": "Rs.420.25 spent on HDFC Bank Card xx4821 at SWIGGY. Ref 123456789012"
+    },
+    {
+      "sender": "AD-HDFCBK",
+      "daysAgo": 2,
+      "body": "Rs.420.25 spent on HDFC Bank Card xx4821 at SWIGGY. Ref 123456789012"
+    },
+    {
+      "sender": "AX-AXISBK",
+      "daysAgo": 45,
+      "body": "INR 1299.00 spent on Axis Bank Card XX8046 at FLIPKART. Ref 123456789013"
+    },
+    {
+      "sender": "VM-HDFCBK",
+      "daysAgo": 1,
+      "body": "Refund of INR 120.00 credited to card xx4821 at AMAZON. Ref 123456789014"
+    },
+    {
+      "sender": "AD-SBICRD",
+      "daysAgo": 1,
+      "body": "Rs.1200 credited as payment received for your Card xx6218. Ref 123456789015"
+    },
+    {
+      "sender": "AD-SLICE",
+      "daysAgo": 1,
+      "body": "INR 200 credited to account xx3210. Ref 123456789016"
+    },
+    {
+      "sender": "VM-HDFCBK",
+      "daysAgo": 1,
+      "body": "Your OTP is 812344 to pay Rs.500 on Card xx4821 at AMAZON"
+    },
+    {
+      "sender": "+919999999999",
+      "daysAgo": 1,
+      "body": "Rs.500 debited from a/c xx4821 to FRIEND. Ref 123456789017"
+    },
+    {
+      "sender": "VM-HDFCBK",
+      "daysAgo": 1,
+      "body": "Refund of INR 12.29 initiated to card xx4821 at AMAZON"
+    },
+    {
+      "sender": "VM-HDFCBK",
+      "daysAgo": 160,
+      "body": "Rs.999 spent on card xx4821 at OUTSIDEWINDOW. Ref 123456789018"
+    }
+  ]
+}

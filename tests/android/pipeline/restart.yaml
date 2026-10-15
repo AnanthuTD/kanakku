@@ -1,0 +1,31 @@
+appId: com.kanakku.app.e2e
+name: Encrypted provider journal locks and survives restart
+---
+- stopApp
+- launchApp:
+    permissions:
+      android.permission.READ_SMS: allow
+      android.permission.RECEIVE_SMS: allow
+      android.permission.POST_NOTIFICATIONS: allow
+      android.permission.RECORD_AUDIO: deny
+      android.permission.READ_EXTERNAL_STORAGE: deny
+      android.permission.WRITE_EXTERNAL_STORAGE: deny
+- extendedWaitUntil:
+    visible: "Unlock Kanakku"
+    timeout: 120000
+- assertNotVisible:
+    id: "overview-total"
+- tapOn:
+    text: "Unlock Kanakku"
+    waitToSettleTimeoutMs: 1000
+- extendedWaitUntil:
+    visible:
+      id: ".*(pinEntry|lockPassword)"
+    timeout: 30000
+- inputText: "2580"
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      id: "overview-total"
+      text: "₹300.25"
+    timeout: 30000

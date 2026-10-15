@@ -1,0 +1,18 @@
+appId: com.kanakku.app.e2e
+name: Reauthenticate to load staged synthetic alerts
+---
+- assertVisible: "Unlock Kanakku"
+- tapOn:
+    text: "Unlock Kanakku"
+    waitToSettleTimeoutMs: 1000
+- extendedWaitUntil:
+    visible:
+      id: ".*(pinEntry|lockPassword)"
+    timeout: 30000
+- inputText: "2580"
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      id: "overview-total"
+      text: "₹300.25"
+    timeout: 30000

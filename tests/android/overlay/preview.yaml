@@ -1,0 +1,32 @@
+appId: com.kanakku.app.e2e
+name: Floating prompt preview floats over another app, drags and snoozes
+# Requires: adb shell appops set com.kanakku.app.e2e SYSTEM_ALERT_WINDOW allow
+# Sample text only; no payment, SMS or microphone is used.
+---
+- launchApp:
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: deny
+      android.permission.POST_NOTIFICATIONS: deny
+- extendedWaitUntil:
+    visible: "Open settings"
+    timeout: 60000
+- tapOn: "Open settings"
+- scrollUntilVisible:
+    element: "Try the floating prompt"
+    timeout: 60000
+- tapOn: "Try the floating prompt"
+- assertVisible: "Leave Kanakku within 30 seconds.*"
+- pressKey: Home
+- extendedWaitUntil:
+    visible: "Preview prompt for a sample payment.*"
+    timeout: 15000
+- swipe:
+    from: "Preview prompt for a sample payment.*"
+    direction: LEFT
+    duration: 600
+- assertVisible: "Preview prompt for a sample payment.*"
+- assertNotVisible: "Listening.*"
+- tapOn: "Later"
+- assertNotVisible: "Preview prompt for a sample payment.*"

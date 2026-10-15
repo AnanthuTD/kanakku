@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kanakku leaf for status-bar notifications. Geometry follows src/brand/mark.ts;
+     the even-odd strip carves the midrib so the glyph stays a single colour. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:fillType="evenOdd"
+      android:pathData="M25,75 C21,47 40,23 79,21 C81,59 57,79 25,75 Z M32.77,70.77 L70.77,32.77 L67.23,29.23 L29.23,67.23 Z" />
+  <path
+      android:strokeColor="#FFFFFFFF"
+      android:strokeWidth="7"
+      android:strokeLineCap="round"
+      android:pathData="M17,83 L27,73" />
+</vector>

@@ -1,0 +1,13 @@
+Model: OpenAI Whisper base.en, English-only, Q5_1
+Converted/quantized model publisher: ggerganov/whisper.cpp
+Source: https://huggingface.co/ggerganov/whisper.cpp
+Revision: 5359861c739e955e79d9a303bcbc70fb988958b1
+File: ggml-base.en-q5_1.bin (bundled as whisper-base.en-q5_1.bin)
+Bytes: 59721011
+SHA-256: 4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f
+Original model: https://github.com/openai/whisper
+License: MIT; see WHISPER-MIT.txt and WHISPER-CPP-MIT.txt.
+Runtime: vendored whisper.cpp 0c7be69 via Kanakku JNI (ARMv8.2 CPU), offline bundled asset selected by scripts/set-voice-model.mjs.
+Languages: en; English transcription only.
+Audio stays in memory, limited to 15 seconds; no audio file or network fallback.
+Recognized notes and categories remain editable. Evaluation note: English only. About 4.5 s per clip on the phone; slightly better names than tiny.en.

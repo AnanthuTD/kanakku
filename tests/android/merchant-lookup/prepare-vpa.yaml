@@ -1,0 +1,75 @@
+appId: com.kanakku.app.e2e
+name: Prepare a reviewed publicly listed VPA query without sending it
+---
+- launchApp:
+    clearState: false
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: deny
+      android.permission.POST_NOTIFICATIONS: deny
+- extendedWaitUntil:
+    visible: "Room to breathe."
+    timeout: 120000
+- assertVisible: "SAMPLE DATA"
+- tapOn:
+    text: "Activity"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Search transactions"
+    waitToSettleTimeoutMs: 1000
+- inputText: "Anand P"
+- assertVisible:
+    text: "^Anand P$"
+    focused: true
+- assertVisible: "Clear search"
+- pressKey: Enter
+- assertVisible:
+    id: "activity-count"
+    text: "1 TRANSACTIONS"
+- tapOn:
+    id: "transaction-sample-10"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element: "Look up a UPI ID"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Look up a UPI ID"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element:
+      id: "vpa-query"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    id: "vpa-query"
+    waitToSettleTimeoutMs: 1000
+- inputText: "akshayapatra@kotak"
+- assertVisible:
+    id: "vpa-query"
+    text: "akshayapatra@kotak"
+- pressKey: Enter
+- scrollUntilVisible:
+    element: "Search Brave for “akshayapatra@kotak” only."
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Search Brave for “akshayapatra@kotak” only."
+- scrollUntilVisible:
+    element:
+      id: "vpa-consent"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    id: "vpa-consent"
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    id: "vpa-consent"
+    checked: true
+- scrollUntilVisible:
+    element: "Search this UPI ID"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Search this UPI ID"
+    enabled: true

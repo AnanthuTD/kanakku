@@ -1,0 +1,50 @@
+appId: com.kanakku.app.e2e
+name: Theme setting survives app restart
+---
+- launchApp:
+    clearState: true
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: deny
+      android.permission.POST_NOTIFICATIONS: deny
+      android.permission.READ_EXTERNAL_STORAGE: deny
+      android.permission.WRITE_EXTERNAL_STORAGE: deny
+- extendedWaitUntil:
+    visible: "Room to breathe."
+    timeout: 120000
+- tapOn:
+    text: "Open settings"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Light"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Back to overview"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Switch to dark theme"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Switch to light theme"
+- launchApp:
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: deny
+      android.permission.POST_NOTIFICATIONS: deny
+      android.permission.READ_EXTERNAL_STORAGE: deny
+      android.permission.WRITE_EXTERNAL_STORAGE: deny
+- extendedWaitUntil:
+    visible: "Room to breathe."
+    timeout: 120000
+- assertVisible: "Switch to light theme"
+- tapOn:
+    text: "Open settings"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Light"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Back to overview"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Switch to dark theme"

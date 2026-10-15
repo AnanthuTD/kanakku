@@ -1,0 +1,56 @@
+appId: com.kanakku.app.e2e
+name: Synthetic provider import with real device authentication
+---
+- launchApp:
+    permissions:
+      android.permission.READ_SMS: allow
+      android.permission.RECEIVE_SMS: allow
+      android.permission.POST_NOTIFICATIONS: allow
+      android.permission.RECORD_AUDIO: deny
+      android.permission.READ_EXTERNAL_STORAGE: deny
+      android.permission.WRITE_EXTERNAL_STORAGE: deny
+- extendedWaitUntil:
+    visible: "Open settings"
+    timeout: 120000
+- tapOn:
+    text: "Open settings"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element: "Connect bank SMS"
+    timeout: 60000
+- tapOn:
+    text: "Connect bank SMS"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element: "4 months"
+    timeout: 60000
+- tapOn:
+    text: "4 months"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element: "Continue with Android permissions"
+    timeout: 60000
+- tapOn:
+    text: "Continue with Android permissions"
+    waitToSettleTimeoutMs: 1000
+- extendedWaitUntil:
+    visible:
+      id: ".*(pinEntry|lockPassword)"
+    timeout: 30000
+- inputText: "2580"
+- pressKey: Enter
+- scrollUntilVisible:
+    element: "History scan complete"
+    direction: UP
+    timeout: 180000
+- extendedWaitUntil:
+    visible: "History scan complete"
+    timeout: 180000
+- tapOn:
+    text: "Back to overview"
+    waitToSettleTimeoutMs: 1000
+- extendedWaitUntil:
+    visible:
+      id: "overview-total"
+      text: "₹300.25"
+    timeout: 30000

@@ -1,0 +1,54 @@
+appId: com.kanakku.app.e2e
+name: History setup supports a selected period and skip without granting SMS
+---
+- launchApp:
+    clearState: true
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: deny
+      android.permission.POST_NOTIFICATIONS: deny
+      android.permission.READ_EXTERNAL_STORAGE: deny
+      android.permission.WRITE_EXTERNAL_STORAGE: deny
+- extendedWaitUntil:
+    visible: "Room to breathe."
+    timeout: 120000
+- tapOn:
+    text: "Open settings"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element: "Connect bank SMS"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Connect bank SMS"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element: "4 months"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "4 months"
+    waitToSettleTimeoutMs: 1000
+- scrollUntilVisible:
+    element: "The most recent 7 days appear first.*"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "The most recent 7 days appear first.*"
+- scrollUntilVisible:
+    element: "Skip for now"
+    direction: UP
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Skip for now"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Only new alerts will be captured.*"
+- scrollUntilVisible:
+    element: "Not now"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Not now"
+    waitToSettleTimeoutMs: 1000
+- assertNotVisible: "Continue with Android permissions"

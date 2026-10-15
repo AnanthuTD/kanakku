@@ -1,0 +1,55 @@
+# Android end-to-end cases
+
+These are release gates alongside the automated browser suite. Record device/model/OS, APK hash, fixture IDs, expected/actual results and evidence for each case. The full N01–N16 acceptance cases remain open. On 14 October 2026 a fresh controlled provider journey passed selected synthetic portions of N02/N06/N07/N08/N10 on the reusable API 36 emulator: 9 messages scanned/5 unique eligible, exact ₹300.25/four current-month rows, encrypted ledger/key envelope, secure window, authenticated restart and replay. APK SHA-256 0776733301304ae45ae247c8964e1c9ea669aa1af82c7a7bb6a74eb0a3eafe2a; evidence in artifacts/native-pipeline-results.json and artifacts/native-pipeline-review.md. This provider journey does not prove actual radio/PDU delivery or complete any entire physical acceptance case. On 14 October 2026 all three Maestro UI flows passed (3/3, 4m 14s) on a 24053PY09I phone running Android 16/API 36 over wireless ADB, Maestro 2.11.0, isolated E2E APK SHA-256 3c085defcda2c724a392731c482a7f715dd1d8ffa7a38aee89c53d5bfc8c5c11. The test-package reset needs USB debugging (Security settings) enabled on Xiaomi/HyperOS. The animated companion slows Maestro's settle detection, so scrolls inside the review sheet use a 60-second timeout. Run Maestro with JDK 17 on PATH and `--device <serial>` when several ADB transports list the same phone. The rebranded E2E APK (SHA-256 501b892720bc788f38e05a2166d4f8c4b6fee0ca5d8dab1aaa4dfc18dfe229ee) also passed 3/3. If a run fails instantly with `DeviceServerDiedException`, the Maestro helper apps were removed from the phone; reinstall `maestro-app.apk` and `maestro-server.apk` from `~/.maestro/lib/maestro-client.jar` with `adb install -r -t`.
+
+## Automated native UI flows
+
+The Maestro flows in `maestro/` target **com.kanakku.app.e2e** only. This separate package has its own data and Keystore namespace. Each flow clears the test app, starts with sample data and denies permissions. They never target the personal app package or ingest real financial SMS. Do not change their appId to the personal package.
+
+Step-by-step phone setup, wireless pairing (`npm run adb:pair`), required developer settings and Maestro troubleshooting are in the Manual operations section of [CLAUDE.md](../../CLAUDE.md). With JDK 17, Android SDK, a test phone/emulator and [Maestro CLI](https://docs.maestro.dev/maestro-cli/) available:
+
+```sh
+KANAKKU_BUILD_PROFILE=e2e npx expo prebuild --platform android --no-install
+cd android
+./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --max-workers=4
+cd ..
+adb install -r android/app/build/outputs/apk/release/app-release.apk
+maestro test --format junit --output maestro-output/results.xml tests/android/maestro
+```
+
+Use a compatible ABI for an emulator. After building the test package, run ordinary `npx expo prebuild --platform android --no-install` before rebuilding the personal app. Do not copy the test APK over `artifacts/kanakku-personal-beta.apk`. Inspect the APK package with Android tooling before installing. Maestro YAML passes on the phone listed above; repeat after UI changes.
+
+## Reusable emulator
+
+The installed Android 16/API 36 Google APIs ARM64 AVD `Kanakku_API_36` uses serial `emulator-5580`. Run `npm run emulator:start -- --show` to open its window (restart first if already hidden), and `npm run test:android:emulator` for the isolated sample UI suite after rebuilding the current E2E APK. The scripts verify AVD identity and APK profile, install only the test package and save timestamped reports. They never connect to a physical phone implicitly.
+
+A separate real-provider harness, `npm run test:android:pipeline`, uses controlled synthetic SMS, WorkManager, a test PIN and the native encrypted repository. Read [pipeline setup](pipeline/README.md). Its evidence covers a bounded synthetic journey; it does not accept an entire N01–N16 case or replace physical-device checks. Run one emulator UI/state test at a time.
+
+A separate credential harness, `npm run test:android:credentials`, passes five Settings journeys and 30 native checks on the same isolated APK: encrypted save/restart/replacement/removal, complete placeholder byte length, no plaintext credential on disk, permissions denied and zero search attempts. See [credential setup](credentials/README.md) and `artifacts/native-credential-results.json`. It uses invalid placeholders and reduced transition motion, then restores the original setting. Real provider responses/quotas and physical Keystore backing remain open.
+
+The current four functional smoke flows pass on this APK under reduced motion: three combined-run passes plus a focused mixed-note recheck after correcting its scroll direction. Settings restoration is verified. Aggregate evidence is in `artifacts/emulator-ui-results.json`; raw reports retain the original failed case. This verifies sample setup/review/theme persistence, while normal-motion avatar acceptance remains open.
+
+## Native pipeline cases
+
+Use the isolated E2E package on a disposable SMS test device. UI smoke flows do not prove these pipeline outcomes. Import supported alerts through a controlled SMS provider/device setup; send/receive test-bank sender alerts through an appropriate telephony test harness. Ordinary messages from a personal number must be rejected. Never put a receiver-injection endpoint in the personal release APK.
+
+| ID | Journey / steps | Expected result |
+| --- | --- | --- |
+| N01 | Deny READ_SMS, RECEIVE_SMS, notification and microphone permissions separately; return from permission settings. | No crash or indefinite spinner. Capture requires both SMS permissions. Review/typing remains usable. No scan outside approved range. |
+| N02 | Connect, choose four months; seed recent/old alerts and messages just before/at the lower boundary. | Recent seven days become usable first. Exact boundary included, older excluded. Banner and private notification show checked/found counts and phase; totals marked partial. |
+| N03 | Pause during older import, kill/restart the process, resume, repeat the same range. | Date/ID checkpoint survives. No automatic resume of deliberate pause. Each ingestion ID appears once; notes, exclusions and category corrections survive. |
+| N04 | Start/complete import while locked; later authenticate. | Minimal parsed events survive in the sealed inbox; details remain hidden. Scan completion and ledger loading are distinguished. Rows load after authentication, with no raw SMS retained. |
+| N05 | Receive a purchase while foreground, in another app, closed normally and locked. Repeat with overlay denied. | In-app review or optional unlocked overlay; locked/private notification. Durable event precedes model processing. Microphone never starts automatically. Notification fallback works without overlay permission. |
+| N06 | Deliver the same reference/account alert twice and replay it through import; deliver distinct references with equal amount/time. | Same ingestion event counts once. Distinct references remain distinct. No silent merge based only on equal amount/time. Corrections persist after replay. |
+| N07 | Fixtures: ₹100 purchase, ₹25 refund, ₹500 card repayment, ₹1000 income, ₹200 own transfer, ₹50 excluded purchase. | Net spending ₹75. Purchase/refund are traceable. Repayment, income, transfer and excluded payment do not inflate spend. Validate partial-refund/reversal fixtures separately. |
+| N08 | OTP, promotional, failed/declined, statement and unsupported-sender messages arrive/import. | No transaction, saved raw body, model input or financial notification. Parser refusals do not block later valid alerts. |
+| N09 | Revoke SMS permission during import/capture; restore it, reopen; force-stop and receive eligible alerts, then reopen. | Explicit recoverable status; no crash. Missed-message reconciliation respects the selected history floor and deduplication. No promise of receipt while force-stopped. |
+| N10 | Authenticate, close/background, reboot, change biometrics/device credentials, test key invalidation. | Ledger gated again; SQLCipher file unreadable as plain SQLite. Authentication failures do not disclose rows or lose sealed alerts. Invalidation explains recovery without silently replacing keys. |
+| N11 | Reset: enter wrong confirmation, cancel, then enter RESET on the test app. | Wrong/cancel preserves data. Confirmed reset removes test ledger/inbox/rules/checkpoints and stops capture/reminders. Device SMS unchanged; personal app data untouched. Reconnect imports once. |
+| N12 | Toggle notification/overlay preferences; quiet window crosses midnight; snooze avatar; change reminder time while its worker runs. | Prompts follow latest preferences. Quiet hours/snooze respected. Only an outstanding review queue gets a private reminder. Old scheduled workers cannot reschedule stale settings. |
+| N13 | Drag overlay/in-app avatar across edges, resize/rotate/restore, tap vs drag, dismiss, silent/reduced-motion mode. | Remains reachable, remembers position, drag does not record, tap opens correct item. No sound in silent mode; reduced-motion behavior respected. |
+| N14 | Malayalam/English notes, mixed-language names, silence/noise; microphone denied/revoked; finish/cancel; close/background during model load and inference. | Editable English note/category, explicit confirmation. Cancel/background discards late answers and releases microphone/model. No audio file/cloud request. Errors leave typing usable. Measure accuracy, latency, memory and battery. |
+| N15 | Kill app around save/acknowledge, load an older ledger schema, simulate failed migration/write. | Atomic save, no acknowledged-but-missing payment, idempotent replay, durable corrections. Failed upgrade does not corrupt the prior journal; newer unsupported schema fails safely. |
+| N16 | Process 10k+ SMS; large-text/TalkBack navigation; empty/negative-refund totals, month/year boundaries and unavailable models. | Responsive navigation/scrolling, correct totals and boundary handling, reachable controls and announced state. Uncertain/unavailable inference routes to review. Measure rather than assume performance. |
+
+Blocking failures: wrong totals, lost/duplicated payments, overwritten corrections, unintended recording, disclosed locked details, unreadable/corrupted storage, crash/hang, out-of-window import or destructive action against the personal package. Expand bank fixtures for Axis Flipkart, SBI Cashback, Kiwi, Slice and HDFC Swiggy as real redacted formats become available.

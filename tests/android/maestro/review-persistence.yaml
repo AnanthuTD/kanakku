@@ -1,0 +1,110 @@
+appId: com.kanakku.app.e2e
+name: Sample review correction persists after app restart
+---
+- launchApp:
+    clearState: true
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: deny
+      android.permission.POST_NOTIFICATIONS: deny
+      android.permission.READ_EXTERNAL_STORAGE: deny
+      android.permission.WRITE_EXTERNAL_STORAGE: deny
+- extendedWaitUntil:
+    visible: "Room to breathe."
+    timeout: 120000
+- assertVisible: "Room to breathe."
+- tapOn:
+    text: "Activity"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Search transactions"
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Search transactions"
+    focused: true
+- inputText: "Rahul S"
+- assertVisible:
+    text: "^Rahul S$"
+    focused: true
+- assertVisible: "Clear search"
+- assertNotVisible:
+    id: "transaction-sample-0"
+# Submit only after proving focus/input belong to Kanakku, then open the result.
+- pressKey: Enter
+- assertVisible:
+    id: "activity-count"
+    text: "1 TRANSACTIONS"
+- assertVisible:
+    id: "transaction-sample-1"
+- tapOn:
+    waitToSettleTimeoutMs: 1000
+    id: "transaction-sample-1"
+- assertVisible: "What was this for?"
+- tapOn:
+    text: "Payment note"
+    waitToSettleTimeoutMs: 1000
+- inputText: "auto to office"
+- assertVisible: "auto to office"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Save category"
+    direction: DOWN
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Save category"
+    waitToSettleTimeoutMs: 1000
+# Verify committed state; the brief Saved notice can expire during UI settling.
+- assertVisible: "Categorization: Confirmed by you.*"
+- scrollUntilVisible:
+    element: "Close transaction"
+    direction: UP
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Close transaction"
+    waitToSettleTimeoutMs: 1000
+- launchApp:
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: deny
+      android.permission.POST_NOTIFICATIONS: deny
+      android.permission.READ_EXTERNAL_STORAGE: deny
+      android.permission.WRITE_EXTERNAL_STORAGE: deny
+- extendedWaitUntil:
+    visible: "Room to breathe."
+    timeout: 120000
+- tapOn:
+    text: "Activity"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Search transactions"
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Search transactions"
+    focused: true
+- inputText: "Rahul S"
+- assertVisible:
+    text: "^Rahul S$"
+    focused: true
+- assertVisible: "Clear search"
+- assertNotVisible:
+    id: "transaction-sample-0"
+# Submit only after proving focus/input belong to Kanakku, then open the result.
+- pressKey: Enter
+- assertVisible:
+    id: "activity-count"
+    text: "1 TRANSACTIONS"
+- assertVisible:
+    id: "transaction-sample-1"
+- tapOn:
+    waitToSettleTimeoutMs: 1000
+    id: "transaction-sample-1"
+- assertVisible: "TRANSACTION DETAILS"
+- scrollUntilVisible:
+    element: "auto to office"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "auto to office"

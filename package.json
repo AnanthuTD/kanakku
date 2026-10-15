@@ -73,7 +73,8 @@
     "test:android:pipeline": "node scripts/android-pipeline.mjs",
     "test:android:credentials": "node scripts/android-credentials.mjs",
     "test:voice:fixtures": "node scripts/evaluate-whisper-audio.mjs --verify && node --test tests/voice/scorer-checks.mjs",
-    "voice:model": "node scripts/set-voice-model.mjs"
+    "voice:model": "node scripts/set-voice-model.mjs",
+    "models:fetch": "node scripts/fetch-models.mjs"
   },
   "private": true,
   "overrides": {
@@ -90,5 +91,10 @@
         "@shopify/flash-list"
       ]
     }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AnanthuTD/kanakku.git"
   }
 }

@@ -1,0 +1,37 @@
+appId: com.kanakku.app.e2e
+name: Open a synthetic payment for actual microphone transcription
+---
+- launchApp:
+    clearState: false
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: allow
+      android.permission.POST_NOTIFICATIONS: deny
+- extendedWaitUntil:
+    visible: "Room to breathe."
+    timeout: 120000
+- assertVisible: "SAMPLE DATA"
+- tapOn:
+    text: "Activity"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Search transactions"
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Search transactions"
+    focused: true
+- inputText: "Anand P"
+- assertVisible:
+    text: "^Anand P$"
+    focused: true
+- assertVisible: "Clear search"
+- pressKey: Enter
+- assertVisible:
+    id: "activity-count"
+    text: "1 TRANSACTIONS"
+- tapOn:
+    id: "transaction-sample-10"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "What was this for?"
+- assertVisible: "Explain payment by voice"
