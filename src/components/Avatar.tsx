@@ -380,11 +380,18 @@ export function FloatingAvatar({
             minHeight: 48,
             alignItems: "center",
             justifyContent: "center",
-            gap: 3,
           }}
         >
-          <Camera size={18} color={colors.accent} />
-          <Text style={{ fontSize: 10, color: colors.accent }}>Photo</Text>
+          {/* Same pill as the microphone so the two actions read as a pair. */}
+          <View
+            style={{
+              backgroundColor: colors.accentSoft,
+              padding: 8,
+              borderRadius: 20,
+            }}
+          >
+            <Camera size={16} color={colors.accent} />
+          </View>
         </Pressable>
         <Pressable
           accessibilityRole="button"

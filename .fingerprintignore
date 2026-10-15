@@ -1,3 +1,6 @@
 # Build output inside the local native module must not change the OTA runtime version.
 modules/kanakku-native/android/.cxx/**/*
 modules/kanakku-native/android/build/**/*
+# Gradle compiles the expo-updates plugin in-tree and rewrites lock/history files there on
+# every run; its compiled output is not an app input (the package's own source is still hashed).
+node_modules/expo-updates/expo-updates-gradle-plugin/**
