@@ -33,7 +33,7 @@ Package: `app.tinkerbox.kanakku` · versionCode 2 · versionName 0.2.0-beta.1
   - Permissions: READ_SMS, RECEIVE_SMS.
   - Core use case: **SMS-based money management / budget tracking** (an allowed use case).
   - Description: "Kanakku reads bank transaction SMS on the device to build a private, encrypted spend journal. Without SMS access the app has no data and its core feature does not exist. Raw SMS is parsed and discarded; only extracted payment fields are stored, encrypted, on the phone."
-  - Video: upload `artifacts/play-verification/kanakku-sms-verification.mp4` to YouTube as **Unlisted** and paste the link.
+  - Video (uploaded 15 Oct, Unlisted, YouTube Short): https://youtube.com/shorts/cnpwUJkU08Q — paste the full watch form if the form rejects the shorts URL: https://www.youtube.com/watch?v=cnpwUJkU08Q
   - Instructions for the reviewer: "Open Settings → Connect bank SMS → choose a history window → grant SMS and notification permissions → authenticate with the device lock. The app imports bank alerts and shows the month's spending on the overview."
 
 ## 3. Store listing (sidebar › Grow › Store presence › Main store listing)
