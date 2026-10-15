@@ -139,6 +139,10 @@ async function start() {
       "-gpu",
       "auto",
     ];
+    // Opt-in authenticated local RPC for pinned synthetic audio injection. Never start
+    // an unauthenticated controller (-grpc alone) or relax its authorization policy.
+    if (process.argv.includes("--grpc"))
+      args.push("-grpc", "8554", "-grpc-use-token");
     if (!process.argv.includes("--show")) args.push("-no-window", "-no-audio");
     const child = spawn(emulator, args, {
       cwd: root,
@@ -341,7 +345,7 @@ try {
   } else if (command === "test") await test();
   else
     throw new Error(
-      "Usage: node scripts/android-emulator.mjs setup|start|stop|test [--show] [--reduced-motion] [--flow NAME]",
+      "Usage: node scripts/android-emulator.mjs setup|start|stop|test [--show] [--grpc] [--reduced-motion] [--flow NAME]",
     );
 } catch (error) {
   console.error(error.message);

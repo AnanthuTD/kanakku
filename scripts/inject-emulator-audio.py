@@ -10,6 +10,8 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
+import shlex
 import subprocess
 import sys
 import time
@@ -25,6 +27,79 @@ SDK = Path(os.environ.get("ANDROID_HOME", "/opt/homebrew/share/android-commandli
 
 class InjectionGuardError(RuntimeError):
     """A safe, explicitly written guard failure; never contains auth values."""
+
+
+def companion_context(window_dump, service_dump, audio_dump):
+    """Fail closed on another package, a hidden overlay or an idle microphone service."""
+    package = re.escape(PACKAGE)
+    owner = re.compile(rf"(?<![\w.]){package}(?![\w.])")
+    windows = re.split(r"(?m)^\s*Window #\d+\s+Window\{", window_dump)[1:]
+    visible = any((owner.search(block.splitlines()[0])
+                   or re.search(rf"\bpackageName={package}(?![\w.])", block))
+                  and re.search(r"\b(?:ty|type)=(?:2038|APPLICATION_OVERLAY)\b", block)
+                  and re.search(r"\bisOnScreen\s*=\s*true\b", block)
+                  and re.search(r"\bisVisible\s*=\s*true\b", block)
+                  for block in windows)
+    if not visible:
+        raise InjectionGuardError("Exact isolated Kanakku companion overlay must be visible")
+    services = re.split(r"(?m)^\s*\*\s+ServiceRecord\{", service_dump)[1:]
+    component = re.compile(rf"(?<![\w.]){package}/expo\.modules\.kanakku\.AvatarService(?=[\s}}])")
+    microphone = False
+    for block in services:
+        # Restrict matching to the service header, never a component mentioned in its history.
+        if not component.search(block.splitlines()[0]):
+            continue
+        mask = re.search(r"\b(?:types|foregroundServiceType)\s*=\s*(0x[\da-fA-F]+|\d+)\b", block)
+        if (re.search(r"\bisForeground\s*=\s*true\b", block)
+                and mask and int(mask[1], 16 if mask[1].startswith("0x") else 10) & 128):
+            microphone = True
+    if not microphone:
+        raise InjectionGuardError("Isolated AvatarService must have active microphone foreground type")
+    inputs = audio_dump.split("Input thread")[1:]
+    if not any(re.search(r"\bStandby:\s*no\b", block.split("\n\n")[0]) for block in inputs):
+        raise InjectionGuardError("Actual emulator microphone input is not recording")
+
+
+def guard_companion(timeout=4):
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            companion_context(adb("shell", "dumpsys", "window"),
+                              adb("shell", "dumpsys", "activity", "services", PACKAGE),
+                              adb("shell", "dumpsys", "media.audio_flinger"))
+            return
+        except InjectionGuardError as error:
+            if str(error) != "Actual emulator microphone input is not recording" or time.monotonic() >= deadline:
+                raise
+            # A microphone FGS can be active just before AudioRecord actually opens.
+            time.sleep(0.05)
+
+
+def restore_host_microphone(stub, proto, empty, metadata):
+    """Restore the disabled host gate after every RPC outcome, including non-deadline errors."""
+    closed_by_force = False
+    deadline = time.monotonic() + 5
+    for _ in range(25):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            if not stub.getMicrophoneState(empty(), metadata=metadata, timeout=min(1, remaining)).realAudioEnabled:
+                return closed_by_force
+        except Exception:
+            # A failed read must still attempt the explicit disabled gate below.
+            break
+        time.sleep(0.2)
+    try:
+        stub.setMicrophoneState(proto.MicrophoneState(realAudioEnabled=False), metadata=metadata, timeout=5)
+        closed_by_force = True
+        if stub.getMicrophoneState(empty(), metadata=metadata, timeout=5).realAudioEnabled:
+            raise InjectionGuardError("Host microphone gate was not restored after injection")
+    except Exception as error:
+        if isinstance(error, InjectionGuardError):
+            raise
+        raise InjectionGuardError("Unable to verify disabled host microphone after injection") from None
+    return closed_by_force
 
 
 def adb(*args):
@@ -43,27 +118,46 @@ def endpoint():
     directories = [
         Path.home() / "Library/Caches/TemporaryItems/avd/running",
         Path.home() / ".android/avd/running",
+        Path(os.environ.get("TMPDIR", "/tmp")) / "avd/running",
     ]
     if os.environ.get("XDG_RUNTIME_DIR"):
         directories.append(Path(os.environ["XDG_RUNTIME_DIR"]) / "avd/running")
-    found = []
+    found = {}
+    seen = set()
     for directory in directories:
         for file in directory.glob("pid_*.ini"):
+            if file.resolve() in seen:
+                continue
+            seen.add(file.resolve())
             values = {}
             for line in file.read_text().splitlines():
                 key, separator, value = line.partition("=")
                 if separator:
                     values[key.strip()] = value.strip()
-            if values.get("avd.name") == AVD and values.get("port.serial") == "5580":
-                pid = int(file.stem.removeprefix("pid_"))
+            if values.get("avd.name") == AVD and values.get("port.serial") in {"5580", SERIAL}:
+                pid_match = re.fullmatch(r"pid_(\d+)(?:_info)?\.ini", file.name)
+                if not pid_match:
+                    continue
+                pid = int(pid_match[1])
                 try:
                     os.kill(pid, 0)
                 except ProcessLookupError:
                     continue
-                found.append(values)
+                # Reject descriptors whose PID has been reused by a different process.
+                command = subprocess.run(["ps", "-p", str(pid), "-o", "command="], capture_output=True,
+                                         text=True, timeout=5, check=False)
+                args = shlex.split(command.stdout)
+                if not args or not args[0].startswith(str(SDK / "emulator/qemu") + "/"):
+                    continue
+                if "-avd" not in args or args[args.index("-avd") + 1:args.index("-avd") + 2] != [AVD]:
+                    continue
+                if "-port" not in args or args[args.index("-port") + 1:args.index("-port") + 2] != ["5580"]:
+                    continue
+                identity = (pid, values.get("grpc.port"), values.get("grpc.token"))
+                found[identity] = values
     if len(found) != 1:
-        raise InjectionGuardError("Expected one live dedicated emulator discovery descriptor")
-    values = found[0]
+        raise InjectionGuardError("Authenticated dedicated emulator discovery is unavailable; restart this AVD with --grpc")
+    values = next(iter(found.values()))
     port = int(values.get("grpc.port", "0"))
     token = values.get("grpc.token", "")
     if not 1024 <= port <= 65535 or not token or "\n" in token or "\r" in token:
@@ -124,6 +218,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("wav", nargs="?", help="Pinned public tests/voice/audio WAV")
     parser.add_argument("--check-only", action="store_true", help="Read-only endpoint and host-microphone check")
+    parser.add_argument("--companion", action="store_true", help="Require the exact visible native companion and active microphone FGS instead of app foreground")
+    parser.add_argument("--wait-for-companion", action="store_true", help="Arm the authenticated injector before the user taps the companion microphone")
     args = parser.parse_args()
     if not args.check_only and not args.wav:
         parser.error("wav is required unless --check-only is used")
@@ -144,12 +240,25 @@ def main():
             "status": "authenticated-read-only-check-passed",
         }
         if args.check_only:
+            if args.companion:
+                guard_companion()
+                report.update({"recordingContext": "native-floating-companion", "overlayVerified": True,
+                               "microphoneForegroundServiceVerified": True, "activeRecordingVerified": True})
             print(json.dumps(report))
             return
-        focus = adb("shell", "dumpsys", "window")
-        focused = [line for line in focus.splitlines() if "mCurrentFocus=" in line]
-        if len(focused) != 1 or f"{PACKAGE}/" not in focused[0]:
-            raise InjectionGuardError("Isolated Kanakku E2E app must be foreground before injection")
+        if args.companion:
+            report.update({"recordingContext": "native-floating-companion", "overlayVerified": True,
+                           "microphoneForegroundServiceVerified": True, "activeRecordingVerified": True})
+            if args.wait_for_companion:
+                # Prepare gRPC before the tap so the short adaptive voice recorder cannot
+                # time out while the Python runtime and authenticated channel are starting.
+                print(json.dumps({**report, "status": "microphone-injection-armed"}), flush=True)
+            guard_companion(timeout=30 if args.wait_for_companion else 4)
+        else:
+            focus = adb("shell", "dumpsys", "window")
+            focused = [line for line in focus.splitlines() if "mCurrentFocus=" in line]
+            if len(focused) != 1 or f"{PACKAGE}/" not in focused[0]:
+                raise InjectionGuardError("Isolated Kanakku E2E app must be foreground before injection")
         path, entry, audio_hash, duration = selected
         format = proto.AudioFormat(
             format=proto.AudioFormat.AUD_FMT_S16, channels=proto.AudioFormat.Mono,
@@ -181,23 +290,12 @@ def main():
                     yield proto.AudioPacket(format=format, audio=audio)
 
         try:
-            stub.injectAudio(packets(), metadata=metadata, timeout=deadline)
+            try:
+                stub.injectAudio(packets(), metadata=metadata, timeout=deadline)
+            finally:
+                report["hostMicrophoneGateClosedByForce"] = restore_host_microphone(stub, proto, Empty, metadata)
         except grpc.RpcError as error:
             if error.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                # A cut-off stream restores the previous gate asynchronously. Never leave
-                # the host microphone enabled: wait briefly, then close it explicitly.
-                closed_by_force = False
-                for _ in range(25):
-                    if not stub.getMicrophoneState(Empty(), metadata=metadata, timeout=5).realAudioEnabled:
-                        break
-                    time.sleep(0.2)
-                else:
-                    stub.setMicrophoneState(proto.MicrophoneState(realAudioEnabled=False),
-                                            metadata=metadata, timeout=5)
-                    closed_by_force = True
-                if stub.getMicrophoneState(Empty(), metadata=metadata, timeout=5).realAudioEnabled:
-                    raise InjectionGuardError("Host microphone gate was not restored after injection")
-                report["hostMicrophoneGateClosedByForce"] = closed_by_force
                 # Not a pass by itself: the harness still reads the app's own result.
                 report.update({
                     "status": "microphone-injection-stalled-after-app-stopped-recording",
@@ -212,6 +310,8 @@ def main():
                 "status": "microphone-injection-rpc-failed", "fixtureId": entry["id"],
                 "reason": f"gRPC {error.code().name}", "submittedFrames": frames,
                 "chunks": chunks, "elapsedSeconds": round(time.monotonic() - started, 3),
+                "hostMicrophoneDisabledAfterInjection": True,
+                "hostMicrophoneGateClosedByForce": report["hostMicrophoneGateClosedByForce"],
                 "recognitionVerified": False,
             }), file=sys.stderr, flush=True)
             raise

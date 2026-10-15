@@ -1,0 +1,18 @@
+appId: app.tinkerbox.kanakku.e2e
+name: Enable the companion on an existing synthetic journal
+---
+- openLink: "kanakku:///settings"
+- scrollUntilVisible:
+    element: "Enable floating avatar"
+    timeout: 60000
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Enable floating avatar"
+    checked: false
+- tapOn:
+    text: "Enable floating avatar"
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Enable floating avatar"
+    checked: true
+- pressKey: Home

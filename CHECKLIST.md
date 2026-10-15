@@ -4,6 +4,30 @@ Updated: 15 October 2026. Plan: [PLAN.md](PLAN.md).
 
 Checked boxes mean the named implementation or check is complete. Device acceptance is tracked separately; a successful APK build is not a device test.
 
+## Play release continuation — 15 October evening
+
+- [x] Read committed Play Console handoff and recording scripts; preserve existing internal-test release
+- [x] Replace overlay UI Automator lookup with a verified native-window locator; confirmed on Android 16 emulator and connected Xiaomi 24053PY09I
+- [x] Record and visually review the foreground-service demo on the connected Xiaomi 24053PY09I (Android 16): isolated E2E build, synthetic Settings preview, overlay over launcher, microphone foreground service active on avatar tap (`0x40000080`), and on-device English speech recognized (7 words); preview saved no payment. Temporary E2E app uninstalled afterward; personal app remains installed. Final 22-second H.264 video: `artifacts/play-verification/kanakku-companion-verification.mp4`; evidence: `artifacts/play-verification/companion-verification-phone.json`.
+- [x] Upload the reviewed demo as YouTube Unlisted (`https://youtube.com/shorts/cGICfJt_myE`; verified in YouTube Studio as “kanakku companion verification”).
+- [x] Save both foreground-service declarations in Play Console with the Unlisted demo URL and permission-use descriptions; user confirmed clicking Save, and Publishing overview lists the declaration.
+- [x] Complete Approximate location handling in Play Console and review the generated Data safety preview (15 Oct): the exported Console CSV confirms approximate location is selected and marked collected + shared, optional, non-ephemeral, with App functionality purposes. Preview now lists Approximate location under both Data collected and Data shared. Purchase history was added and saved on 16 Oct as collected + shared, optional, non-ephemeral, for App functionality. SMS and receipt photos remain unselected because their contents stay on-device.
+- [x] **Add Purchase history in Play Console (16 Oct):** saved the category answers and the full declaration; Console confirmed “Change saved. Send for review in Publishing overview.” Preview confirms collected + shared, optional, App functionality; non-ephemeral selected.
+- [x] **Closed testing submitted (16 Oct):** Alpha configured for India with the existing “Kanakku beta testers” email list (3 users) and feedback email. Reused versionCode 2 / 0.2.0-beta.1 from Play library, added release notes, saved and confirmed “Send changes for review.” Console confirms “14 changes sent for review” and “Changes in review”; automated quick checks are still running and changes proceed to review after successful checks. Approval and tester opt-ins remain pending.
+- [ ] **Finish Data safety review and submit:** source review found remaining classification questions. Brave receives only an allowlisted merchant label for automatic lookups, but that label is derived from a real transaction; Google defines Purchase history broadly, so add/review Purchase history as collected and shared (optional, App functionality) unless the automatic lookup flow is changed. The exact VPA is sent only after a per-address consent switch; the current User payment info “Shared” answer appears over-inclusive under Google's user-initiated transfer exception. Review whether the VPA maps to User payment info and the BYOK token sent in `X-Subscription-Token` maps to User IDs. The earlier CSV predates the saved Purchase history addition; User payment info remains collected + shared. Approximate location handling is complete. See `docs/play-policy-review.md` before editing the live form.
+- [x] Publish corrected privacy policy disclosures to public GitHub `main` (commit `4ff113e`; verified raw `main` URL includes VPA, SDK metrics and IP-based approximate-location text).
+- [x] Review and upload the foreground-service demo video; both declaration links and descriptions were saved in Play Console.
+- [x] SMS money-management declaration saved by the user with corrected 454-character reviewer instructions; Console confirms "Your changes have been saved" (Play review status not yet verified)
+- [x] Verify SMS declaration is saved/actioned in App content; Play's policy review/approval is still pending
+- [x] Complete category/contact details; Finance, Personal finance, contact email and website verified after reload
+- [ ] Final submission review after the Data safety declaration is complete and live privacy policy is ready
+- [x] Play Store settings tag **Personal finance** selected and visible after reload
+- [x] Default listing text, 512×512 icon, and AI asset declaration reviewed and saved in Play Console (user confirmed save, 15 Oct)
+- [x] Attach Play listing feature graphic (cropped copy, 1024×500) and four phone screenshots (449×1000 each); screenshots satisfy listing upload dimensions but not the optional 1080px-per-side promotion target
+- [x] Default listing review saved in Play Console (user confirmed save, 15 Oct)
+- [x] Store contact email/website saved and confirmed visible after reload (15 Oct)
+- [x] App category **Finance** saved and confirmed visible after reload (15 Oct)
+
 ## Current work — review, updates and receipt photos (15 October)
 
 - [x] Review other agent’s native voice, payee, duplicate, overlay and documentation changes
