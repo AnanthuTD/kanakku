@@ -78,3 +78,7 @@ modules/kanakku-native/android/build/
 modules/kanakku-native/android/.cxx/
 __pycache__/
 *.pyc
+
+# Play verification recording output (video + Maestro evidence)
+artifacts/play-verification/
+artifacts/play/
