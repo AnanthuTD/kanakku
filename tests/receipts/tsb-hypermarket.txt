@@ -1,0 +1,50 @@
+TSB Hypermarket
+10,railway station road, Polur
+Mobile: 7200995222
+Email:tsbhypermarket@gmail.com
+GST No: 33AARFT9473H1ZI
+Bill#          SALES BILL
+Hsncode    CA10989
+           Priyanka
+Item Name              Date   02/08/24
+             Hsn  Qty  Time   09:01 PM
+                       Mrp    Rate    Amt
+MILTON UNISTEEL
+1L          73231.000  441.00
+MULTIP STAND 20
+SUNF             1.000   30.00  399.00  399.00
+OATS&ALMONDS 30
+PURSE 140   19052.000   30.00   20.00   20.00
+GILL VECTOR 3
+RZ          821210901.000  1.000  190.00  20.00  58.00
+SOAP BOX 45                  149.00  140.00  149.00
+SPOT MUG 1L    39241.000   149.00  147.00  147.00
+BELT 175       39241.000    70.00   45.00   45.00
+SUNDROP PB 300G   1.000     38.00   32.00   32.00
+SNICKERS 50    1.000       275.00  175.00  175.00
+MAGGI /560G    18061.000    98.00   98.00   98.00
+FLAIR ZOOX     19021.000   112.00   50.00   50.00
+MEERE SHP 80ML    1.000    100.00  111.00  111.00
+HOOK 10        33051.000    72.00   98.00   98.00
+LION D/S B 250G   3.000     12.00   71.00   71.00
+ERASER 5       08041.000    78.00   10.00   30.00
+SEN D/C 70 G   96081.000     5.00   76.00   76.00
+COCACOLA 300ML  33061.000  145.00    5.00    5.00
+MM BURFI 80G   22021.000    40.00  144.00  144.00
+PEPSI 250ML    17022.000    25.00   40.00   40.00
+MM NICE BURFI  22021.000    20.00   24.00   48.00
+BRI JIM JAM    17021.000    60.00   20.00   20.00
+100G           19051.000    25.00   58.00   58.00
+LISTERINE C/M  33061.000    60.00   25.00   25.00
+M/W 80ML                           59.00   59.00
+Tot Qty   :   27.00
+Tot Items :   23         Amount :      1949.00
+                         Disc.  :         0.00
+NET AMOUNT :1949.00
+You Have Saved : 254.00
+Cash Amount: 2000.00    Balance :     51.0
+GST TAX DETAILS:
+Sgst% Sgst Amt   Cgst%  Cgst Amt  GoodsValue
+0.00   0.00      0.00    0.00      500.00
+2.50   2.64      2.50    2.64      105.72
+6.00  36.65      6.00   36.65      610.70

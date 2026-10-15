@@ -1,0 +1,29 @@
+ICHIBAN SUSHI
+AEON SENTUL CITY
+BOGOR
+POS: cashier                 Cashier: RIVAN MAULANA
+Print Cnt:1
+------------------------------------------------
+                             Server: RIVAN MAULANA
+Aug 19, 2024 6:32:54 PM                    PAX: 2
+TBL 11
+------------------------------------------------
+1 Beef Teriyaki Ramen                     42,000
+1 Sapporo Garlic Sesame Rame (DITA        39,000
+1 Katsu Roll                              35,000
+1 Salmon sakura                           35,000
+1 Spicy Creamy Namazu Roll                35,000
+1 Black Current 1L                        37,000
+Total Item : 6                     Total Qty : 6
+Subtotal                                 223,000
+Service Charge                            11,150
+Tax Resto 10%                             23,415
+Total                                    257,565
+Printed Aug 19, 2024 7:08:29 PM
+Thank You and Please Come Again
+Customer Care Please
+Email: hello@ichibansushi.co.id
+Fb: Ichibansushi_ID
+Twitter: @ichibansushi_ID
+Instagram: ichibansushi_ID
+Web: www.ichibansushi.co.id

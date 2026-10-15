@@ -1,0 +1,27 @@
+No.15-3/34-3,Dr.Varadharajan Street,
+Vedhachalam Nagar, Chengalpattu-603001.
+PH:9342341127
+GSTIN: 33AAKPE0773E1Z4
+Customer Name :      1463-SENTHAMIZH SELVAN
+                     CASH Bill
+Bill No :111         Date : 20-01-2025
+Cashier : ELA R      Time :07:55:PM
+Description        Qty    MRP     Rate   Amount
+MODERN RUSK 10RS    1   10.00   10.00   10.00
+BRT TOASTEA MILK    1   10.00   10.00   10.00
+BRT TOASTEA RUSK    1   10.00   10.00   10.00
+IYARKAI CHEKKU SE   1  195.00  175.00  175.00
+BRIT MILK BIKIS C   1   35.00   35.00   35.00
+REVIVE INS STARC    1   20.00   20.00   20.00
+BISON WASHING SOD   1   18.00   15.00   15.00
+NALAAS WHEAT ATTA   1   42.00   40.00   40.00
+EXO ROUND BAR 250   1   32.00   31.00   31.00
+VANISH CRYSTAL WH   1   72.00   70.00   70.00
+Net Amount :        416.00
+No.Of.Items 10        Total Qty 10
+Opening Points :65.51
+Opening EarningAmt :65.51
+Bill Points :4.16
+Bill Earning Amt :4.16
+Closing Points :69.67
+Closing Earning Amt :69.67

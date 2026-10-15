@@ -12,7 +12,191 @@ const grocery = readFileSync(
   new URL("../../tests/receipts/grocery.txt", import.meta.url),
   "utf8",
 );
+const fixture = (name: string) =>
+  readFileSync(
+    new URL(`../../tests/receipts/${name}.txt`, import.meta.url),
+    "utf8",
+  );
+const ichiban = readFileSync(
+  new URL("../../tests/receipts/ichiban-sushi.txt", import.meta.url),
+  "utf8",
+);
 describe("editable offline bill extraction", () => {
+  it("reads a restaurant bill with counters, a named-month date and a service charge", () => {
+    const bill = parseReceipt(ichiban);
+    // Print count, PAX and table number are counters, never priced items.
+    expect(bill.items.map((item) => item.name)).toEqual([
+      "Beef Teriyaki Ramen",
+      "Sapporo Garlic Sesame Rame (DITA",
+      "Katsu Roll",
+      "Salmon sakura",
+      "Spicy Creamy Namazu Roll",
+      "Black Current 1L",
+    ]);
+    expect(bill.items.map((item) => item.quantity)).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(bill.date).toBe("2024-08-19");
+    expect(bill.subtotalPaise).toBe(22300000);
+    expect(bill.taxPaise).toBe(2341500);
+    expect(bill.totalPaise).toBe(25756500);
+    // Service charge is a printed adjustment between subtotal and total.
+    expect(bill.serviceChargePaise).toBe(1115000);
+    expect(bill.reconciliation).toBe("matches");
+    // Amounts add up, but the currency hint (below) rightly holds confidence at medium.
+    expect(bill.confidence).toBe("medium");
+  });
+  it("reads a column bill with wrapped item names, a two-digit year and a negative round-off", () => {
+    const bill = parseReceipt(fixture("brahmins-idli"));
+    expect(bill.merchant).toBe("Brahmins Thatte Idli- Basaveshwar nagar");
+    expect(bill.date).toBe("2026-04-21");
+    expect(bill.items).toEqual([
+      {
+        name: "Ghee Podi Thatte Idli (1Pcs)",
+        quantity: 1,
+        unitPricePaise: 7500,
+        amountPaise: 7500,
+      },
+      {
+        name: "Ghee Podi Masala Dosa",
+        quantity: 5,
+        unitPricePaise: 9500,
+        amountPaise: 47500,
+      },
+    ]);
+    expect(bill.subtotalPaise).toBe(55000);
+    expect(bill.roundingPaise).toBe(-3);
+    expect(bill.totalPaise).toBe(55000);
+    // Token/bill numbers and the FSSAI licence are never items; the 3-paise round-off is a
+    // printed oddity the user can see, so the mismatch stays visible rather than hidden.
+    expect(bill.warnings).not.toContain(
+      "An item amount could not be read safely.",
+    );
+    expect(bill.warnings).not.toContain(
+      "The printed date could not be read safely.",
+    );
+  });
+  it("reads a quantity-first bill with a wrapped name, excl-GST subtotal, gross amount and net total", () => {
+    const bill = parseReceipt(fixture("jagavis-kritunga"));
+    expect(bill.merchant).toBe("JAGAVIS KRITUNGA");
+    expect(bill.date).toBe("2025-01-16");
+    expect(
+      bill.items.map((item) => [item.name, item.quantity, item.amountPaise]),
+    ).toEqual([
+      ["RAGI MUDDA (SANKATI)", 4, 44000],
+      ["NATUKODI PULUSU", 2, 69800],
+      ["GONGURA CHICKEN BIRYA NI", 1, 34900],
+      ["PRAWNS BIRYANI", 1, 36900],
+      ["MUTTON BIRYANI", 1, 39900],
+      ["WATER BOTTLE", 2, 4000],
+      ["DOUBLE KA MEETA", 2, 28000],
+    ]);
+    expect(bill.subtotalPaise).toBe(257500);
+    expect(bill.taxPaise).toBe(12675);
+    expect(bill.totalPaise).toBe(270175);
+    expect(bill.reconciliation).toBe("matches");
+  });
+  it("reads an MRP/rate/amount grocery bill, ignoring phone numbers and loyalty-point rows", () => {
+    const bill = parseReceipt(fixture("grocery-chengalpattu"));
+    expect(bill.date).toBe("2025-01-20");
+    expect(bill.items).toHaveLength(10);
+    expect(bill.items[0]).toEqual({
+      name: "MODERN RUSK 10RS",
+      quantity: 1,
+      unitPricePaise: 1000,
+      amountPaise: 1000,
+    });
+    expect(bill.items[3]).toEqual({
+      name: "IYARKAI CHEKKU SE",
+      quantity: 1,
+      unitPricePaise: 17500,
+      amountPaise: 17500,
+    });
+    expect(bill.items.map((item) => item.name)).not.toContain("PH");
+    expect(bill.items.some((item) => /points|earning/i.test(item.name))).toBe(
+      false,
+    );
+    expect(bill.totalPaise).toBe(41600);
+    expect(bill.reconciliation).toBe("matches");
+  });
+  it("refuses a US-dollar receipt instead of guessing rupee amounts", () => {
+    const bill = parseReceipt(fixture("riverside-market-usd"));
+    expect(bill.items).toEqual([]);
+    expect(bill.totalPaise).toBeUndefined();
+    expect(bill.warnings).toContain(
+      "Only INR bills are supported. Enter amounts manually.",
+    );
+  });
+  it("reads a utility bill: charge rows, Bill Amount as the total, and no identifiers as money", () => {
+    const bill = parseReceipt(fixture("electricity-tgspdcl"));
+    expect(bill.items).toEqual([]);
+    expect(bill.totalPaise).toBe(16100);
+    expect(bill.date).toBe("2025-09-02");
+    // Consumer/meter numbers and mobile numbers are identifiers, never amounts.
+    expect(JSON.stringify(bill)).not.toMatch(/11118168100|8712472162|7101500/);
+  });
+  it("reads a crumpled hypermarket bill: HSN codes are not amounts and tender rows are not items", () => {
+    const bill = parseReceipt(fixture("tsb-hypermarket"));
+    expect(bill.totalPaise).toBe(194900);
+    expect(bill.subtotalPaise).toBe(194900);
+    expect(bill.discountPaise).toBe(0);
+    const names = bill.items.map((item) => item.name);
+    expect(names).not.toContain("Amount :");
+    expect(names).not.toContain("You Have Saved :");
+    expect(names.some((name) => /^Hsn|Qty Time/.test(name))).toBe(false);
+    expect(
+      bill.items.some(
+        (item) => item.amountPaise !== undefined && item.amountPaise > 100000,
+      ),
+    ).toBe(false);
+  });
+  it("reads a weighed-produce bill: fractional kg quantities, a 1X row, an unlabelled subtotal and NET total", () => {
+    const bill = parseReceipt(fixture("grand-fresh"));
+    expect(bill.items).toHaveLength(15);
+    expect(bill.items[0]).toEqual({
+      name: "DRUMSTIC",
+      quantity: 0.09,
+      unitPricePaise: 22000,
+      amountPaise: 1980,
+    });
+    expect(bill.items[6]).toEqual({
+      name: "RAW BANNAN",
+      quantity: 1,
+      unitPricePaise: 1200,
+      amountPaise: 1200,
+    });
+    expect(bill.subtotalPaise).toBe(39756);
+    expect(bill.roundingPaise).toBe(44);
+    expect(bill.totalPaise).toBe(39800);
+    expect(bill.reconciliation).toBe("matches");
+    expect(bill.confidence).toBe("high");
+  });
+  it("reads a three-line HSN produce layout (name / rate kg value / code) without inventing amounts", () => {
+    const bill = parseReceipt(fixture("veg-hsn-crop"));
+    // A mid-bill crop: no merchant header and no total are expected; the rows must still be sane.
+    expect(bill.totalPaise).toBeUndefined();
+    expect(bill.items.length).toBeGreaterThanOrEqual(12);
+    const beans = bill.items.find(
+      (item) => item.name === "STRING LESS BEANS kg",
+    );
+    expect(beans).toEqual({
+      name: "STRING LESS BEANS kg",
+      quantity: 0.889,
+      unitPricePaise: 7900,
+      amountPaise: 7023,
+    });
+    expect(
+      bill.items.every(
+        (item) => item.amountPaise !== undefined && item.amountPaise < 100000,
+      ),
+    ).toBe(true);
+    // HSN codes never become quantities or amounts.
+    expect(JSON.stringify(bill.items)).not.toMatch(/7092000|8031010|7104000/);
+  });
+  it("flags a bill whose amounts are not rupees instead of silently treating them as INR", () => {
+    const bill = parseReceipt(ichiban);
+    expect(bill.warnings).toContain(
+      "This bill may not be in rupees. Check the amounts.",
+    );
+  });
   it("handles discounts and signed rounding as printed adjustments", () => {
     const bill = parseReceipt(
       "MART\nTea 100.00\nDiscount -10.00\nRound off -0.25\nTotal 89.75",

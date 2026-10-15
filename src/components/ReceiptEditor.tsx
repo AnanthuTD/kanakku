@@ -328,6 +328,7 @@ export function ReceiptEditor({
                     ["subtotalPaise", "Bill subtotal (₹)"],
                     ["taxPaise", "Bill tax (₹)"],
                     ["discountPaise", "Bill discount (₹)"],
+                    ["serviceChargePaise", "Service charge (₹)"],
                     ["roundingPaise", "Bill rounding (₹)"],
                   ] as const
                 ).map(([field, label]) => (

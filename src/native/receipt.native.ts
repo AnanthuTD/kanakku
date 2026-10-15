@@ -1,6 +1,7 @@
 import { AppState } from "react-native";
 import { parseReceipt, type ReceiptDraft } from "../domain/receipt";
 import { native } from "./bridge";
+import { logDiagnostic } from "./diagnostics";
 
 type Session = { cancelled: boolean; abort: (error: Error) => void };
 let active: Session | undefined;
@@ -38,16 +39,41 @@ export async function readReceipt(uri: string): Promise<ReceiptDraft> {
   });
   const work = (async () => {
     try {
+      const started = Date.now();
       const result = await native.recognizeReceipt(uri);
       if (session.cancelled || AppState.currentState !== "active")
         throw cancelled();
-      if (!result.text.trim())
+      if (!result.text.trim()) {
+        logDiagnostic("warn", "receipt", "ocr-empty", {
+          ms: Date.now() - started,
+        });
         throw new Error(
           "No clear bill text found. Try a brighter, sharper photo or type the details.",
         );
-      return parseReceipt(result.text);
+      }
+      const draft = parseReceipt(result.text);
+      // Counts and outcomes only: never the bill's text, merchant or amounts.
+      logDiagnostic("info", "receipt", "parsed", {
+        ms: Date.now() - started,
+        chars: result.text.length,
+        lines: result.text.split(/\r?\n/).length,
+        items: draft.items.length,
+        hasTotal: draft.totalPaise !== undefined,
+        hasMerchant: !!draft.merchant,
+        hasDate: !!draft.date,
+        reconciliation: draft.reconciliation,
+        confidence: draft.confidence,
+        warnings: draft.warnings.length,
+      });
+      return draft;
     } catch (error) {
       if (session.cancelled) throw cancelled();
+      logDiagnostic("warn", "receipt", "failed", {
+        code: error instanceof Error ? error.name : typeof error,
+        knownMessage:
+          error instanceof Error &&
+          error.message.startsWith("No clear bill text"),
+      });
       if (
         error instanceof Error &&
         error.message.startsWith("No clear bill text")

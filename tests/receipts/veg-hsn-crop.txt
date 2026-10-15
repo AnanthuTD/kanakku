@@ -1,0 +1,43 @@
+HSN Code    Item Description    Net Price   Qty    Value
+1) CGST @ 0.00% SGST @ 0.00%
+                               33.00  0.627       20.69
+07092000
+BEET ROOT  KG
+                               65.02  0.323       21.00
+07092000
+BRINJAL BLACK BIG  KG
+                              198.97  0.126       25.07
+07092000
+P GINGER
+                               89.00  0.220       19.58
+07092000
+SAMBHAR ONION SMALL PACK
+                               42.00  0.429       18.02
+07020000
+TOMATO
+                              425.04  0.115       48.88
+07092000
+GARLIC INDIAN  KG
+                              129.01  0.243       31.35
+07092000
+STRING LESS BEANS kg
+                               79.00  0.889       70.23
+08031010
+BANANA NJALIPOOVAN kg
+                               59.03  0.093        5.49
+07092000
+CHILLI GREEN  KG
+                               59.00  0.727       42.89
+08051000
+ORANGE kg
+                               20.00      2       40.00
+07104000
+SWEET CORN
+                               49.00      1       49.00
+07092000
+CABBAGE  EA
+                               63.99  0.301       19.26
+07092000
+COWPEA KUTTIPAYAR kg
+                               49.01  0.345       16.91
+07092000

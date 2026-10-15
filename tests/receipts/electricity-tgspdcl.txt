@@ -1,0 +1,41 @@
+Dt: 02/09/2025                 Time: 12:10
+Bill No: 32                    MRID: 04858
+ERO: MAHBOOB NAGAR(021)
+Sec: TOWN -III
+Area: 30007 - MBNR
+SC No. 17303 71015
+USC No. 111181681
+Name: GNAGI BHASKAR
+Addr: 7-2-21/C NEW PREAM NAGAR
+MBNR
+Cat: 1A Domestic               Ph: 1
+Contracted Load                1.00 KW
+Meter No. 29433602(IR)         MF: 1.0
+          Date      Sts    KWH
+Present   02/09/25   01    7910
+Previous  03/08/25   01    7863
+Units: 47                  Days: 30
+Recorded MD:               1.61
+Energy Charges             91.65
+Fixed Charges              16.10
+Customer Charges           40.00
+Electricity Duty            2.82
+Interest on ED              0.01
+Surcharge                  10.00
+ACD Surcharge               0.00
+FSA/FCA Charges             0.00
+Interest on SD             -0.00
+Adjustment                  0.00
+Loss/Gain                   0.42
+Bill Amount               161.00
+Arrears:
+Arrears as on 31-03-2025:   0.00
+Arrears after 01-04-2025:   0.00
+ACD Due                     0.00
+Total Due                 161.00
+MATS Amount                 0.00
+Due Date              16-Sep-2025
+Disc Date             30-Sep-2025
+Last Paid Date        25-08-2025
+AE Mobile No            8712472162
+AAO Mobile No           8712472159
