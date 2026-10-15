@@ -25,6 +25,10 @@ Checked boxes mean the named implementation or check is complete. Device accepta
 - [x] Link verified EAS project, authenticate owner access and create isolated personal-beta/e2e channels and branches
 - [x] Repository made public-ready: MIT licence, SECURITY.md (private reporting, no-upload promise), CONTRIBUTING.md, code of conduct, issue/PR templates, visitor README with fresh screenshots, repo description and topics
 - [x] Signed release pipeline: `release.yml` builds on a `v*` tag, fetches models by hash (`npm run models:fetch`), signs with the new RSA-4096 release key (secrets set on the repo), runs the production verifier and publishes APK + SHA256SUMS + certificate fingerprint + OTA runtime version; signing wired through the config plugin from environment only
+- [x] Play Store size: R8 minification + resource shrinking (dex 61.8 → 20.9 MiB) and the unused ML Kit barcode scanner excluded at the app level (Expo's prebuilt camera artifact bakes it in; expo-camera's switch alone cannot remove it): APK 228.2 → 184.2 MiB, under Play's 200 MB base limit; verifier passes; launch and voice path load clean under R8
+- [x] Plain-language privacy policy at docs/PRIVACY.md for the Play listing and README
+- [ ] Camera/OCR and encrypted-ledger paths exercised on the minified build (R8 keep rules for ML Kit and ONNX)
+- [ ] Deliver the Whisper model on demand (Play Asset Delivery) to bring the install well under 100 MB — also the planned language-pack mechanism
 - [ ] Verify a real compatible published update on a release build
 
 ## Implemented baseline

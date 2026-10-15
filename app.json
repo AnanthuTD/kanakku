@@ -64,7 +64,9 @@
         {
           "android": {
             "minSdkVersion": 31,
-            "extraProguardRules": "-keep class expo.modules.kanakku.WhisperEngine { native <methods>; }"
+            "extraProguardRules": "-keep class expo.modules.kanakku.WhisperEngine { native <methods>; }\n-keep class expo.modules.kanakku.** { *; }\n-keep class ai.onnxruntime.** { *; }\n-keep class com.google.mlkit.** { *; }\n-keep class com.google.android.gms.internal.mlkit_** { *; }\n-dontwarn ai.onnxruntime.**\n-dontwarn com.google.mlkit.**",
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
           }
         }
       ],
@@ -74,7 +76,8 @@
         "expo-camera",
         {
           "cameraPermission": "Allow Kanakku to photograph a bill and extract its details on this device.",
-          "recordAudioAndroid": false
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
         }
       ]
     ],

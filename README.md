@@ -39,7 +39,7 @@ Every claim below is in the source, and most are covered by tests.
 
 The beta also keeps a small diagnostics log on the phone (stages, counts and timings — no message text, amounts, names or images). It stays on your device; nothing uploads it. You can turn it off or clear it in Settings, and attach it to a bug report if you choose.
 
-See [SECURITY.md](SECURITY.md) for the full policy and how to report a problem privately.
+See [SECURITY.md](SECURITY.md) for the full policy and how to report a problem privately, and [docs/PRIVACY.md](docs/PRIVACY.md) for the plain-language privacy policy.
 
 ## What it does
 

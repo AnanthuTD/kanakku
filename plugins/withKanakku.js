@@ -75,6 +75,23 @@ module.exports = function withKanakku(config) {
       );
     return config;
   });
+  // Kanakku never scans barcodes, but Expo's prebuilt camera artifact carries ML Kit barcode
+  // scanning (~5 MB of native code and models) that expo-camera's own switch cannot remove.
+  // Exclude it at the app level so it never reaches the runtime classpath.
+  config = withAppBuildGradle(config, (config) => {
+    const marker = "// kanakku: no barcode scanning";
+    if (config.modResults.contents.includes(marker)) return config;
+    config.modResults.contents += `
+${marker}
+configurations.configureEach {
+    exclude group: "com.google.mlkit", module: "barcode-scanning"
+    exclude group: "com.google.mlkit", module: "barcode-scanning-common"
+    exclude group: "com.google.android.gms", module: "play-services-code-scanner"
+    exclude group: "com.google.android.gms", module: "play-services-mlkit-barcode-scanning"
+}
+`;
+    return config;
+  });
   // expo-updates' fingerprint/manifest task declares no source inputs, so Gradle treats it
   // as up to date after native edits and stamps a stale runtime version into the APK; a later
   // `eas update` would then be refused. Never let it be skipped.
