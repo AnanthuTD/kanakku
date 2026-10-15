@@ -47,6 +47,11 @@ Package: `app.tinkerbox.kanakku` · versionCode 2 · versionName 0.2.0-beta.1
 - Category: Finance. Tags: Personal finance.
 - Contact email: ananthu.td.dev@gmail.com. Website: https://github.com/AnanthuTD/kanakku
 
+## 3b. App content progress (15 Oct evening)
+
+Done: privacy policy URL, sign-in details (not restricted), ads (none), target audience (18+). Dashboard shows 4 of 11.
+Remaining: content rating, data safety, government apps (No), financial features, health (No), category + contact, store listing. The SMS permissions declaration appears after the first review pass.
+
 ## 4. After submitting
 
 **Done 15 Oct 18:07 IST:** release 0.2.0-beta.1 published to internal testing; tester list "Kanakku beta testers" (ananthu.td.dev@gmail.com) saved; track Active.
