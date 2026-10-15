@@ -142,6 +142,8 @@ interface KanakkuNative {
   overlaySettings(): Promise<void>;
   previewFloatingPrompt(): Promise<"scheduled" | "permission">;
   setDebugVoiceClips(enabled: boolean): Promise<boolean>;
+  /** Test build only: waive FLAG_SECURE so a verification screen recording can see the screen. */
+  setRecordingMode(enabled: boolean): Promise<boolean>;
   /** Test build with clip diagnostics on: stores the app's text beside the newest clip. */
   saveDebugTranscript(text: string): Promise<boolean>;
   /** Verified private copy of the bundled Whisper model (made once per model). */

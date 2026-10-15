@@ -42,7 +42,7 @@ class KanakkuModule : Module() {
         if(foreground && appContext.currentActivity===activity && !activity.isFinishing && !activity.isDestroyed) {
           AvatarWindow.hide()
           reactContext.stopService(Intent(reactContext,AvatarService::class.java))
-          if(Vault(reactContext).ready()) activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+          if(Vault(reactContext).ready()) secureWindow(reactContext, activity)
         }
       }
     }
@@ -57,7 +57,7 @@ class KanakkuModule : Module() {
         val activity=appContext.currentActivity as? FragmentActivity ?: throw Exception("Open Kanakku to unlock.")
         val vault=Vault(context);vault.initialize()
         val auth=BiometricPrompt(activity,ContextCompat.getMainExecutor(context),object: BiometricPrompt.AuthenticationCallback(){
-          override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { try { activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE); promise.resolve(vault.databaseKey()) } catch(e:Exception) {promise.reject("KEY_UNAVAILABLE","Unable to unlock stored data. Device security may have changed. Reset the journal in Settings to re-import SMS; saved notes and rules cannot be recovered.",e)} }
+          override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { try { secureWindow(context, activity); promise.resolve(vault.databaseKey()) } catch(e:Exception) {promise.reject("KEY_UNAVAILABLE","Unable to unlock stored data. Device security may have changed. Reset the journal in Settings to re-import SMS; saved notes and rules cannot be recovered.",e)} }
           override fun onAuthenticationError(code:Int,message:CharSequence) {promise.reject("UNLOCK_CANCELLED",message.toString(),null)}
         })
         auth.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("Unlock Kanakku").setSubtitle("Your spending stays on this device").setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL).build())
@@ -115,6 +115,13 @@ class KanakkuModule : Module() {
       val clip=context.getExternalFilesDir("voice-debug")?.listFiles{f->f.name.endsWith(".wav")}?.maxByOrNull{it.lastModified()} ?: return@AsyncFunction false
       java.io.File(clip.path.removeSuffix(".wav")+".txt").writeText(text.take(2000))
       true
+    }
+    // Test package only: let the Play-verification screen recording see the screen. The personal
+    // build never reads this preference, so its journal can never be captured.
+    AsyncFunction("setRecordingMode") { enabled:Boolean ->
+      require(context.packageName==TEST_PACKAGE) { "Recording mode exists only in the test build." }
+      context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).edit().putBoolean("recordingMode",enabled).commit()
+      enabled
     }
     AsyncFunction("setDebugVoiceClips") { enabled:Boolean ->
       require(context.packageName==TEST_PACKAGE) { "Voice clip diagnostics exist only in the test build." }
@@ -184,6 +191,12 @@ class KanakkuModule : Module() {
   }
   companion object {
     const val TEST_PACKAGE="app.tinkerbox.kanakku.e2e"
+    /** FLAG_SECURE blocks every screenshot and recording of an unlocked journal. Only the isolated test package may waive it, for the Play verification recording. */
+    fun secureWindow(context:Context, activity:android.app.Activity) {
+      val waived=context.packageName==TEST_PACKAGE && context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).getBoolean("recordingMode",false)
+      if(waived) activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+      else activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+    }
     @Volatile var foreground=false
     private var instance:WeakReference<KanakkuModule>?=null
     fun notifyArrival() { instance?.get()?.sendEvent("onTransaction",emptyMap<String,Any>()) }

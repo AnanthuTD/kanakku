@@ -29,7 +29,10 @@ Checked boxes mean the named implementation or check is complete. Device accepta
 - [x] Plain-language privacy policy at docs/PRIVACY.md for the Play listing and README
 - [x] Camera/OCR path exercised on the minified build on the phone: CameraX initialises, no stripped-class errors (ONNX Runtime logs a benign telemetry-stub warning; no native telemetry is compiled in)
 - [x] Package renamed to `app.tinkerbox.kanakku` / `.e2e` (publisher Tinkerbox, domain tinkerbox.fun; `com.kanakku.app` was already taken on Play and `fun.` is a Kotlin keyword): 36 files, native privileged-diagnostics gate kept exact, prebuild + Kotlin compile pass, 198 unit / 145 Kotlin checks, fingerprint stable
-- [ ] First CI release failed with ENOSPC on the hosted runner during dex merging (28 min in); workflow now reclaims ~25 GB of unused toolchains first — re-tag under the new package to verify
+- [x] First signed public release published and independently verified: downloaded `v0.2.0-beta.1` APK matches `SHA256SUMS`, is signed by the release certificate `48:E9:E4:A4…`, package `app.tinkerbox.kanakku` 0.2.0-beta.1 (the ENOSPC failure was fixed by reclaiming ~25 GB on the runner)
+- [x] Play AAB built and verified: `artifacts/play/kanakku-0.2.0-beta.1.aab`, release-signed, 143.6 MiB; bundletool reports a 112 MB download for the test phone's device spec (arm64, en-IN, 480 dpi), under Play's 200 MB limit
+- [x] Play SMS-permission verification recording script (`scripts/record-sms-verification.mjs`): root-only synthetic fixture injection (a non-root provider insert is silently dropped on API 36), wake/unlock, chained screenrecord, ffmpeg stitch, exact cleanup
+- [x] Play SMS-permission verification video recorded (2 min 30 s, 1080×2400): the unlocked journal sets `FLAG_SECURE`, which blanked every frame after the PIN step, so a test-package-only recording mode now waives the flag (personal build ignores it; pipeline harness asserts it is off). Frames verified bright before and after the credential prompt, which is the only blanked moment and should be
 - [ ] Deliver the Whisper model on demand (Play Asset Delivery) to bring the install well under 100 MB — also the planned language-pack mechanism
 - [ ] Verify a real compatible published update on a release build
 

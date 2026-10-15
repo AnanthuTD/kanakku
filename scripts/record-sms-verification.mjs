@@ -129,6 +129,16 @@ try {
   shell("settings put secure lock_screen_lock_after_timeout 1800000");
   // Fresh app state so the connect journey is the first thing the reviewer sees.
   shell(`pm clear ${app}`);
+  // Recording mode (test package only) waives FLAG_SECURE so the recording can see the unlocked
+  // journal. Written straight into the app's settings file as root, before first launch.
+  shell(`mkdir -p /data/data/${app}/shared_prefs`);
+  shell(
+    `printf '%s' ${q('<?xml version="1.0" encoding="utf-8" standalone="yes" ?>\n<map>\n    <boolean name="recordingMode" value="true" />\n</map>\n')} > /data/data/${app}/shared_prefs/kanakku-settings.xml`,
+  );
+  shell(
+    `chown $(stat -c %u /data/data/${app}):$(stat -c %g /data/data/${app}) /data/data/${app}/shared_prefs /data/data/${app}/shared_prefs/kanakku-settings.xml`,
+  );
+  shell(`chmod 660 /data/data/${app}/shared_prefs/kanakku-settings.xml`);
   shell("settings put global transition_animation_scale 1");
   shell("settings put global window_animation_scale 1");
   shell("settings put global animator_duration_scale 1");

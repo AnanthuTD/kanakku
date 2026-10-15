@@ -247,6 +247,14 @@ try {
       shell("dumpsys window windows").match(/fl=[^\n]*\bSECURE\b/),
       "Authenticated journal window carries FLAG_SECURE",
     );
+  // The test-only recording mode (scripts/record-sms-verification.mjs) waives FLAG_SECURE; the
+  // pipeline must run with it off so the assertion above means what it says.
+  verify(
+    !shell(
+      `cat /data/data/${app}/shared_prefs/kanakku-settings.xml 2>/dev/null || true`,
+    ).includes('name="recordingMode" value="true"'),
+    "Recording mode is not enabled during the pipeline run",
+  );
   flow("restart");
   if (resume)
     verify(
