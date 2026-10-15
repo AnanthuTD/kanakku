@@ -194,8 +194,9 @@ try {
     join(folder, "cli.log"),
     (result.stdout || "") + (result.stderr || ""),
   );
-  // Linger on the final overview so the reviewer sees the imported total.
-  spawnSync("sleep", ["4"]);
+  // Maestro reports "Back to overview" complete before the screen transition has rendered;
+  // linger so the overview and its imported total are the last thing on screen.
+  spawnSync("sleep", ["12"]);
   stopSegment();
   if (result.status !== 0)
     throw new Error(`connect flow failed; see ${folder}/cli.log`);
