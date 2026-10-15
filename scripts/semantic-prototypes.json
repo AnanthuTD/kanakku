@@ -1,0 +1,10 @@
+{
+ "Food & dining": ["A meal at a restaurant, lunch, dinner, breakfast, takeaway food or a cafe.", "Tea and coffee with friends, snacks, a bakery or eating out."],
+ "Groceries": ["Buying vegetables, fruits, milk, rice and groceries from a supermarket.", "Weekly grocery shopping and household food ingredients."],
+ "Transport": ["An auto rickshaw ride to work, a taxi, bus fare or train tickets.", "Paying for petrol, diesel, a metro ticket or commuting to the office."],
+ "Shopping": ["Buying clothes, shoes, electronics, a phone case or online shopping.", "A purchase of books, a gift, accessories or a household product."],
+ "Bills & utilities": ["Paying an electricity bill, water bill, broadband or mobile recharge.", "Monthly internet service, telephone bill and household utilities."],
+ "Entertainment": ["Watching a movie at the cinema, concert tickets or a streaming subscription.", "A music subscription, video game purchase or recreational entertainment."],
+ "Health": ["A doctor appointment, medical consultation, hospital bill or medicines.", "Buying prescription drugs at a pharmacy, dental treatment or medical tests."],
+ "Home": ["Monthly rent payment, paying the house cleaner, domestic help or maid.", "A plumber repair, home maintenance, housekeeping or paying the gardener."]
+}

@@ -1,0 +1,70 @@
+{
+  "source": "https://huggingface.co/ggerganov/whisper.cpp",
+  "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+  "models": {
+    "tiny.en-q5_1": {
+      "file": "ggml-tiny.en-q5_1.bin",
+      "bytes": 32166155,
+      "sha256": "c77c5766f1cef09b6b7d47f21b546cbddd4157886b3b5d6d4f709e91e66c7c2b",
+      "label": "Whisper tiny.en, English-only, Q5_1",
+      "languages": [
+        "en"
+      ],
+      "note": "English only. About 2 s per clip on the 24053PY09I phone (4 threads); good English on all three fixtures."
+    },
+    "base.en-q5_1": {
+      "file": "ggml-base.en-q5_1.bin",
+      "bytes": 59721011,
+      "sha256": "4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f",
+      "label": "Whisper base.en, English-only, Q5_1",
+      "languages": [
+        "en"
+      ],
+      "note": "English only. About 4.5 s per clip on the phone; slightly better names than tiny.en."
+    },
+    "tiny-q5_1": {
+      "file": "ggml-tiny-q5_1.bin",
+      "bytes": 32152673,
+      "sha256": "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7",
+      "label": "Whisper tiny, multilingual, Q5_1",
+      "note": "English only in practice; Malayalam fixtures produced filler text (14 October 2026).",
+      "languages": [
+        "en",
+        "ml"
+      ]
+    },
+    "base-q5_1": {
+      "file": "ggml-base-q5_1.bin",
+      "bytes": 59707625,
+      "sha256": "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898",
+      "label": "Whisper base, multilingual, Q5_1",
+      "note": "Partial Malayalam meaning with invented details on host fixtures.",
+      "languages": [
+        "en",
+        "ml"
+      ]
+    },
+    "small-q5_1": {
+      "file": "ggml-small-q5_1.bin",
+      "bytes": 190085487,
+      "sha256": "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb",
+      "label": "Whisper small, multilingual, Q5_1",
+      "note": "English and Malayalam (meaning kept in English). Accurate on the phone but about 31 s per 11.6 s clip with 4 threads.",
+      "languages": [
+        "en",
+        "ml"
+      ]
+    },
+    "medium-q5_0": {
+      "file": "ggml-medium-q5_0.bin",
+      "bytes": 539212467,
+      "sha256": "19fea4b380c3a618ec4723c3eef2eb785ffba0d0538cf43f8f235e7b3b34220f",
+      "label": "Whisper medium, multilingual, Q5_0",
+      "note": "Best host Malayalam translations; large APK, memory and latency cost on phones.",
+      "languages": [
+        "en",
+        "ml"
+      ]
+    }
+  }
+}

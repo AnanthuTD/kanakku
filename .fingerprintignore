@@ -1,0 +1,3 @@
+# Build output inside the local native module must not change the OTA runtime version.
+modules/kanakku-native/android/.cxx/**/*
+modules/kanakku-native/android/build/**/*

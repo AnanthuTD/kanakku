@@ -1,0 +1,12 @@
+COCONUT MART
+Tax Invoice
+Date: 15/10/2026
+Item Qty Rate Amount
+Milk 2 x 28.00 56.00
+Rice 1 120.00 120.00
+Subtotal 176.00
+CGST 2.5% 4.40
+SGST 2.5% 4.40
+Grand Total INR 184.80
+Cash Tendered 200.00
+Change 15.20

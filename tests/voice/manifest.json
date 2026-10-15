@@ -1,0 +1,387 @@
+{
+  "schemaVersion": 1,
+  "dataset": "Google FLEURS",
+  "datasetRevision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+  "attribution": "Conneau et al. (2022), FLEURS: Few-shot Learning Evaluation of Universal Representations of Speech; Google. Natural speech recordings: CC BY 4.0.",
+  "source": "https://huggingface.co/datasets/google/fleurs",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "selection": "Three predefined matched English/Malayalam sentences selected for travel/drinks/fare concepts before running recognition. Not selected based on model performance.",
+  "fixtures": [
+    {
+      "id": "control-noise",
+      "language": "none",
+      "kind": "synthetic-noise",
+      "file": "audio/control-noise.wav",
+      "expectedEnglishText": "",
+      "expectedSourceText": "",
+      "requiredEnglishConcepts": [],
+      "license": "CC0-1.0",
+      "sampleRate": 16000,
+      "channels": 1,
+      "sampleWidth": 2,
+      "durationSeconds": 4.0,
+      "sha256": "06f5ba18279392a7b79107981cd4313d9ad5bf346ac123b4e139a181d60613ad"
+    },
+    {
+      "id": "control-silence",
+      "language": "none",
+      "kind": "synthetic-silence",
+      "file": "audio/control-silence.wav",
+      "expectedEnglishText": "",
+      "expectedSourceText": "",
+      "requiredEnglishConcepts": [],
+      "license": "CC0-1.0",
+      "sampleRate": 16000,
+      "channels": 1,
+      "sampleWidth": 2,
+      "durationSeconds": 4.0,
+      "sha256": "f751fd7094be088dc785125e4a1a0222a17c2bd20469aa31728ca5e515ed5809"
+    },
+    {
+      "id": "en-natural-bus",
+      "language": "en",
+      "kind": "natural-read-speech",
+      "file": "audio/en-natural-bus.wav",
+      "expectedSourceText": "Scotturb Bus 403 travels regularly to Sintra, stopping at Cabo da Roca.",
+      "sourceNormalizedText": "scotturb bus 403 travels regularly to sintra stopping at cabo da roca",
+      "speakerGenderLabel": "MALE",
+      "sentenceId": "1805",
+      "sourceFilename": "1361225517388701679.wav",
+      "sourceAudioSha256": "4f6d6820d7dcc5bca216bc2c488e668525bddfc2e039fa7a7d01493827358743",
+      "sourceArchive": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz",
+      "sourceTranscripts": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/test.tsv",
+      "license": "CC-BY-4.0",
+      "sampleRate": 16000,
+      "channels": 1,
+      "sampleWidth": 2,
+      "durationSeconds": 11.56,
+      "sha256": "0da27406130cf992da417f516e678a127afe248895affd974e7c088450c853fc",
+      "expectedEnglishText": "Scotturb Bus 403 travels regularly to Sintra, stopping at Cabo da Roca.",
+      "requiredEnglishConcepts": [
+        {
+          "label": "bus travel",
+          "patterns": [
+            "\\bbus\\b"
+          ]
+        },
+        {
+          "label": "route number 403",
+          "patterns": [
+            "\\b403\\b",
+            "\\bfour (?:hundred (?:and )?)?three\\b",
+            "\\bfour oh three\\b"
+          ]
+        },
+        {
+          "label": "Sintra destination",
+          "patterns": [
+            "\\b[sc]intra\\b"
+          ]
+        },
+        {
+          "label": "Cabo da Roca stop",
+          "patterns": [
+            "\\bcabo (?:da |de )?ro[ck]a\\b",
+            "\\bkabo (?:da |de )?ro[ck]a\\b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "en-natural-drinks",
+      "language": "en",
+      "kind": "natural-read-speech",
+      "file": "audio/en-natural-drinks.wav",
+      "expectedSourceText": "The hot chocolate is up to Belgian standards. Fruit juices are pricey but excellent.",
+      "sourceNormalizedText": "the hot chocolate is up to belgian standards fruit juices are pricey but excellent",
+      "speakerGenderLabel": "FEMALE",
+      "sentenceId": "1720",
+      "sourceFilename": "11374239868879585530.wav",
+      "sourceAudioSha256": "f42cea08615fab29cbbe5076d44e035906e02985e9ca62e71e994e81813d8136",
+      "sourceArchive": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz",
+      "sourceTranscripts": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/test.tsv",
+      "license": "CC-BY-4.0",
+      "sampleRate": 16000,
+      "channels": 1,
+      "sampleWidth": 2,
+      "durationSeconds": 6.42,
+      "sha256": "89187a2861ad32f0a36bfc9a8d1f7a08eb6cf95389d26e4d90bf3cd053799a0e",
+      "expectedEnglishText": "The hot chocolate is up to Belgian standards. Fruit juices are pricey but excellent.",
+      "requiredEnglishConcepts": [
+        {
+          "label": "hot chocolate",
+          "patterns": [
+            "\\bhot chocolate\\b"
+          ]
+        },
+        {
+          "label": "Belgian standard",
+          "patterns": [
+            "\\bbelgi(?:an|um)\\b"
+          ]
+        },
+        {
+          "label": "fruit juice",
+          "patterns": [
+            "\\bfruit juices?\\b"
+          ]
+        },
+        {
+          "label": "juice expensive",
+          "patterns": [
+            "\\bpricey\\b",
+            "\\bexpensive\\b",
+            "\\bcostly\\b",
+            "\\bhigh.{0,12}price\\b"
+          ]
+        },
+        {
+          "label": "juice good taste",
+          "patterns": [
+            "\\bexcellent\\b",
+            "\\bdelicious\\b",
+            "\\btasty\\b",
+            "\\bgood\\b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "en-natural-taxi",
+      "language": "en",
+      "kind": "natural-read-speech",
+      "file": "audio/en-natural-taxi.wav",
+      "expectedSourceText": "You can use boda-boda (motorcycle taxi) to get around Goma. The normal (local) price is ~500 Congolese Francs for the short ride.",
+      "sourceNormalizedText": "you can use boda-boda motorcycle taxi to get around goma. the normal local price is ~500 congolese francs for the short ride",
+      "speakerGenderLabel": "MALE",
+      "sentenceId": "1915",
+      "sourceFilename": "16847628585853049714.wav",
+      "sourceAudioSha256": "c030db093fa3323b6d8c8ccc297cb4c8272f84ece39493f453e1a3ff1ad3fb55",
+      "sourceArchive": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz",
+      "sourceTranscripts": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/test.tsv",
+      "license": "CC-BY-4.0",
+      "sampleRate": 16000,
+      "channels": 1,
+      "sampleWidth": 2,
+      "durationSeconds": 13.34,
+      "sha256": "7396cc014189f004ecc431efcc5fb503771d22d491eb4eb4313327e56d73ec59",
+      "expectedEnglishText": "You can use boda-boda (motorcycle taxi) to get around Goma. The normal (local) price is ~500 Congolese Francs for the short ride.",
+      "requiredEnglishConcepts": [
+        {
+          "label": "motorcycle taxi",
+          "patterns": [
+            "\\bmotor ?(?:cycle|bike)\\b",
+            "\\btaxi\\b"
+          ]
+        },
+        {
+          "label": "Goma place",
+          "patterns": [
+            "\\bgoma\\b"
+          ]
+        },
+        {
+          "label": "fare 500",
+          "patterns": [
+            "\\b500\\b",
+            "\\bfive hundred\\b"
+          ]
+        },
+        {
+          "label": "Congolese currency context",
+          "patterns": [
+            "\\bcongolese\\b",
+            "\\bcongo\\b"
+          ]
+        },
+        {
+          "label": "franc currency",
+          "patterns": [
+            "\\bfrancs?\\b"
+          ]
+        },
+        {
+          "label": "short ride",
+          "patterns": [
+            "\\bshort\\b",
+            "\\bsmall distance\\b",
+            "\\blittle distance\\b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-natural-bus",
+      "language": "ml",
+      "kind": "natural-read-speech",
+      "file": "audio/ml-natural-bus.wav",
+      "expectedSourceText": "കബോ ഡാ റോക്കയിൽ നിർത്തുന്ന സ്കോട്ടോർബ് ബസ് 403 കൃത്യമായി സിൻട്രയിലേക്ക് യാത്ര ചെയ്യുന്നു.",
+      "sourceNormalizedText": "കബോ ഡാ റോക്കയിൽ നിർത്തുന്ന സ്കോട്ടോർബ് ബസ് 403 കൃത്യമായി സിൻട്രയിലേക്ക് യാത്ര ചെയ്യുന്നു",
+      "speakerGenderLabel": "FEMALE",
+      "sentenceId": "1805",
+      "sourceFilename": "16705918827897587309.wav",
+      "sourceAudioSha256": "97c30f2b2d4ad4c4f2acd9e8983be69bb3742f17399f5fc1d83e1f2ec1335c6d",
+      "sourceArchive": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/ml_in/audio/test.tar.gz",
+      "sourceTranscripts": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/ml_in/test.tsv",
+      "license": "CC-BY-4.0",
+      "sampleRate": 16000,
+      "channels": 1,
+      "sampleWidth": 2,
+      "durationSeconds": 9.0,
+      "sha256": "ed1d3ccb6b75727610515d9fcbb264076476be1675194cc0bd706e9ecc39273a",
+      "expectedEnglishText": "Scotturb Bus 403 travels regularly to Sintra, stopping at Cabo da Roca.",
+      "requiredEnglishConcepts": [
+        {
+          "label": "bus travel",
+          "patterns": [
+            "\\bbus\\b"
+          ]
+        },
+        {
+          "label": "route number 403",
+          "patterns": [
+            "\\b403\\b",
+            "\\bfour (?:hundred (?:and )?)?three\\b",
+            "\\bfour oh three\\b"
+          ]
+        },
+        {
+          "label": "Sintra destination",
+          "patterns": [
+            "\\b[sc]intra\\b"
+          ]
+        },
+        {
+          "label": "Cabo da Roca stop",
+          "patterns": [
+            "\\bcabo (?:da |de )?ro[ck]a\\b",
+            "\\bkabo (?:da |de )?ro[ck]a\\b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-natural-drinks",
+      "language": "ml",
+      "kind": "natural-read-speech",
+      "file": "audio/ml-natural-drinks.wav",
+      "expectedSourceText": "ബെൽജിയൻ മാനദണ്ഡങ്ങൾ അനുസരിച്ചാണ് ഹോട്ട് ചോക്കലേറ്റ് ഉണ്ടാക്കിയിട്ടുള്ളത്. ഫ്രൂട്ട് ജ്യൂസുകൾ വിലകൂടിയതാണെങ്കിലും രുചികരമാണ്.",
+      "sourceNormalizedText": "ബെൽജിയൻ മാനദണ്ഡങ്ങൾ അനുസരിച്ചാണ് ഹോട്ട് ചോക്കലേറ്റ് ഉണ്ടാക്കിയിട്ടുള്ളത് ഫ്രൂട്ട് ജ്യൂസുകൾ വിലകൂടിയതാണെങ്കിലും രുചികരമാണ്",
+      "speakerGenderLabel": "FEMALE",
+      "sentenceId": "1720",
+      "sourceFilename": "3247157444524906724.wav",
+      "sourceAudioSha256": "2d4151cf7ac896af44d2b64ef2a839161d9ce907c538f392c26d55bd9041bff5",
+      "sourceArchive": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/ml_in/audio/test.tar.gz",
+      "sourceTranscripts": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/ml_in/test.tsv",
+      "license": "CC-BY-4.0",
+      "sampleRate": 16000,
+      "channels": 1,
+      "sampleWidth": 2,
+      "durationSeconds": 7.98,
+      "sha256": "c4c78106142f01e4dd7a99a1b5df8ec8c029055358619c99496df9f395615772",
+      "expectedEnglishText": "The hot chocolate is up to Belgian standards. Fruit juices are pricey but excellent.",
+      "requiredEnglishConcepts": [
+        {
+          "label": "hot chocolate",
+          "patterns": [
+            "\\bhot chocolate\\b"
+          ]
+        },
+        {
+          "label": "Belgian standard",
+          "patterns": [
+            "\\bbelgi(?:an|um)\\b"
+          ]
+        },
+        {
+          "label": "fruit juice",
+          "patterns": [
+            "\\bfruit juices?\\b"
+          ]
+        },
+        {
+          "label": "juice expensive",
+          "patterns": [
+            "\\bpricey\\b",
+            "\\bexpensive\\b",
+            "\\bcostly\\b",
+            "\\bhigh.{0,12}price\\b"
+          ]
+        },
+        {
+          "label": "juice good taste",
+          "patterns": [
+            "\\bexcellent\\b",
+            "\\bdelicious\\b",
+            "\\btasty\\b",
+            "\\bgood\\b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-natural-taxi",
+      "language": "ml",
+      "kind": "natural-read-speech",
+      "file": "audio/ml-natural-taxi.wav",
+      "expectedSourceText": "ഗോമ എന്ന സ്ഥലത്ത് എത്തിച്ചേരാൻ നിങ്ങൾക്ക് ബോഡ-ബോഡ (മോട്ടോർ സൈക്കിൾ ടാക്സി) ഉപയോഗിക്കാം. ഈ ചെറിയ ദൂരത്തിന് ~500 കങ്കോളീസ് ഫ്രാങ്ക് ആണ് സാധാരണ (പ്രാദേശിക) നിരക്ക്.",
+      "sourceNormalizedText": "ഗോമ എന്ന സ്ഥലത്ത് എത്തിച്ചേരാൻ നിങ്ങൾക്ക് ബോഡ-ബോഡ മോട്ടോർ സൈക്കിൾ ടാക്സി ഉപയോഗിക്കാം. ഈ ചെറിയ ദൂരത്തിന് ~500 കങ്കോളീസ് ഫ്രാങ്ക് ആണ് സാധാരണ പ്രാദേശിക നിരക്ക്",
+      "speakerGenderLabel": "FEMALE",
+      "sentenceId": "1915",
+      "sourceFilename": "5875030529190395995.wav",
+      "sourceAudioSha256": "523c63f317d4a7488de1484705bd880797ea3f7656d815961deab77ef9f22d62",
+      "sourceArchive": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/ml_in/audio/test.tar.gz",
+      "sourceTranscripts": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/ml_in/test.tsv",
+      "license": "CC-BY-4.0",
+      "sampleRate": 16000,
+      "channels": 1,
+      "sampleWidth": 2,
+      "durationSeconds": 13.44,
+      "sha256": "9a26ce3e347774f44d5786b27582755844298ca1b11beea286fca34d8702d0b4",
+      "expectedEnglishText": "You can use boda-boda (motorcycle taxi) to get around Goma. The normal (local) price is ~500 Congolese Francs for the short ride.",
+      "requiredEnglishConcepts": [
+        {
+          "label": "motorcycle taxi",
+          "patterns": [
+            "\\bmotor ?(?:cycle|bike)\\b",
+            "\\btaxi\\b"
+          ]
+        },
+        {
+          "label": "Goma place",
+          "patterns": [
+            "\\bgoma\\b"
+          ]
+        },
+        {
+          "label": "fare 500",
+          "patterns": [
+            "\\b500\\b",
+            "\\bfive hundred\\b"
+          ]
+        },
+        {
+          "label": "Congolese currency context",
+          "patterns": [
+            "\\bcongolese\\b",
+            "\\bcongo\\b"
+          ]
+        },
+        {
+          "label": "franc currency",
+          "patterns": [
+            "\\bfrancs?\\b"
+          ]
+        },
+        {
+          "label": "short ride",
+          "patterns": [
+            "\\bshort\\b",
+            "\\bsmall distance\\b",
+            "\\blittle distance\\b"
+          ]
+        }
+      ]
+    }
+  ]
+}

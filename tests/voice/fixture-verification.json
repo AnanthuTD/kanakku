@@ -1,0 +1,77 @@
+{
+  "verified": 8,
+  "fixtures": [
+    {
+      "id": "control-noise",
+      "sha256": "06f5ba18279392a7b79107981cd4313d9ad5bf346ac123b4e139a181d60613ad",
+      "codec": 1,
+      "channels": 1,
+      "sampleRate": 16000,
+      "bitsPerSample": 16,
+      "durationSeconds": 4
+    },
+    {
+      "id": "control-silence",
+      "sha256": "f751fd7094be088dc785125e4a1a0222a17c2bd20469aa31728ca5e515ed5809",
+      "codec": 1,
+      "channels": 1,
+      "sampleRate": 16000,
+      "bitsPerSample": 16,
+      "durationSeconds": 4
+    },
+    {
+      "id": "en-natural-bus",
+      "sha256": "0da27406130cf992da417f516e678a127afe248895affd974e7c088450c853fc",
+      "codec": 1,
+      "channels": 1,
+      "sampleRate": 16000,
+      "bitsPerSample": 16,
+      "durationSeconds": 11.56
+    },
+    {
+      "id": "en-natural-drinks",
+      "sha256": "89187a2861ad32f0a36bfc9a8d1f7a08eb6cf95389d26e4d90bf3cd053799a0e",
+      "codec": 1,
+      "channels": 1,
+      "sampleRate": 16000,
+      "bitsPerSample": 16,
+      "durationSeconds": 6.42
+    },
+    {
+      "id": "en-natural-taxi",
+      "sha256": "7396cc014189f004ecc431efcc5fb503771d22d491eb4eb4313327e56d73ec59",
+      "codec": 1,
+      "channels": 1,
+      "sampleRate": 16000,
+      "bitsPerSample": 16,
+      "durationSeconds": 13.34
+    },
+    {
+      "id": "ml-natural-bus",
+      "sha256": "ed1d3ccb6b75727610515d9fcbb264076476be1675194cc0bd706e9ecc39273a",
+      "codec": 1,
+      "channels": 1,
+      "sampleRate": 16000,
+      "bitsPerSample": 16,
+      "durationSeconds": 9
+    },
+    {
+      "id": "ml-natural-drinks",
+      "sha256": "c4c78106142f01e4dd7a99a1b5df8ec8c029055358619c99496df9f395615772",
+      "codec": 1,
+      "channels": 1,
+      "sampleRate": 16000,
+      "bitsPerSample": 16,
+      "durationSeconds": 7.98
+    },
+    {
+      "id": "ml-natural-taxi",
+      "sha256": "9a26ce3e347774f44d5786b27582755844298ca1b11beea286fca34d8702d0b4",
+      "codec": 1,
+      "channels": 1,
+      "sampleRate": 16000,
+      "bitsPerSample": 16,
+      "durationSeconds": 13.44
+    }
+  ]
+}

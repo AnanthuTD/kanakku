@@ -1,0 +1,85 @@
+{
+  "expo": {
+    "name": "Kanakku",
+    "slug": "kanakku",
+    "description": "Private Android spend journal built from your bank SMS, kept on this device.",
+    "version": "0.2.0",
+    "scheme": "kanakku",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#F7F5EE",
+    "primaryColor": "#345D45",
+    "android": {
+      "package": "com.kanakku.app",
+      "permissions": [
+        "android.permission.READ_SMS",
+        "android.permission.RECEIVE_SMS",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.CAMERA"
+      ],
+      "allowBackup": false,
+      "versionCode": 2,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#345D45",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "Kanakku",
+      "favicon": "./assets/favicon.png",
+      "shortName": "Kanakku",
+      "description": "Private Android spend journal built from your bank SMS, kept on this device.",
+      "themeColor": "#345D45",
+      "backgroundColor": "#F7F5EE"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 288,
+          "backgroundColor": "#F7F5EE",
+          "dark": {
+            "image": "./assets/splash-icon-dark.png",
+            "backgroundColor": "#141C18"
+          }
+        }
+      ],
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 31,
+            "extraProguardRules": "-keep class expo.modules.kanakku.WhisperEngine { native <methods>; }"
+          }
+        }
+      ],
+      "./plugins/withKanakku",
+      "expo-asset",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Kanakku to photograph a bill and extract its details on this device.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

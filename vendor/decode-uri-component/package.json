@@ -1,0 +1,21 @@
+{
+  "name": "decode-uri-component",
+  "version": "0.5.0-kanakku.1",
+  "description": "CommonJS adaptation of upstream patched decode-uri-component 0.5.0",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "index.cjs",
+  "types": "index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "index.cjs",
+    "index.d.ts",
+    "license",
+    "PROVENANCE.md",
+    "upstream-index.mjs"
+  ],
+  "engines": {
+    "node": ">=14.16"
+  },
+  "repository": "https://github.com/SamVerschueren/decode-uri-component"
+}

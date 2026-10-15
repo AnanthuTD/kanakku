@@ -1,0 +1,10 @@
+{
+  "id": "base.en-q5_1",
+  "asset": "whisper-base.en-q5_1.bin",
+  "sha256": "4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f",
+  "bytes": 59721011,
+  "label": "Whisper base.en, English-only, Q5_1",
+  "languages": [
+    "en"
+  ]
+}
