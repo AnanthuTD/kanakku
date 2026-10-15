@@ -40,6 +40,20 @@ module.exports = function withKanakku(config) {
       throw new Error("Could not mark Kanakku model assets as uncompressed");
     return config;
   });
+  // expo-updates' fingerprint/manifest task declares no source inputs, so Gradle treats it
+  // as up to date after native edits and stamps a stale runtime version into the APK; a later
+  // `eas update` would then be refused. Never let it be skipped.
+  config = withAppBuildGradle(config, (config) => {
+    const marker = "// kanakku: always recompute the OTA runtime fingerprint";
+    if (!config.modResults.contents.includes(marker))
+      config.modResults.contents += `
+${marker}
+tasks.configureEach { task ->
+    if (task.name ==~ /create.*UpdatesResources/) task.outputs.upToDateWhen { false }
+}
+`;
+    return config;
+  });
   // Expo sets only the light window background from app.json backgroundColor;
   // match the charcoal theme so dark launches never flash ivory after the splash.
   return withAndroidColorsNight(config, (config) => {

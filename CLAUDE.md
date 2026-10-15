@@ -159,6 +159,8 @@ KANAKKU_BUILD_PROFILE=e2e npx expo prebuild --platform android --no-install --cl
 cp android/app/build/outputs/apk/release/app-release.apk artifacts/kanakku-e2e.apk
 ```
 
+The config plugin forces Gradle's expo-updates fingerprint task to rerun on every build; it declares no source inputs, so without that rule a native edit would leave a stale runtime version in the APK and a later OTA update would be refused. After any native change, confirm `unzip -p <apk> assets/fingerprint` equals the shell's `npx @expo/fingerprint fingerprint:generate --platform android` hash.
+
 Personal build: always run an ordinary prebuild first so the personal package/name return.
 
 ```sh
