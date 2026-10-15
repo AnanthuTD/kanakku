@@ -47,10 +47,18 @@ Package: `app.tinkerbox.kanakku` · versionCode 2 · versionName 0.2.0-beta.1
 - Category: Finance. Tags: Personal finance.
 - Contact email: ananthu.td.dev@gmail.com. Website: https://github.com/AnanthuTD/kanakku
 
-## 3b. App content progress (15 Oct evening)
+## 3b. App content progress (15 Oct night)
 
-Done: privacy policy URL, sign-in details (not restricted), ads (none), target audience (18+). Dashboard shows 4 of 11.
-Remaining: content rating, data safety, government apps (No), financial features, health (No), category + contact, store listing. The SMS permissions declaration appears after the first review pass.
+Done and saved: privacy policy URL, sign-in details, ads (none), target audience (18+), content rating (IARC, all No → Everyone/L), data safety (**No data collected or shared** — Google defines "collected" as sent off-device; Kanakku is on-device only, matching docs/PRIVACY.md), government apps (No), financial features (none), health (none), advertising ID (No).
+
+Remaining, in order:
+1. **Foreground service permissions** (App content › Foreground service permissions). Manifest declares FOREGROUND_SERVICE_MICROPHONE and FOREGROUND_SERVICE_SPECIAL_USE (AvatarService). Tick **Other** under both. Both require a video link; Save stays disabled without it. Record with `node scripts/record-companion-verification.mjs` (emulator `Kanakku_API_36` booted, E2E APK installed, JDK 17 + Maestro on PATH; output `artifacts/play-verification/kanakku-companion-verification.mp4`), review it, upload to YouTube Unlisted on the same channel as the SMS video, paste the link into both Video link fields, then these descriptions:
+   - Microphone: "Kanakku's optional floating companion (an overlay the user enables in Settings) lets the user tap its microphone to dictate a short note for a payment while another app is in front. AvatarService must be a foreground service with the microphone type because recording starts only from that explicit tap while the user is outside the app; it records at most 15 seconds, holds audio only in memory, stops as soon as the user finishes or cancels, and is transcribed on-device. Pausing or restarting would cut the user's sentence, so the task cannot be deferred."
+   - Special use: "The special-use foreground service hosts Kanakku's optional floating companion: a small draggable avatar overlay (SYSTEM_ALERT_WINDOW, enabled by the user in Settings) that shows a private prompt when a new bank transaction SMS arrives and lets the user categorise it or dictate a note without opening the app. It must run as a foreground service so the overlay window stays alive and visible while the user is in other apps; it has no dedicated type because it is an interactive overlay, not media, location, or data sync. The user can dismiss it or turn it off at any time, which stops the service."
+   - Recording script status: first run failed because the live alert ("ANANDS CAFE") was classified confidently (review=false) so no prompt appeared; payee changed to "SR ENTERPRISES". If the companion still never appears, check `adb shell cat /sdcard/Android/data/app.tinkerbox.kanakku.e2e/files/diagnostics/kanakku-diagnostics.jsonl` for the `classified` line (`review` must be true) and the `prompt decision` line (overlayAllowed/overlayOn must be true, appOpen false).
+2. **SMS and Call log permissions declaration** (App content › Start) — already available; use section 2 values (video https://www.youtube.com/watch?v=cnpwUJkU08Q).
+3. Store listing (section 3), app category Finance + contact details (Store presence › Store settings).
+4. Publishing overview › **Send for review**.
 
 ## 4. After submitting
 
