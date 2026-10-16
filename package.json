@@ -1,6 +1,6 @@
 {
   "name": "kanakku",
-  "version": "0.2.0-beta.2",
+  "version": "0.2.0-beta.3",
   "description": "Kanakku: private on-device SMS spend journal for Android",
   "main": "expo-router/entry",
   "dependencies": {

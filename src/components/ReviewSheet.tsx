@@ -520,6 +520,16 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                   {money(tx.amount, true)}
                 </Text>
                 <Text bold>{tx.merchant}</Text>
+                {isAccountPayee(tx) && (
+                  <Text
+                    muted
+                    style={{ fontSize: 12, lineHeight: 18, marginTop: 8 }}
+                  >
+                    The destination is masked, so it stays out of totals until
+                    you decide. Choose Transfer for your own account, or
+                    Purchase and a category for a real expense.
+                  </Text>
+                )}
                 <Text muted style={{ fontSize: 12, marginTop: 4 }}>
                   {tx.bank} · {tx.account} ·{" "}
                   {new Date(tx.at).toLocaleDateString("en-IN", {
