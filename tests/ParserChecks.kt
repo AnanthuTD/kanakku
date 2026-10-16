@@ -11,6 +11,22 @@ import java.util.Calendar
 fun main() {
   var checks = 0
   fun verify(condition: Boolean) { checks++; check(condition) { "Native check $checks failed" } }
+  val delivered = java.time.Instant.parse("2026-10-13T05:00:00Z").toEpochMilli()
+  fun kgbTime(text: String) = SmsParser.parse("AD-KGBANK-S", "Your A/c XXXX4821 debited Rs.250 Bal after txn Rs.1000 $text -Kerala Gramin Bank", delivered)!!.transactionAt
+  verify(kgbTime("Time 13-10-26 10:15:00") == "2026-10-13T04:45:00Z")
+  verify(kgbTime("on 13/10/2026 10:15 AM") == "2026-10-13T04:45:00Z")
+  verify(kgbTime("on 13/10/26 12:15 AM") == "2026-10-12T18:45:00Z")
+  verify(kgbTime("on 12/10/26 12:15 PM") == "2026-10-12T06:45:00Z")
+  verify(kgbTime("Time 31-02-26 10:15:00") == null)
+  verify(kgbTime("on 13/10/26 00:15 AM") == null)
+  verify(kgbTime("Time 13-10-26 25:15:00") == null)
+  verify(kgbTime("Time 13-10-26 10:15:99") == null)
+  verify(kgbTime("Time 13-10-26 23:15:00") == null)
+  verify(kgbTime("Time 01-10-26 10:15:00") == null)
+  verify(kgbTime("Time 10:15:00") == null)
+  val kgbTimedUpi = SmsParser.parse("AD-KGBANK-S", "Your a/c no. XXXX4821 is debited for Rs.250.00 on 13/10/26 10:15 AM and credited to a/c no. XXXXX7788 (UPI Ref no 612345678901)-Kerala Gramin Bank", delivered)!!
+  verify(kgbTimedUpi.transactionAt == "2026-10-13T04:45:00Z")
+  verify(kgbTimedUpi.at == "2026-10-13T05:00:00Z")
   val now=1791883200000L
   fun parse(body:String,sender:String="VM-HDFCBK")=SmsParser.parse(sender,body,now)
   val purchase=parse("Rs.420.25 spent on HDFC Bank Card xx4821 at SWIGGY on 13-Oct. Ref 123456789012")!!

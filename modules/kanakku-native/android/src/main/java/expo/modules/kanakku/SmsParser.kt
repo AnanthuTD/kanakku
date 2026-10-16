@@ -2,10 +2,12 @@ package expo.modules.kanakku
 
 import java.security.MessageDigest
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.Locale
 import java.math.BigDecimal
 
-data class ParsedTransaction(val id: String, val amount: Long, val merchant: String, val account: String, val bank: String, val at: String, val category: String, val kind: String, val review: Boolean, val reference: String?,val method:String="merchant",val classifierVersion:String="merchant-rules-v1",val score:Double?=null,val margin:Double?=null,val supplementaryAlert:Boolean=false)
+data class ParsedTransaction(val id: String, val amount: Long, val merchant: String, val account: String, val bank: String, val at: String, val category: String, val kind: String, val review: Boolean, val reference: String?,val method:String="merchant",val classifierVersion:String="merchant-rules-v1",val score:Double?=null,val margin:Double?=null,val supplementaryAlert:Boolean=false,val transactionAt:String?=null)
 
 object SmsParser {
   private val banks = linkedMapOf("HDFCBK" to "HDFC", "HDFCBN" to "HDFC", "AXISBK" to "Axis", "AXISB" to "Axis", "SBIINB" to "SBI", "SBICRD" to "SBI Card", "SBIUPI" to "SBI", "SBIBNK" to "SBI", "CBSSBI" to "SBI", "ATMSBI" to "SBI", "SBIPSG" to "SBI", "KIWICC" to "Kiwi", "GONIYO" to "Kiwi", "SLICE" to "Slice", "SLICEB" to "Slice", "SLCBNK" to "Slice", "SLCEIT" to "Slice", "ICICIB" to "ICICI", "KOTAKB" to "Kotak", "KOTAK" to "Kotak", "IDFCFB" to "IDFC FIRST", "PNBSMS" to "PNB", "BOBMSG" to "Bank of Baroda", "CANBNK" to "Canara", "UNIONB" to "Union Bank", "YESBNK" to "Yes Bank", "FEDBNK" to "Federal Bank", "KGBANK" to "Kerala Gramin Bank")
@@ -15,6 +17,25 @@ object SmsParser {
   private val balanceAfterRe = Regex("^\\s*(?:available\\s+(?:balance|credit)|avl\\.?\\s*bal(?:ance)?\\.?|balance)\\b", RegexOption.IGNORE_CASE)
   private val accountRe = Regex("(?:card|a/c|acct|account)(?:\\s+(?:no\\.?|number|ending|ends?|xx|with))?[\\s:*Xx.-]*([0-9]{4,})(?![0-9])", RegexOption.IGNORE_CASE)
   private val refRe = Regex("(?:UPI\\s*(?:Ref|Txn)|Ref(?:erence)?(?:\\s*(?:No|ID))?|UTR|RRN)\\s*[.:#-]?\\s*([A-Za-z0-9]{6,})", RegexOption.IGNORE_CASE)
+  // KGB's two alert templates write local Indian transaction time. Preserve receipt time separately.
+  private fun transactionTime(body: String, receivedAt: Long): String? {
+    val match = Regex("\\b(?:on|Time)\\s+(\\d{2})[/-](\\d{2})[/-](\\d{4}|\\d{2})\\s+(\\d{1,2}):(\\d{2})(?::(\\d{2}))?(?:\\s*(AM|PM))?\\b", RegexOption.IGNORE_CASE).find(body) ?: return null
+    return runCatching {
+      val g = match.groupValues
+      val year = if (g[3].length == 2) 2000 + g[3].toInt() else g[3].toInt()
+      var hour = g[4].toInt()
+      if (g[7].isNotEmpty()) {
+        require(hour in 1..12)
+        hour = hour % 12 + if (g[7].equals("PM", true)) 12 else 0
+      }
+      val instant = LocalDateTime.of(year, g[2].toInt(), g[1].toInt(), hour, g[5].toInt(), g[6].ifEmpty { "0" }.toInt())
+        .atZone(ZoneId.of("Asia/Kolkata")).toInstant()
+      // Ignore implausible/future bank timestamps rather than use them as dedupe evidence.
+      require(instant.toEpochMilli() <= receivedAt + 5 * 60_000L)
+      require(instant.toEpochMilli() >= receivedAt - 7 * 24 * 60 * 60_000L)
+      instant.toString()
+    }.getOrNull()
+  }
   fun parse(sender: String, body: String, timestamp: Long): ParsedTransaction? {
     val header = sender.uppercase(Locale.ROOT).replace(Regex("^[A-Z0-9]{2}-"), "").replace(Regex("-[A-Z]$"), "")
     val bank = banks[header] ?: return null
@@ -62,7 +83,7 @@ object SmsParser {
     val category = category(merchant)
     val supplementary = bank == "Kerala Gramin Bank" && reference == null && merchant == "Unknown merchant" &&
       Regex("\\bBal after txn\\b", RegexOption.IGNORE_CASE).containsMatchIn(body)
-    return ParsedTransaction(id, amount, merchant, account, bank, Instant.ofEpochMilli(timestamp).toString(), category, kind, kind == "purchase" && category == "Uncategorized", reference, supplementaryAlert=supplementary)
+    return ParsedTransaction(id, amount, merchant, account, bank, Instant.ofEpochMilli(timestamp).toString(), category, kind, kind == "purchase" && category == "Uncategorized", reference, supplementaryAlert=supplementary, transactionAt=if(bank == "Kerala Gramin Bank") transactionTime(body, timestamp) else null)
   }
   fun category(merchant: String): String {
     val candidates = linkedMapOf(

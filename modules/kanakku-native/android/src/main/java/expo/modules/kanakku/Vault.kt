@@ -74,6 +74,7 @@ class Vault(private val context: Context) {
     t.score?.let{classification.put("score",it)};t.margin?.let{classification.put("margin",it)}
     val j = JSONObject().put("id",t.id).put("amount",t.amount).put("merchant",t.merchant).put("account",t.account).put("bank",t.bank).put("at",t.at).put("category",t.category).put("kind",t.kind).put("review",t.review).put("excluded",false).put("note","").put("source","sms").put("classification",classification).put("reason",if(t.review) "Needs your context" else when(t.method){"rule"->"Your merchant rule";"model"->"On-device semantic suggestion";else->"Local merchant match"})
     t.reference?.let { j.put("reference", it) }
+    t.transactionAt?.let { j.put("transactionAt", it) }
     if(t.supplementaryAlert) j.put("supplementaryAlert", true)
     return seal(j.toString().toByteArray())
   }

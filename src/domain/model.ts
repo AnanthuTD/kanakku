@@ -31,6 +31,8 @@ export interface Transaction {
   source: "sample" | "sms";
   reason: string;
   reference?: string;
+  /** Bank-stated transaction time, distinct from SMS receipt time in at. */
+  transactionAt?: string;
   classification?: {
     method: "rule" | "merchant" | "model" | "user" | "unknown";
     version: string;
@@ -179,6 +181,18 @@ export function mergeTransactions(
   incoming: Transaction[],
 ): Transaction[] {
   const map = new Map(old.map((t) => [t.id, t]));
-  for (const t of incoming) if (!map.has(t.id)) map.set(t.id, t);
+  for (const t of incoming) {
+    const existing = map.get(t.id);
+    if (!existing) map.set(t.id, t);
+    else if (
+      existing.source === "sms" && t.source === "sms" &&
+      existing.bank === t.bank && existing.account === t.account &&
+      existing.amount === t.amount && !existing.transactionAt &&
+      t.transactionAt && Number.isFinite(Date.parse(t.transactionAt))
+    ) {
+      // Re-import can enrich immutable parser metadata, never replace user decisions.
+      map.set(t.id, { ...existing, transactionAt: t.transactionAt });
+    }
+  }
   return [...map.values()].sort((a, b) => b.at.localeCompare(a.at));
 }

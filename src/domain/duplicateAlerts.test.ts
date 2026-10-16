@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { Transaction, netSpend } from "./model";
+import { Transaction, netSpend, mergeTransactions } from "./model";
 import { markDuplicateAlerts, isDuplicateAlert } from "./duplicateAlerts";
 const upi: Transaction = {
   id: "upi",
@@ -101,4 +101,61 @@ it("keeps competing supplementary alerts separate instead of choosing by arrival
   const another = { ...balance, id: "balance2" };
   const result = markDuplicateAlerts([upi, balance, another]);
   expect(result.filter((t) => t.duplicateOf)).toHaveLength(0);
+});
+
+it("uses bank transaction time when SMS delivery is delayed", () => {
+  const primary = { ...upi, transactionAt: "2026-09-10T10:00:00Z" };
+  const delayed = {
+    ...balance,
+    at: "2026-09-10T10:20:00Z",
+    transactionAt: "2026-09-10T10:00:30Z",
+  };
+  expect(markDuplicateAlerts([primary, delayed])[1].duplicateOf).toBe("upi");
+  expect(markDuplicateAlerts([delayed, primary])[0].duplicateOf).toBe("upi");
+});
+it("never falls back to nearby delivery when bank transaction times disagree", () => {
+  const primary = { ...upi, transactionAt: "2026-09-10T10:00:00Z" };
+  const separate = { ...balance, transactionAt: "2026-09-10T10:01:01Z" };
+  expect(markDuplicateAlerts([primary, separate])).toEqual([primary, separate]);
+  expect(markDuplicateAlerts([primary, { ...separate, transactionAt: "2026-09-10T10:01:00Z" }])[1].duplicateOf).toBe("upi");
+});
+it("retains delivery-time fallback for old imported rows and invalid event times", () => {
+  for (const transactionAt of [undefined, "invalid"]) {
+    expect(markDuplicateAlerts([upi, { ...balance, transactionAt }])[1].duplicateOf).toBe("upi");
+  }
+});
+it("event-time matches still require account, bank, direction, amount and unique pairing", () => {
+  const primary = { ...upi, transactionAt: upi.at };
+  const twin = { ...balance, transactionAt: upi.at };
+  for (const patch of [{ bank: "SBI" }, { account: "1234" }, { amount: 42 }, { kind: "refund" as const }]) {
+    const other = { ...twin, ...patch };
+    expect(markDuplicateAlerts([primary, other])).toEqual([primary, other]);
+  }
+  const another = { ...primary, id: "second", reference: "different123" };
+  expect(markDuplicateAlerts([primary, another, twin]).some(t => t.duplicateOf)).toBe(false);
+});
+
+it("re-import adds missing event time while preserving every user decision", () => {
+  const edited = { ...upi, note: "My note", category: "Transport" as const,
+    kind: "transfer" as const, excluded: true,
+    classification: { method: "user" as const, version: "review-v1" } };
+  const parsed = { ...upi, transactionAt: upi.at };
+  expect(mergeTransactions([edited], [parsed])).toEqual([{ ...edited, transactionAt: upi.at }]);
+  for (const patch of [{ bank: "SBI" }, { account: "1234" }, { amount: 42 }, { transactionAt: "invalid" }])
+    expect(mergeTransactions([edited], [{ ...parsed, ...patch }])).toEqual([edited]);
+  const enriched = { ...edited, transactionAt: upi.at };
+  expect(mergeTransactions([enriched], [{ ...parsed, transactionAt: balance.at }])).toEqual([enriched]);
+});
+
+it("never hides a supplementary payment behind an excluded or already-linked target", () => {
+  for (const target of [
+    { ...upi, excluded: true },
+    { ...upi, duplicateOf: "another" },
+    { ...upi, excluded: true, duplicateOf: "another" },
+  ]) expect(markDuplicateAlerts([target, balance])).toEqual([target, balance]);
+});
+it("does not apply the KGB supplementary rule to another issuer", () => {
+  const primary = { ...upi, bank: "SBI" };
+  const second = { ...balance, bank: "SBI" };
+  expect(markDuplicateAlerts([primary, second])).toEqual([primary, second]);
 });

@@ -1,8 +1,32 @@
 # Kanakku implementation checklist
 
-Updated: 15 October 2026. Plan: [PLAN.md](PLAN.md).
+Updated: 16 October 2026. Plan: [PLAN.md](PLAN.md).
 
 Checked boxes mean the named implementation or check is complete. Device acceptance is tracked separately; a successful APK build is not a device test.
+
+## Prioritised remaining tasks — 16 October 2026
+
+**Task 1 delivery in progress:** preparing personal 0.2.0-beta.2 / versionCode 3. The installed personal app uses Play App Signing; local upload-key APKs cannot update it. Deliver through the existing internal-test track without uninstalling/clearing app data. Do not mark device acceptance complete until the Play-signed update is installed and checked.
+
+This is the current execution order. Historical sections below retain detailed evidence and may contain older checkpoints; they do not replace this consolidated queue.
+
+1. [ ] **In progress: Duplicate-SMS handling — highest priority.** Read all recognised sender variants and deduplicate per transaction, never discard a sender family. Prefer matching bank/account/instrument, reference, amount and direction; retain different references. For proven KGB supplementary balance alerts, require those matching fields and a unique counterpart within ±1 minute of bank-stated event time; use the five-minute receipt-time fallback only when event time is unavailable. Preserve both records and user decisions. Keep ambiguous matches separate for review. Do not generalise the KGB rule to SBI/Slice/cards without verified paired formats. Timestamp extraction and safe re-import enrichment are implemented (205 unit tests, 158 native checks, 24 browser journeys, TypeScript passed); remaining: review candidate/target safeguards, sender/instrument coverage, build/install, native persistence and real-inbox validation. Review `YESBAK`/`GKIWIP` with synthetic fixtures before extending recognised senders. Do not commit raw SMS or private account details.
+2. [ ] **Real spending totals and transfers.** Re-import with the updated parser, reconcile monthly totals with the user and confirm duplicate exclusions and held bank-account payments. Add own-account transfer detection only with verified account ownership/evidence; masked destination digits alone can collide. Preserve manual corrections.
+3. [ ] **Bill-photo and voice hand-off.** Finish/verify editable structured receipts attached to existing payments; preserve unsaved avatar voice context across Edit/Photo, cancellation and return. Complete native OCR checks on a minified build.
+4. [ ] **Companion acceptance and automated flows.** Update the redesigned avatar Maestro preview flow; verify real-payment and sample prompts, tap-to-listen, Save/Edit/Photo, drag-to-dismiss, position memory, lifecycle and locked-screen privacy.
+5. [ ] **SMS, import and security acceptance.** Test foreground/closed/locked delivery, encrypted persistence, reboot/authentication/biometric-key changes, permission denial/revocation, pause/resume, process death and notification actions. Expand redacted/synthetic real-bank format coverage.
+6. [ ] **Brave lookup acceptance.** Verify visible exact-VPA source evidence and merchant identification, credential persistence/replacement/removal, timeout/quota/error/cancellation paths on Android. Evaluate held-out Indian merchants and calibration; completed HTTP requests alone do not prove merchant identification.
+7. [ ] **Subscription validation.** Check real recurring charges, merchant aliases, refunds, cancellations and price changes during personal beta.
+8. [ ] **English voice and model evaluation.** Broaden phone tests for names, Indian English, quiet/noisy speech and category acceptance; retain only explicitly approved diagnostic material. Close the historical multilingual evaluation with the current English-only release scope; Malayalam remains deferred to future packs.
+9. [ ] **Accessibility, splash and notification acceptance.** Complete TalkBack, large text, touch targets, empty/error/loading states, normal/reduced-motion avatar behavior, light-mode splash hand-off, silent settings and notification glyph/privacy checks.
+10. [ ] **Performance.** Benchmark large imports/histories, list scrolling, cold/warm inference, memory and battery on the target phone; tune only against measured results.
+11. [ ] **Final regressions and release evidence.** Resolve remaining browser regressions, rerun affected native/Maestro/browser checks on the final APK, and refresh hashes/reports. Current passing host checks do not replace device acceptance.
+12. [ ] **Personal release OTA acceptance.** Verify a compatible published update on the personal release build, including safe restart and failure handling; isolated E2E delivery has already been demonstrated.
+13. [ ] **On-demand model delivery.** Implement user-triggered Play Asset Delivery for Whisper and classifier model assets, measure actual download/base size, and produce a new verified AAB. Confirm whether native runtime libraries must stay in the base instead of assuming they can be asset packs.
+14. [ ] **Dependencies and remaining policy decisions.** Resolve/reassess upstream braces/node-forge advisories and finish VPA/API-token/Data safety classification decisions. Signing infrastructure and initial declarations are already set up; further policy edits must reflect verified behavior.
+15. [ ] **Closed-test approval and production eligibility.** Initial Alpha submission is complete and last observed in review. After availability, recruit at least 12 real testers, collect feedback, maintain continuous 14-day opt-ins, fix findings and apply for production access. Approval/publication is not yet complete.
+
+Deferred scope: Malayalam language packs, Gemini grounding, Jeff evaluation and cloud sync. These are not current-release completion claims.
 
 ## Play release continuation — 15 October evening
 
@@ -14,13 +38,13 @@ Checked boxes mean the named implementation or check is complete. Device accepta
 - [x] Complete Approximate location handling in Play Console and review the generated Data safety preview (15 Oct): the exported Console CSV confirms approximate location is selected and marked collected + shared, optional, non-ephemeral, with App functionality purposes. Preview now lists Approximate location under both Data collected and Data shared. Purchase history was added and saved on 16 Oct as collected + shared, optional, non-ephemeral, for App functionality. SMS and receipt photos remain unselected because their contents stay on-device.
 - [x] **Add Purchase history in Play Console (16 Oct):** saved the category answers and the full declaration; Console confirmed “Change saved. Send for review in Publishing overview.” Preview confirms collected + shared, optional, App functionality; non-ephemeral selected.
 - [x] **Closed testing submitted (16 Oct):** Alpha configured for India with the existing “Kanakku beta testers” email list (3 users) and feedback email. Reused versionCode 2 / 0.2.0-beta.1 from Play library, added release notes, saved and confirmed “Send changes for review.” Console confirms “14 changes sent for review” and “Changes in review”; automated quick checks are still running and changes proceed to review after successful checks. Approval and tester opt-ins remain pending.
-- [ ] **Finish Data safety review and submit:** source review found remaining classification questions. Brave receives only an allowlisted merchant label for automatic lookups, but that label is derived from a real transaction; Google defines Purchase history broadly, so add/review Purchase history as collected and shared (optional, App functionality) unless the automatic lookup flow is changed. The exact VPA is sent only after a per-address consent switch; the current User payment info “Shared” answer appears over-inclusive under Google's user-initiated transfer exception. Review whether the VPA maps to User payment info and the BYOK token sent in `X-Subscription-Token` maps to User IDs. The earlier CSV predates the saved Purchase history addition; User payment info remains collected + shared. Approximate location handling is complete. See `docs/play-policy-review.md` before editing the live form.
+- [ ] **Remaining Data safety classification review (initial declaration already submitted):** source review found remaining classification questions. Brave receives only an allowlisted merchant label for automatic lookups, but that label is derived from a real transaction; Google defines Purchase history broadly, so add/review Purchase history as collected and shared (optional, App functionality) unless the automatic lookup flow is changed. The exact VPA is sent only after a per-address consent switch; the current User payment info “Shared” answer appears over-inclusive under Google's user-initiated transfer exception. Review whether the VPA maps to User payment info and the BYOK token sent in `X-Subscription-Token` maps to User IDs. The earlier CSV predates the saved Purchase history addition; User payment info remains collected + shared. Approximate location handling is complete. See `docs/play-policy-review.md` before editing the live form.
 - [x] Publish corrected privacy policy disclosures to public GitHub `main` (commit `4ff113e`; verified raw `main` URL includes VPA, SDK metrics and IP-based approximate-location text).
 - [x] Review and upload the foreground-service demo video; both declaration links and descriptions were saved in Play Console.
 - [x] SMS money-management declaration saved by the user with corrected 454-character reviewer instructions; Console confirms "Your changes have been saved" (Play review status not yet verified)
 - [x] Verify SMS declaration is saved/actioned in App content; Play's policy review/approval is still pending
 - [x] Complete category/contact details; Finance, Personal finance, contact email and website verified after reload
-- [ ] Final submission review after the Data safety declaration is complete and live privacy policy is ready
+- [x] Initial closed-test submission confirmed on 16 October; final production readiness review remains in the prioritised queue.
 - [x] Play Store settings tag **Personal finance** selected and visible after reload
 - [x] Default listing text, 512×512 icon, and AI asset declaration reviewed and saved in Play Console (user confirmed save, 15 Oct)
 - [x] Attach Play listing feature graphic (cropped copy, 1024×500) and four phone screenshots (449×1000 each); screenshots satisfy listing upload dimensions but not the optional 1080px-per-side promotion target
@@ -186,6 +210,14 @@ Checked boxes mean the named implementation or check is complete. Device accepta
 - [x] Emulator credential storage verified using deliberately invalid placeholders; real API response/quota and physical Keystore backing remain separate acceptance work
 - [ ] Save the key on a physical Android phone and verify an in-app search, persistence after restart, replacement and removal
 - Wider distribution can retain user-provided keys without a backend. If Kanakku provides search using a shared service credential, add a backend with server-held credentials, authentication, per-user quotas and spending limits before offering that service. This backend is deferred and has not been implemented.
+
+## Duplicate alerts and real-total validation — 16 October
+
+- [x] Compare other issuer alert formats locally before generalizing KGB dedupe: Axis commonly includes seconds; SBI/Slice include date-only formats; HDFC/SBI Card/Kiwi lack enough matched paired-alert evidence to approve a time-only rule. No raw SMS retained or committed. Keep automatic supplementary-alert matching scoped to proven bank templates.
+- [ ] Review alternate public sender headers `YESBAK` and `GKIWIP` and add synthetic supported transaction fixtures before changing issuer mappings. Sender recognition alone must not admit OTP/promotional messages.
+
+- [x] **Source implementation (16 Oct):** preserve KGB bank-stated transaction times separately from SMS arrival; match unique supplementary/reference pairs within ±1 minute of event time, retaining the five-minute receipt-time fallback for older rows. Conflicting references, amounts, accounts, directions and ambiguous matches stay separate. Host validation: 203 unit tests, 158 synthetic native checks and TypeScript pass. Native APK deployment and real-inbox validation remain pending.
+- [ ] Validate re-imported real month totals with the user after deploying the updated native parser; re-import enriches missing event timestamps without replacing user edits; existing duplicate decisions remain preserved.
 
 ## Remaining implementation and evaluation
 
