@@ -28,6 +28,28 @@ const row = (
   ...patch,
 });
 describe("ledger queries", () => {
+  it("held-payment drill-down contains only unresolved account-payee purchases", () => {
+    const held = row("held", "2026-10-10", {
+      merchant: "A/c ••7788",
+      review: true,
+    });
+    const matches = filterLedger(
+      [
+        held,
+        { ...held, id: "named", merchant: "Unknown merchant" },
+        { ...held, id: "confirmed", review: false },
+        { ...held, id: "excluded", excluded: true },
+        { ...held, id: "transfer", kind: "transfer" },
+        { ...held, id: "older", at: "2026-09-30" },
+      ],
+      {
+        awaitingContextOnly: true,
+        range: { start: "2026-10-01", end: "2026-10-31", label: "October" },
+      },
+    );
+    expect(matches.map((t) => t.id)).toEqual(["held"]);
+    expect(netSpend(matches)).toBe(0);
+  });
   const rows = [
     row("a", "2026-10-01T12:00:00"),
     row("b", "2026-10-13T23:59:59", { amount: 2500, kind: "refund" }),

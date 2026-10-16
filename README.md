@@ -23,7 +23,7 @@
   <img src="docs/screenshots/settings.png" width="200" alt="Settings: theme, bank SMS, floating companion">
 </p>
 
-Indian banks text you every time money moves. Kanakku reads those alerts on the phone, keeps an encrypted journal of what you actually spent, and asks — in its own words — only when a payment needs context. No account, no server, no ads, no analytics.
+Kanakku reads supported bank transaction SMS on the phone, keeps an encrypted spending journal, and asks — in its own words — when a payment needs context. Its totals cover captured SMS; payments with only an email alert are not imported. No account, no server, no ads, no analytics.
 
 ## Why you can trust it
 

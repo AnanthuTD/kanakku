@@ -61,6 +61,8 @@ test("payments to an unnamed bank account wait for context; a suffix cannot sett
   await expect(page.getByTestId("activity-held")).toHaveText(
     "+ ₹30,000 awaiting context",
   );
+  await expect(page.getByTestId("activity-count")).toHaveText("2 TRANSACTIONS");
+  await expect(page.getByRole("button", { name: /^Rahul S,/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^A\/c ••7788,/ })).toHaveCount(
     2,
   );
@@ -106,4 +108,45 @@ test("payments to an unnamed bank account wait for context; a suffix cannot sett
   await expect(page.getByTestId("activity-held")).toHaveText(
     "+ ₹15,000 awaiting context",
   );
+});
+
+test("held-payment review stays within its contributing rows and does not visit unrelated payments", async ({
+  page,
+}) => {
+  await home(page);
+  const before = await savedJournal(page);
+  await page.getByTestId("held-spend").click();
+  await page
+    .getByRole("button", { name: "Review 2 payments one by one", exact: true })
+    .click();
+  const review = page.getByRole("dialog", { name: "Review payment" });
+  await expect(
+    review.getByText("PAYMENT 1 OF 2 · REVIEW AT YOUR PACE"),
+  ).toBeVisible();
+  await expect(
+    review.getByRole("textbox", { name: "Merchant name", exact: true }),
+  ).toHaveValue("A/c ••7788");
+  await review
+    .getByRole("button", { name: "Skip for now", exact: true })
+    .click();
+  await expect(
+    review.getByText("PAYMENT 2 OF 2 · REVIEW AT YOUR PACE"),
+  ).toBeVisible();
+  await expect(
+    review.getByRole("textbox", { name: "Merchant name", exact: true }),
+  ).toHaveValue("A/c ••7788");
+  await review
+    .getByRole("button", { name: "Skip for now", exact: true })
+    .click();
+  await expect(review).toBeHidden();
+  expect(await savedJournal(page)).toEqual(before);
+  // The broader review list remains available after leaving the held-only view.
+  await page.getByRole("button", { name: /^Needs context ·/ }).click();
+  await expect(page.getByRole("button", { name: /^Rahul S,/ })).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Review 4 payments one by one",
+      exact: true,
+    }),
+  ).toBeVisible();
 });

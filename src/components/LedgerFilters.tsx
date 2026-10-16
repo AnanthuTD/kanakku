@@ -213,7 +213,13 @@ export function LedgerFilters({
       <Option
         label="Only payments needing context"
         selected={!!draft.reviewOnly}
-        onPress={() => setDraft({ ...draft, reviewOnly: !draft.reviewOnly })}
+        onPress={() =>
+          setDraft({
+            ...draft,
+            reviewOnly: !draft.reviewOnly,
+            awaitingContextOnly: false,
+          })
+        }
       />
       {!!error && (
         <Text

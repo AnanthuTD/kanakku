@@ -111,6 +111,7 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category | null>(null);
   const [reviewOnly, setReviewOnly] = useState(false);
+  const [awaitingContextOnly, setAwaitingContextOnly] = useState(false);
   const [account, setAccount] = useState<string | null>(null);
   const [day, setDay] = useState<string | null>(null);
   const [kind, setKind] = useState<Kind | null>(null);
@@ -227,6 +228,7 @@ export default function Home() {
     merchant,
     query,
     reviewOnly,
+    awaitingContextOnly,
   };
   const filtered = useMemo(
     () => filterLedger(transactions, activeFilter),
@@ -241,8 +243,10 @@ export default function Home() {
       merchant,
       query,
       reviewOnly,
+      awaitingContextOnly,
     ],
   );
+  const filteredPending = filtered.filter((t) => t.review);
   useEffect(() => {
     activityOffset.current = 0;
     restoreActivityTarget.current = 0;
@@ -257,6 +261,7 @@ export default function Home() {
     merchant,
     query,
     reviewOnly,
+    awaitingContextOnly,
   ]);
   const topMerchants = merchantTotals(monthly);
   const comparable = equivalentPeriods(month);
@@ -289,6 +294,7 @@ export default function Home() {
   const goActivity = (cat: Category | null = null) => {
     setCategory(cat);
     setReviewOnly(false);
+    setAwaitingContextOnly(false);
     setAccount(null);
     setDay(null);
     setQuery("");
@@ -305,6 +311,7 @@ export default function Home() {
     setKind(filter.kind || null);
     setMerchant(filter.merchant || null);
     setReviewOnly(!!filter.reviewOnly);
+    setAwaitingContextOnly(!!filter.awaitingContextOnly);
     setDay(null);
     setQuery(filter.query || "");
     activityOffset.current = 0;
@@ -616,7 +623,11 @@ export default function Home() {
                   accessibilityRole="button"
                   accessibilityLabel="Payments to bank accounts awaiting your context"
                   onPress={() =>
-                    applyFilters({ range: monthRange(month), reviewOnly: true })
+                    applyFilters({
+                      range: monthRange(month),
+                      reviewOnly: true,
+                      awaitingContextOnly: true,
+                    })
                   }
                   style={{ marginTop: 6 }}
                 >
@@ -907,6 +918,7 @@ export default function Home() {
                 active={!reviewOnly && !category}
                 onPress={() => {
                   setReviewOnly(false);
+                  setAwaitingContextOnly(false);
                   setCategory(null);
                   setDay(null);
                   setAccount(null);
@@ -918,9 +930,19 @@ export default function Home() {
               />
               <Chip
                 label={`Needs context · ${pending.length}`}
-                active={reviewOnly}
-                onPress={() => setReviewOnly(!reviewOnly)}
+                active={reviewOnly && !awaitingContextOnly}
+                onPress={() => {
+                  setReviewOnly(awaitingContextOnly || !reviewOnly);
+                  setAwaitingContextOnly(false);
+                }}
               />
+              {awaitingContextOnly && (
+                <Chip
+                  label="Bank account payments"
+                  active
+                  onPress={() => setAwaitingContextOnly(false)}
+                />
+              )}
               {CATEGORIES.filter((c) => c !== "Uncategorized").map((c) => (
                 <Chip
                   key={c}
@@ -953,10 +975,19 @@ export default function Home() {
                 <X size={15} color={colors.muted} />
               </Pressable>
             )}
-            {reviewOnly && pending.length > 0 && (
-              <Button onPress={() => openReview()} style={{ marginBottom: 10 }}>
-                Review {pending.length}{" "}
-                {pending.length === 1 ? "payment" : "payments"} one by one
+            {reviewOnly && filteredPending.length > 0 && (
+              <Button
+                onPress={() =>
+                  sheet.current?.open(filteredPending[0].id, {
+                    queue: true,
+                    queueIds: filteredPending.map((t) => t.id),
+                  })
+                }
+                style={{ marginBottom: 10 }}
+              >
+                Review {filteredPending.length}{" "}
+                {filteredPending.length === 1 ? "payment" : "payments"} one by
+                one
               </Button>
             )}
             <View

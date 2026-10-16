@@ -1,5 +1,12 @@
 import { isDuplicateAlert } from "./duplicateAlerts";
-import { Category, Kind, Transaction, merchantKey, netSpend } from "./model";
+import {
+  Category,
+  Kind,
+  Transaction,
+  awaitingContext,
+  merchantKey,
+  netSpend,
+} from "./model";
 
 export interface DateRange {
   start: string | null;
@@ -12,6 +19,7 @@ export interface LedgerFilter {
   account?: string | null;
   kind?: Kind | null;
   reviewOnly?: boolean;
+  awaitingContextOnly?: boolean;
   query?: string;
   merchant?: string | null;
 }
@@ -70,6 +78,7 @@ export function filterLedger(rows: Transaction[], f: LedgerFilter) {
         (!f.account || `${t.bank} ${t.account}` === f.account) &&
         (!f.kind || t.kind === f.kind) &&
         (!f.reviewOnly || t.review) &&
+        (!f.awaitingContextOnly || awaitingContext(t)) &&
         (!f.merchant || merchantKey(t.merchant) === merchantKey(f.merchant)) &&
         (!query ||
           `${t.merchant} ${t.note} ${t.bank} ${t.account}`

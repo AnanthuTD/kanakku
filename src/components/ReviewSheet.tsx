@@ -51,7 +51,12 @@ const ReviewInput = Platform.OS === "web" ? TextInput : BottomSheetTextInput;
 export interface ReviewHandle {
   open: (
     id: string,
-    options?: { queue?: boolean; voice?: boolean; photo?: boolean },
+    options?: {
+      queue?: boolean;
+      queueIds?: string[];
+      voice?: boolean;
+      photo?: boolean;
+    },
   ) => void;
 }
 export const ReviewSheet = forwardRef<ReviewHandle>(
@@ -194,7 +199,12 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
             ? [
                 value,
                 ...transactions
-                  .filter((x) => x.review && x.id !== value)
+                  .filter(
+                    (x) =>
+                      x.review &&
+                      x.id !== value &&
+                      (!options.queueIds || options.queueIds.includes(x.id)),
+                  )
                   .map((x) => x.id),
               ]
             : [];

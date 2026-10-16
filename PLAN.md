@@ -125,7 +125,7 @@ Show the recorded charges, amount range, confidence/evidence and estimated next 
 - Use ingestion/reference identifiers when available. Cross-alert linking requires parser-proven supplementary provenance and exactly one eligible referenced counterpart with the same bank/account/direction/amount in the bounded window, without competing supplementary alerts. Equal amounts/timestamps or unknown legacy provenance are insufficient.
 - Record ambiguous matches for review. Never merge distinct payments silently on weak evidence.
 - Refunds affect clearly labeled net spending; partial refunds and reversals need fixtures and tests.
-- Keep uncertain purchases visible in an Uncategorized/review bucket. Account-only payees are explicitly held outside spending until context is confirmed; show this held coverage rather than guessing a purpose. Exclude confirmed internal transfers.
+- Keep uncertain purchases visible in an Uncategorized/review bucket. Account-only payees are explicitly held outside spending until context is confirmed; show this held coverage rather than guessing a purpose. Tapping that amount opens only its contributing unresolved account-payee purchases. Starting review from filtered Activity visits only the matching review payments. Exclude confirmed internal transfers.
 - Mask account identifiers and retain only necessary suffixes. Account/source attribution belongs in the first data model.
 - Retain classifier version, confidence, and reason (personal rule, merchant match, model, or user correction).
 
