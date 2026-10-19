@@ -1,7 +1,7 @@
 # Kanakku — product, experience, and build plan
 
 Status: implementation in progress; bill capture and OTA source added. Combined-build and physical-device acceptance are tracked in the checklist.
-Updated: 16 October 2026. Live implementation status is maintained in [CHECKLIST.md](CHECKLIST.md); exact artifact/revision evidence belongs in [the build manifest](artifacts/build-manifest.json).
+Updated: 19 October 2026. Live implementation status is maintained in [CHECKLIST.md](CHECKLIST.md); exact artifact/revision evidence belongs in [the build manifest](artifacts/build-manifest.json).
 Source: [Spend Aggregator — Project Spec](https://docs.google.com/document/d/14-naGduZZfzcmomNR4rfdh-PeIU-UJ-f/edit).
 
 ## Current execution and delivery order
@@ -268,3 +268,9 @@ Remaining acceptance includes real card/bank variants, legacy duplicate review, 
 The base APK contains runtime libraries, deterministic SMS rules, vocabulary/prototypes, model metadata and licenses. Settings exposes separate optional downloads for Whisper English voice and MiniLM category suggestions. These are pinned model files, not executable libraries. Explicit WorkManager HTTPS delivery uses immutable Hugging Face revisions so both Play and direct APK installs work without an app backend. Size/SHA-256 checks precede atomic private installation; cancelled/stale work cannot publish a model. Requested work can continue in background; interrupted files can resume where the host supports ranges, or restart safely otherwise. Compatible APK/OTA updates reuse files. Removal affects model files only.
 
 Missing voice gives download guidance before recording, and missing MiniLM falls back to deterministic rules/review. Neither path silently downloads. Settings shows sizes, progress, checking integrity, waiting/error states, cancellation/retry and confirmed removal. Download-host metadata is disclosed in the privacy policy. Play Asset Delivery remains a store-specific follow-up; it is not required for this HTTPS implementation. The production app keeps screen/authentication protections.
+
+## Optional Gmail transaction capture
+
+At the user's request, add on-device Gmail read-only authorization for supported authenticated SBI debit-card table alerts and SBI Card purchase sentences. Ask explicitly for mailbox-wide read permission and a 1/3/6/12-month history window, independently of SMS access. Use bounded, resumable WorkManager checks (15-minute minimum scheduling interval, best effort), manual refresh, visible progress, reconnect and disconnect. No backend or instant-delivery claim. Keep OAuth tokens native and transient; encrypt the selected account and seal only structured payment fields. Do not fetch attachments or save raw email bodies. Validate Google's authentication header and sender/subject/template before importing.
+
+Preserve source observations. Only unique reference/account/issuer/value/currency matches automatically link unchanged observations; weaker cross-source matches require explicit same/separate review. Date-only card emails remain day precision. Keep original foreign currency; require a user-confirmed final INR settlement before including it in INR totals. A new Google Cloud project and Android signing-specific OAuth clients are required; live consent, provider verification and actual account acceptance remain separate completion gates. See docs/GMAIL.md.

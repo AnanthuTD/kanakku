@@ -1,3 +1,4 @@
+import { GmailSettings } from "../src/components/GmailSettings";
 import { ModelDownloadsSettings } from "../src/components/ModelDownloadsSettings";
 import Constants from "expo-constants";
 import { AppUpdatesSettings } from "../src/components/AppUpdatesSettings";
@@ -195,6 +196,7 @@ export default function Settings() {
               </View>
             </View>
           )}
+          <GmailSettings />
           <ModelDownloadsSettings />
           <SectionTitle title="The look & feel" />
           <View style={{ flexDirection: "row", gap: 10, marginBottom: 30 }}>

@@ -81,6 +81,7 @@ class ModelDownloadsInstrumentedTest {
     ModelDownloads.withModel(context,id){assertTrue(ModelFiles.verified(File(it),s.bytes,s.sha256))}
     assertFalse(partial.exists())
     // Actual inference from the downloaded file; public CC-BY FLEURS fixture, no microphone.
+    InstrumentationRegistry.getInstrumentation().sendStatus(2,android.os.Bundle().apply{putString("kanakkuVoiceCpu",WhisperEngine.supported.toString())})
     if(WhisperEngine.supported) {
       val bytes=InstrumentationRegistry.getInstrumentation().context.assets.open("en-natural-taxi.wav").use{it.readBytes()}
       val data=ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)

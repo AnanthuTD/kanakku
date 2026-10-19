@@ -68,11 +68,13 @@ class Vault(private val context: Context) {
     if("review" !in columns) execSQL("ALTER TABLE inbox ADD COLUMN review INTEGER NOT NULL DEFAULT 1")
     // Answers given to the floating companion; sealed with the public key so no unlock is needed.
     execSQL("CREATE TABLE IF NOT EXISTS answers (id TEXT PRIMARY KEY, envelope TEXT NOT NULL)")
+    execSQL("CREATE TABLE IF NOT EXISTS gmail_seen (id TEXT PRIMARY KEY)")
   } }
   private fun envelope(t:ParsedTransaction):String {
     val classification=JSONObject().put("method",t.method).put("version",t.classifierVersion)
     t.score?.let{classification.put("score",it)};t.margin?.let{classification.put("margin",it)}
-    val j = JSONObject().put("id",t.id).put("amount",t.amount).put("merchant",t.merchant).put("account",t.account).put("bank",t.bank).put("at",t.at).put("category",t.category).put("kind",t.kind).put("review",t.review).put("excluded",false).put("note","").put("source","sms").put("classification",classification).put("reason",if(t.review) "Needs your context" else when(t.method){"rule"->"Your merchant rule";"model"->"On-device semantic suggestion";else->"Local merchant match"})
+    val j = JSONObject().put("id",t.id).put("amount",t.amount).put("merchant",t.merchant).put("account",t.account).put("bank",t.bank).put("at",t.at).put("category",t.category).put("kind",t.kind).put("review",t.review).put("excluded",false).put("note","").put("source",t.source).put("currency",t.currency).put("classification",classification).put("reason",if(t.review) "Needs your context" else when(t.method){"rule"->"Your merchant rule";"model"->"On-device semantic suggestion";else->"Local merchant match"})
+    t.timePrecision?.let { j.put("timePrecision",it) }
     t.reference?.let { j.put("reference", it) }
     t.transactionAt?.let { j.put("transactionAt", it) }
     if(t.supplementaryAlert) j.put("supplementaryAlert", true)
@@ -81,9 +83,21 @@ class Vault(private val context: Context) {
   fun capture(t: ParsedTransaction): Boolean = synchronized(lifecycleGuard) {
     if (!ready() || initialEpoch!=prefs.getLong("vaultEpoch",0)) return false
     inbox().use { db ->
-      val values = android.content.ContentValues().apply { put("id", t.id); put("envelope", envelope(t)); put("review",if(t.review)1 else 0) }
-      return db.insertWithOnConflict("inbox", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1L
+      db.beginTransaction()
+      try {
+        if(t.source=="email" && db.rawQuery("SELECT 1 FROM gmail_seen WHERE id = ?",arrayOf(t.id)).use{it.moveToFirst()})return false
+        val values = android.content.ContentValues().apply { put("id", t.id); put("envelope", envelope(t)); put("review",if(t.review)1 else 0) }
+        val inserted=db.insertWithOnConflict("inbox", null, values, SQLiteDatabase.CONFLICT_IGNORE)!=-1L
+        if(t.source=="email")db.execSQL("INSERT OR IGNORE INTO gmail_seen(id) VALUES (?)",arrayOf(t.id))
+        db.setTransactionSuccessful()
+        return inserted
+      }finally{db.endTransaction()}
+
     }
+  }
+  fun seenEmail(id:String):Boolean = synchronized(lifecycleGuard) {
+    if(!ready() || initialEpoch!=prefs.getLong("vaultEpoch",0))return false
+    inbox().use { db -> db.rawQuery("SELECT 1 FROM gmail_seen WHERE id = ?",arrayOf(id)).use{it.moveToFirst()} }
   }
   /** Update only the still-staged event; never recreate an acknowledged/user-edited row. */
   fun enrichPending(t:ParsedTransaction)=synchronized(lifecycleGuard) {

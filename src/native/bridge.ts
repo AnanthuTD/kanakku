@@ -67,6 +67,18 @@ export const emptyImport: ImportProgress = {
   coverageSince: -1,
   coverageUntil: 0,
 };
+export interface GmailStatus {
+  connected: boolean;
+  accountLabel: string;
+  state:
+    "disconnected" | "connected" | "queued" | "syncing" | "reconnect" | "error";
+  months: number;
+  scanned: number;
+  captured: number;
+  ignored: number;
+  lastSync: number;
+  revoked?: boolean;
+}
 export interface ModelDownloadStatus {
   id: "voice" | "categories";
   state:
@@ -81,6 +93,10 @@ export interface ModelDownloadStatus {
   total: number;
 }
 interface KanakkuNative {
+  gmailStatus(): Promise<GmailStatus>;
+  connectGmail(months: number): Promise<GmailStatus>;
+  syncGmail(): Promise<GmailStatus>;
+  disconnectGmail(): Promise<GmailStatus>;
   modelDownloads(): Promise<ModelDownloadStatus[]>;
   downloadModel(id: string): Promise<ModelDownloadStatus[]>;
   cancelModelDownload(id: string): Promise<ModelDownloadStatus[]>;

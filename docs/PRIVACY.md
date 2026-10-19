@@ -1,10 +1,10 @@
 # Kanakku privacy policy
 
-Last updated 16 October 2026. Applies to the Kanakku Android app (`app.tinkerbox.kanakku`), published by Tinkerbox (Ananthu T D).
+Last updated 19 October 2026. Applies to the Kanakku Android app (`app.tinkerbox.kanakku`), published by Tinkerbox (Ananthu T D).
 
 ## Your journal stays on your phone
 
-Kanakku turns supported bank SMS alerts into a local spend journal. You do not create a Kanakku account. Your SMS, recorded speech and bill images are processed on the phone, and your saved journal is encrypted there. Optional merchant searches, app updates and model downloads use external services. The bill-recognition SDK also collects technical metrics, as explained below.
+Kanakku turns supported bank SMS alerts into a local spend journal. You do not create a Kanakku account. Your SMS, recorded speech and bill images are processed on the phone, and your saved journal is encrypted there. Optional Gmail checks, merchant searches, app updates and model downloads use external services. The bill-recognition SDK also collects technical metrics, as explained below.
 
 ## What the app processes and keeps
 
@@ -14,6 +14,14 @@ Kanakku turns supported bank SMS alerts into a local spend journal. You do not c
 - **Your edits:** saved notes, categories, merchant names, receipt details, personal rules and recurring-payment decisions remain on the phone.
 
 The journal uses SQLCipher. Android Keystore and your device authentication protect its keys. Alerts received while locked are sealed in an encrypted inbox until unlock. Hardware protection varies by device. Android backup of the app's data is disabled.
+
+## Optional Gmail bank-email capture
+
+This new feature requires Google Cloud configuration and live consent acceptance before release. Connecting Gmail is optional and separate from SMS permission. Google grants read-only access to your mailbox, including email contents; its permission cannot be limited to bank messages. Kanakku uses that permission to find supported authenticated SBI debit-card and SBI Card purchase alerts within your selected history window. It fetches bounded message metadata and supported message bodies from Google, parses them on this phone, and does not fetch attachments. Unsupported messages are ignored.
+
+Kanakku does not save raw email bodies or OAuth access tokens. Google manages authorization/token caching; Kanakku keeps the chosen account identity encrypted with Android Keystore so it can request access for subsequent checks. Only structured transaction details and hashed import identities are retained locally. Email content is not sent to Kanakku servers, Brave, or AI providers, sold, or used for advertising or model training. Use of Google user data is limited to providing this user-facing journal feature, including the Google API Services User Data Policy's Limited Use requirements.
+
+After consent, background checks contact Google when Android permits; they are not instant and can stop after revocation, force-stop or network loss. Google receives authentication, mailbox requests and normal connection metadata under its [privacy policy](https://policies.google.com/privacy). Disconnect in Settings stops local checks, removes the saved account connection and attempts to revoke Google access. If revocation fails, remove Kanakku from your Google Account's third-party connections. Imported payments remain until you delete/reset the journal. Reset detaches Gmail locally; it does not delete emails from your mailbox.
 
 ## Optional Brave merchant searches
 

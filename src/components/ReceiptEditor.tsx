@@ -28,7 +28,7 @@ export interface ReceiptEditorProps {
   disabled?: boolean;
   /** Closes the camera for good (e.g. voice listening); a journal refresh never does. */
   closeCamera?: boolean;
-  paymentAmount: number;
+  paymentAmount?: number;
   onUseMerchant?: (merchant: string) => void;
   autoCapture?: boolean;
   onCaptureHandled?: () => void;
@@ -274,7 +274,8 @@ export function ReceiptEditor({
             This bill does not change the original payment amount or save a
             second transaction.
           </Text>
-          {bill.totalPaise !== undefined &&
+          {paymentAmount !== undefined &&
+            bill.totalPaise !== undefined &&
             bill.totalPaise !== paymentAmount && (
               <Text accessibilityRole="alert" style={{ color: colors.orange }}>
                 Bill total {money(bill.totalPaise, true)} differs from this

@@ -1,3 +1,4 @@
+import { reconcileEmailAlerts } from "../domain/emailReconciliation";
 import { normalizeReceipt } from "../domain/receipt";
 import { applyAnswers, parseAnswers } from "../domain/answers";
 import { markDuplicateAlerts } from "../domain/duplicateAlerts";
@@ -48,6 +49,7 @@ import {
   requestSms,
   ImportProgress,
   emptyImport,
+  GmailStatus,
 } from "../native/bridge";
 const palettes = {
   light: {
@@ -122,6 +124,7 @@ interface ContextValue {
   error: string;
   setError: (s: string) => void;
   connect: (months?: number | null) => Promise<void>;
+  connectEmail: (months: number) => Promise<GmailStatus | undefined>;
   unlock: () => Promise<void>;
   importHistory: (months: number) => Promise<void>;
   importProgress: ImportProgress;
@@ -309,7 +312,9 @@ export function AppProvider({ children }: React.PropsWithChildren) {
             originalMerchant: original,
             merchant: rule?.alias || t.merchant,
             category: c.confidence >= 0.8 ? c.category : t.category,
-            review: t.kind === "purchase" && c.confidence < 0.8 && t.review,
+            review:
+              (t.kind === "purchase" && c.confidence < 0.8 && t.review) ||
+              (!!t.currency && t.currency !== "INR" && !t.inrAmount),
             reason: c.confidence >= 0.8 ? c.reason : t.reason,
             classification:
               c.confidence >= 0.8
@@ -323,8 +328,13 @@ export function AppProvider({ children }: React.PropsWithChildren) {
                 : t.classification,
           };
         });
-      transactions = markDuplicateAlerts(
-        mergeTransactions(transactions, applyPayeeRules(incoming, data.rules)),
+      transactions = reconcileEmailAlerts(
+        markDuplicateAlerts(
+          mergeTransactions(
+            transactions,
+            applyPayeeRules(incoming, data.rules),
+          ),
+        ),
       );
       await saveLive(transactions, data.rules, data.metadata);
       await native.acknowledge(incoming.map((t) => t.id));
@@ -340,7 +350,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       }
     }
     // Also links second alerts already in the ledger (e.g. imported by an older build).
-    const linked = markDuplicateAlerts(transactions);
+    const linked = reconcileEmailAlerts(markDuplicateAlerts(transactions));
     if (values.length || linked !== transactions)
       logDiagnostic("info", "ledger", "flush", {
         incoming: values.length,
@@ -410,6 +420,26 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           : "Connected. Recent history will appear first.",
       );
     });
+  const connectEmail = async (months: number) => {
+    let result: GmailStatus | undefined;
+    await perform(async () => {
+      if (!native) throw new Error("Gmail capture requires the Android app.");
+      const key = await native.unlock();
+      const token = ++generation.current;
+      await openLive(key);
+      const data = await flush(await readLive());
+      if (token !== generation.current) return;
+      setTransactions(data.transactions);
+      setRules(data.rules);
+      setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
+      setMode("live");
+      setLocked(false);
+      setPrevious(null);
+      await AsyncStorage.setItem(MODE, "live");
+      result = await native.connectGmail(months);
+    });
+    return result;
+  };
   const importHistory = (months: number) =>
     perform(async () => {
       if (!native || state.current.mode !== "live" || state.current.locked)
@@ -471,6 +501,11 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           throw new Error("Check the bill details before saving.");
         patch = { ...patch, receipt };
       }
+      if (
+        patch.inrAmount !== undefined &&
+        (!Number.isSafeInteger(patch.inrAmount) || patch.inrAmount <= 0)
+      )
+        throw new Error("Enter a valid final INR amount.");
       const next = s.transactions.map((t) =>
         t.id === id
           ? {
@@ -1007,6 +1042,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         error,
         setError,
         connect,
+        connectEmail,
         unlock,
         importHistory,
         importProgress,

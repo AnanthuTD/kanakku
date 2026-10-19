@@ -16,7 +16,14 @@ export type Kind =
 export type ThemeMode = "system" | "light" | "dark";
 export interface Transaction {
   id: string;
-  amount: number; // integer paise, always positive
+  amount: number; // integer minor units in currency (legacy/default INR), always positive
+  currency?: "INR" | "USD";
+  /** Explicitly confirmed final INR charge for a foreign-currency alert. */
+  inrAmount?: number;
+  timePrecision?: "day" | "minute";
+  /** Weak cross-source matches wait for an explicit decision; never counted twice. */
+  emailMatchCandidates?: string[];
+  reconciliationDecision?: "distinct" | "linked";
   merchant: string;
   account: string;
   bank: string;
@@ -28,7 +35,7 @@ export interface Transaction {
   note: string;
   /** Confirmed structured bill details only. Never raw OCR text or a photo URI. */
   receipt?: ReceiptDraft;
-  source: "sample" | "sms";
+  source: "sample" | "sms" | "email";
   reason: string;
   reference?: string;
   /** Bank-stated transaction time, distinct from SMS receipt time in at. */
@@ -126,13 +133,21 @@ export const isAccountPayee = (t: Transaction) =>
   /^A\/c ••\d{2,4}$/.test((t.originalMerchant || t.merchant).trim());
 /** Held out of spending until the user confirms what it was. */
 export const awaitingContext = (t: Transaction) =>
-  t.kind === "purchase" && t.review && !t.excluded && isAccountPayee(t);
+  t.kind === "purchase" &&
+  t.review &&
+  !t.excluded &&
+  !t.emailMatchCandidates?.length &&
+  (!t.currency || t.currency === "INR") &&
+  isAccountPayee(t);
 export const heldSpend = (transactions: Transaction[]) =>
   transactions.reduce((sum, t) => sum + (awaitingContext(t) ? t.amount : 0), 0);
 export function spendOf(t: Transaction): number {
-  if (t.excluded || awaitingContext(t)) return 0;
-  if (t.kind === "refund") return -t.amount;
-  return t.kind === "purchase" ? t.amount : 0;
+  if (t.excluded || awaitingContext(t) || t.emailMatchCandidates?.length)
+    return 0;
+  const amount = t.currency && t.currency !== "INR" ? t.inrAmount : t.amount;
+  if (!Number.isSafeInteger(amount) || !amount || amount <= 0) return 0;
+  if (t.kind === "refund") return -amount;
+  return t.kind === "purchase" ? amount : 0;
 }
 export const netSpend = (transactions: Transaction[]) =>
   transactions.reduce((sum, t) => sum + spendOf(t), 0);
@@ -185,10 +200,14 @@ export function mergeTransactions(
     const existing = map.get(t.id);
     if (!existing) map.set(t.id, t);
     else if (
-      existing.source === "sms" && t.source === "sms" &&
-      existing.bank === t.bank && existing.account === t.account &&
-      existing.amount === t.amount && !existing.transactionAt &&
-      t.transactionAt && Number.isFinite(Date.parse(t.transactionAt))
+      existing.source === "sms" &&
+      t.source === "sms" &&
+      existing.bank === t.bank &&
+      existing.account === t.account &&
+      existing.amount === t.amount &&
+      !existing.transactionAt &&
+      t.transactionAt &&
+      Number.isFinite(Date.parse(t.transactionAt))
     ) {
       // Re-import can enrich immutable parser metadata, never replace user decisions.
       map.set(t.id, { ...existing, transactionAt: t.transactionAt });
@@ -196,3 +215,10 @@ export function mergeTransactions(
   }
   return [...map.values()].sort((a, b) => b.at.localeCompare(a.at));
 }
+
+export const needsInrSettlement = (t: Transaction) =>
+  !!t.currency && t.currency !== "INR" && !t.inrAmount && !t.excluded;
+export const transactionMoney = (t: Transaction, precise = false) =>
+  !t.currency || t.currency === "INR"
+    ? money(t.amount, precise)
+    : `${t.currency} ${(t.amount / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

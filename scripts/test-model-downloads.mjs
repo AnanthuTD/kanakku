@@ -45,7 +45,7 @@ if (!badging.includes(`package: name='${pkg}'`))
   throw Error("Refusing mismatched instrumentation package");
 console.log(device("install", "-r", "-t", apk).trim());
 const report = {
-  date: "2026-10-16",
+  date: new Date().toISOString(),
   avd: "Kanakku_API_36",
   package: pkg,
   realPinnedDownloads: true,
@@ -78,6 +78,10 @@ for (const method of [
   writeFileSync(`artifacts/model-download-${method}.txt`, output);
   if (!/OK \(1 test\)/.test(output)) throw Error(output);
   report.checks.push({ method, status: "passed" });
+  if (method.startsWith("reuse"))
+    report.whisperInference = /kanakkuVoiceCpu=true/.test(output)
+      ? "passed"
+      : "not run: unsupported emulator CPU";
   writeFileSync(
     "artifacts/model-download-native-results.json",
     JSON.stringify(report, null, 2) + "\n",
@@ -85,5 +89,5 @@ for (const method of [
   console.log(`${method}: passed`);
 }
 console.log(
-  "Real model downloads, verified inference, replacement/restart reuse, range recovery, cancellation, corruption and removal passed.",
+  "Real model downloads, MiniLM inference, replacement/restart reuse, range recovery, cancellation, corruption and removal passed. See report for Whisper CPU support.",
 );

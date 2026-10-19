@@ -80,3 +80,23 @@ it("waits for payments not yet in the ledger and drops month-old leftovers", () 
   const { done } = applyAnswers([], answers, 31 * 24 * 60 * 60 * 1000);
   expect(done).toEqual(["gone"]);
 });
+
+it("a voice category cannot resolve missing INR settlement or a possible duplicate", () => {
+  for (const extra of [
+    { currency: "USD" as const },
+    { emailMatchCandidates: ["sms"] },
+  ]) {
+    const { transactions } = applyAnswers(
+      [payment("email", { source: "email", ...extra })],
+      [
+        {
+          id: "email",
+          note: "A purchase",
+          category: "Shopping",
+          answeredAt: 1,
+        },
+      ],
+    );
+    expect(transactions[0].review).toBe(true);
+  }
+});

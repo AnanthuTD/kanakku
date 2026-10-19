@@ -6,7 +6,7 @@
 
 <p align="center">
   Your bank SMS, turned into a private spend journal.<br>
-  <strong>Nothing leaves your phone.</strong>
+  <strong>Your journal stays on your phone.</strong>
 </p>
 
 <p align="center">
@@ -23,13 +23,13 @@
   <img src="docs/screenshots/settings.png" width="200" alt="Settings: theme, bank SMS, floating companion">
 </p>
 
-Kanakku reads supported bank transaction SMS on the phone, keeps an encrypted spending journal, and asks — in its own words — when a payment needs context. Its totals cover captured SMS; payments with only an email alert are not imported. No account, no server, no ads, no analytics.
+Kanakku reads supported bank transaction SMS on the phone, keeps an encrypted spending journal, and asks — in its own words — when a payment needs context. Its totals cover captured supported alerts. Optional Gmail capture adds authenticated SBI debit-card and SBI Card purchase emails; setup and live account acceptance are still pending. No Kanakku account, no journal server, no ads.
 
 ## Why you can trust it
 
 Every claim below is in the source, and most are covered by tests.
 
-- **Offline by design.** The app makes no network calls on its own. Optional network features are visible: merchant lookup, the manual _Check for updates_ button, and model downloads in Settings. Model downloads send no journal, note or audio content.
+- **Offline by design.** Core journal features work offline. Optional network features are visible: Gmail bank-email checks, merchant lookup, the manual _Check for updates_ button, and model downloads in Settings. Gmail checks continue in the background after explicit consent. Model downloads send no journal, note or audio content.
 - **Raw SMS is never stored.** Each alert is parsed and discarded; only the extracted payment fields are kept. OTPs and anything unrelated are rejected before they reach storage.
 - **The journal is encrypted at rest** with SQLCipher. Its key lives in the Android Keystore and is gated by your device lock. Alerts that arrive while the phone is locked are sealed into an encrypted inbox and only opened after you unlock.
 - **Voice and bill photos are processed on-device.** Speech goes through an optional downloaded Whisper model; bills through a bundled ML Kit text recogniser. Audio is held briefly in memory and never written to storage. OCR text and photos are not persisted.
@@ -85,6 +85,8 @@ The full regression — TypeScript, unit tests, dependency checks, standalone Ko
 ```sh
 npm run test:regression
 ```
+
+Optional Gmail setup, permission scope, reconciliation rules and acceptance steps are documented in [docs/GMAIL.md](docs/GMAIL.md).
 
 ## What is still unverified
 

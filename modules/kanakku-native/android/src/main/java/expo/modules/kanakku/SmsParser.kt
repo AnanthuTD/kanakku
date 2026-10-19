@@ -7,7 +7,7 @@ import java.time.ZoneId
 import java.util.Locale
 import java.math.BigDecimal
 
-data class ParsedTransaction(val id: String, val amount: Long, val merchant: String, val account: String, val bank: String, val at: String, val category: String, val kind: String, val review: Boolean, val reference: String?,val method:String="merchant",val classifierVersion:String="merchant-rules-v1",val score:Double?=null,val margin:Double?=null,val supplementaryAlert:Boolean=false,val transactionAt:String?=null)
+data class ParsedTransaction(val id: String, val amount: Long, val merchant: String, val account: String, val bank: String, val at: String, val category: String, val kind: String, val review: Boolean, val reference: String?,val method:String="merchant",val classifierVersion:String="merchant-rules-v1",val score:Double?=null,val margin:Double?=null,val supplementaryAlert:Boolean=false,val transactionAt:String?=null,val source:String="sms",val currency:String="INR",val timePrecision:String?=null)
 
 object SmsParser {
   private val banks = linkedMapOf("HDFCBK" to "HDFC", "HDFCBN" to "HDFC", "AXISBK" to "Axis", "AXISB" to "Axis", "SBIINB" to "SBI", "SBICRD" to "SBI Card", "SBIUPI" to "SBI", "SBIBNK" to "SBI", "CBSSBI" to "SBI", "ATMSBI" to "SBI", "SBIPSG" to "SBI", "KIWICC" to "Kiwi", "GONIYO" to "Kiwi", "SLICE" to "Slice", "SLICEB" to "Slice", "SLCBNK" to "Slice", "SLCEIT" to "Slice", "ICICIB" to "ICICI", "KOTAKB" to "Kotak", "KOTAK" to "Kotak", "IDFCFB" to "IDFC FIRST", "PNBSMS" to "PNB", "BOBMSG" to "Bank of Baroda", "CANBNK" to "Canara", "UNIONB" to "Union Bank", "YESBNK" to "Yes Bank", "FEDBNK" to "Federal Bank", "KGBANK" to "Kerala Gramin Bank")

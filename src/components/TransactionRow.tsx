@@ -1,7 +1,12 @@
 import React from "react";
 import { View, Pressable } from "react-native";
 import { ChevronRight } from "lucide-react-native";
-import { Transaction, money } from "../domain/model";
+import {
+  Transaction,
+  money,
+  transactionMoney,
+  needsInrSettlement,
+} from "../domain/model";
 import { useApp } from "../state/AppContext";
 import { Text, CategoryIcon } from "./ui";
 export function TransactionRow({
@@ -18,7 +23,7 @@ export function TransactionRow({
     <Pressable
       testID={`transaction-${t.id}`}
       accessibilityRole="button"
-      accessibilityLabel={`${t.merchant}, ${hideAmount ? "amount hidden" : money(t.amount)}, ${t.review ? "needs review" : t.category}`}
+      accessibilityLabel={`${t.merchant}, ${hideAmount ? "amount hidden" : transactionMoney(t)}, ${t.review ? "needs review" : t.category}`}
       onPress={onPress}
       style={({ pressed }) => ({
         flexDirection: "row",
@@ -38,6 +43,7 @@ export function TransactionRow({
         <Text muted numberOfLines={1} style={{ fontSize: 11 }}>
           {t.bank} · {t.account}
           {t.excluded ? " · Excluded" : ""}
+          {t.source === "email" ? " · Email" : ""}
         </Text>
       </View>
       <View style={{ alignItems: "flex-end", gap: 2 }}>
@@ -50,26 +56,37 @@ export function TransactionRow({
         >
           {hideAmount
             ? "••••"
-            : `${t.kind === "refund" || t.kind === "income" ? "+" : ""}${money(t.amount)}`}
+            : `${t.kind === "refund" || t.kind === "income" ? "+" : ""}${transactionMoney(t)}`}
         </Text>
+        {!!t.inrAmount && !hideAmount && (
+          <Text muted style={{ fontSize: 10 }}>
+            INR {money(t.inrAmount, true)}
+          </Text>
+        )}
         <Text
           style={{
             fontSize: 10,
             color: t.review ? colors.orange : colors.muted,
           }}
         >
-          {t.review
-            ? "Needs context"
-            : t.kind === "card_payment"
-              ? "Card repayment"
-              : t.kind === "transfer"
-                ? "Transfer"
-                : t.kind === "income"
-                  ? "Income"
-                  : new Date(t.at).toLocaleTimeString("en-IN", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
+          {t.emailMatchCandidates?.length
+            ? "Possible alert match"
+            : needsInrSettlement(t)
+              ? "INR charge needed"
+              : t.review
+                ? "Needs context"
+                : t.kind === "card_payment"
+                  ? "Card repayment"
+                  : t.kind === "transfer"
+                    ? "Transfer"
+                    : t.kind === "income"
+                      ? "Income"
+                      : t.timePrecision === "day"
+                        ? "Date only"
+                        : new Date(t.at).toLocaleTimeString("en-IN", {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
         </Text>
       </View>
       <ChevronRight size={13} color={colors.muted} />

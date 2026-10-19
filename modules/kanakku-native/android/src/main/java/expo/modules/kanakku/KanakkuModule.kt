@@ -47,7 +47,7 @@ class KanakkuModule : Module() {
       }
     }
     OnActivityEntersBackground { foreground=false;receiptGeneration++;pcmRecorder.cancel();MerchantLookup.cancel() }
-    OnDestroy { foreground=false;pcmRecorder.cancel();MerchantLookup.cancel();instance=null; speech?.destroy();speech=null;speechPromise?.reject("CANCELLED","Voice session ended",null);speechPromise=null }
+    OnDestroy { GmailAuthorization.cancel();foreground=false;pcmRecorder.cancel();MerchantLookup.cancel();instance=null; speech?.destroy();speech=null;speechPromise?.reject("CANCELLED","Voice session ended",null);speechPromise=null }
     Function("status") {
       val prefs=context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE)
       mapOf("sms" to (ContextCompat.checkSelfPermission(context,Manifest.permission.READ_SMS)==PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(context,Manifest.permission.RECEIVE_SMS)==PackageManager.PERMISSION_GRANTED), "overlay" to Settings.canDrawOverlays(context), "capture" to Vault(context).enabled(), "offlineVoice" to SpeechRecognizer.isOnDeviceRecognitionAvailable(context), "overlayEnabled" to prefs.getBoolean("overlay",false), "sounds" to prefs.getBoolean("sounds",true), "testBuild" to (context.packageName==TEST_PACKAGE), "recordingMode" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("recordingMode",false)), "diagnostics" to Diagnostics.enabled(context), "voiceSupported" to WhisperEngine.supported, "debugVoiceClips" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("debugVoiceClips",false)))
@@ -93,6 +93,15 @@ class KanakkuModule : Module() {
       val clips=if(test&&context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).getBoolean("debugVoiceClips",false)) context.getExternalFilesDir("voice-debug") else null
       pcmRecorder.start(promise,test,clips)
     }.runOnQueue(Queues.MAIN)
+    OnActivityResult { activity,result -> GmailAuthorization.result(activity,result.requestCode,result.resultCode,result.data) }
+    AsyncFunction("gmailStatus") { GmailSync.status(context) }
+    AsyncFunction("connectGmail") { months:Int,promise:Promise ->
+      val activity=appContext.currentActivity
+      if(!foreground||activity==null)promise.reject("GMAIL_FOREGROUND","Open Kanakku to connect Gmail.",null)
+      else GmailAuthorization.begin(activity,context,months,promise)
+    }.runOnQueue(Queues.MAIN)
+    AsyncFunction("syncGmail") { GmailSync.syncNow(context);GmailSync.status(context) }
+    AsyncFunction("disconnectGmail") { GmailAuthorization.cancel();val revoked=GmailSync.disconnect(context);GmailSync.status(context)+mapOf("revoked" to revoked) }
     AsyncFunction("modelDownloads") { ModelDownloads.status(context) }
     AsyncFunction("downloadModel") { id:String ->
       check(foreground) { "Open Kanakku to download a model." }
@@ -161,6 +170,7 @@ class KanakkuModule : Module() {
     AsyncFunction("cancelAudio") { pcmRecorder.cancel() }
     AsyncFunction("resetVault") { confirmation:String ->
       require(confirmation=="RESET") {"Confirm the reset in Kanakku first."}
+      GmailAuthorization.cancel();GmailSync.detach(context)
       CompanionDrafts.clear()
       HistoryImport.pause(context)
       androidx.work.WorkManager.getInstance(context).cancelUniqueWork("kanakku-review-reminder")

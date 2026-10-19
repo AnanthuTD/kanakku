@@ -72,6 +72,7 @@ import { ReviewSheet, ReviewHandle } from "../src/components/ReviewSheet";
 import { ImportBanner } from "../src/components/ImportProgress";
 import {
   heldSpend,
+  needsInrSettlement,
   Transaction,
   Category,
   Kind,
@@ -611,7 +612,7 @@ export default function Home() {
                 <ShieldCheck size={12} color={colors.accent} />
                 <Text style={{ fontSize: 10, color: colors.accent }}>
                   {mode === "live"
-                    ? "Captured from supported bank SMS"
+                    ? "Captured from supported bank alerts"
                     : sampleData
                       ? "A preview with sample transactions"
                       : "Connect bank SMS in Settings to begin"}
@@ -636,6 +637,24 @@ export default function Home() {
                     accounts not counted yet · tell me what they were
                   </Text>
                 </Pressable>
+              )}
+              {monthly.some(
+                (t) =>
+                  !t.excluded &&
+                  (needsInrSettlement(t) || t.emailMatchCandidates?.length),
+              ) && (
+                <Text muted style={{ fontSize: 11, marginTop: 6 }}>
+                  {
+                    monthly.filter(
+                      (t) =>
+                        !t.excluded &&
+                        (needsInrSettlement(t) ||
+                          t.emailMatchCandidates?.length),
+                    ).length
+                  }{" "}
+                  alerts need a bank-alert match decision or final INR charge.
+                  They are not included in spending yet; resolve them in review.
+                </Text>
               )}
               <SpendingChart
                 transactions={transactions}

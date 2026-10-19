@@ -39,6 +39,9 @@ import {
   classify,
   isMixedCategoryText,
   money,
+  transactionMoney,
+  needsInrSettlement,
+  decimalToPaise,
 } from "../domain/model";
 import { Text, Button, CategoryIcon } from "./ui";
 import { Mascot } from "./Avatar";
@@ -87,6 +90,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
     }, [sheetReady, id]);
     const [category, setCategory] = useState<Category>("Uncategorized");
     const [note, setNote] = useState("");
+    const [settlementText, setSettlementText] = useState("");
     const [receipt, setReceipt] = useState<ReceiptDraft | undefined>();
     const [receiptValid, setReceiptValid] = useState(true);
     const [autoPhoto, setAutoPhoto] = useState(false);
@@ -137,6 +141,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
       setId(value);
       setCategory(t.category);
       setNote(t.note);
+      setSettlementText(t.inrAmount ? (t.inrAmount / 100).toFixed(2) : "");
       cancelReceipt();
       setReceipt(normalizeReceipt(t.receipt));
       setReceiptValid(true);
@@ -527,7 +532,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                   serif
                   style={{ fontSize: 42, lineHeight: 56, marginTop: 12 }}
                 >
-                  {money(tx.amount, true)}
+                  {transactionMoney(tx, true)}
                 </Text>
                 <Text bold>{tx.merchant}</Text>
                 {isAccountPayee(tx) && (
@@ -548,6 +553,93 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                   })}
                 </Text>
               </View>
+              {tx.source === "email" && (
+                <Text muted>
+                  Source: authenticated bank email
+                  {tx.timePrecision === "day"
+                    ? " · Bank provided a date only"
+                    : ""}
+                  .
+                </Text>
+              )}
+              {!!tx.emailMatchCandidates?.length && (
+                <View style={{ gap: 10, marginVertical: 12 }}>
+                  <Text accessibilityRole="alert">
+                    This may already be recorded from SMS. It is not counted
+                    while you decide.
+                  </Text>
+                  {tx.emailMatchCandidates
+                    .map((value) => transactions.find((t) => t.id === value))
+                    .filter(Boolean)
+                    .map((candidate) => (
+                      <Button
+                        key={candidate!.id}
+                        secondary
+                        disabled={busy}
+                        onPress={async () => {
+                          const saved = await update(tx.id, {
+                            duplicateOf: candidate!.id,
+                            excluded: true,
+                            review: false,
+                            emailMatchCandidates: undefined,
+                            reason: "You linked these alerts to one payment",
+                            reconciliationDecision: "linked",
+                          });
+                          if (saved) modal.current?.dismiss();
+                        }}
+                      >
+                        Same payment as {candidate!.merchant} ·{" "}
+                        {transactionMoney(candidate!)} ·{" "}
+                        {new Date(candidate!.at).toLocaleDateString("en-IN")}
+                      </Button>
+                    ))}
+                  <Button
+                    secondary
+                    disabled={busy}
+                    onPress={() =>
+                      update(tx.id, {
+                        emailMatchCandidates: undefined,
+                        reason: "You confirmed a separate payment",
+                        reconciliationDecision: "distinct",
+                      })
+                    }
+                  >
+                    Count as a separate payment
+                  </Button>
+                </View>
+              )}
+              {tx.currency && tx.currency !== "INR" && (
+                <View style={{ gap: 10, marginVertical: 12 }}>
+                  <Text accessibilityRole="alert">
+                    The bank reported {transactionMoney(tx)}. Enter the final
+                    INR charge from your bank to include it in INR spending. No
+                    exchange rate is assumed.
+                  </Text>
+                  <ReviewInput
+                    key={`${id}-inr`}
+                    accessibilityLabel="Final INR charge"
+                    defaultValue={
+                      tx.inrAmount ? (tx.inrAmount / 100).toFixed(2) : ""
+                    }
+                    onChangeText={setSettlementText}
+                    keyboardType="decimal-pad"
+                    placeholder="Final charge in rupees"
+                    style={{
+                      color: colors.text,
+                      padding: 14,
+                      borderWidth: 1,
+                      borderColor: colors.line,
+                      borderRadius: 12,
+                    }}
+                  />
+                  {!!settlementText.trim() &&
+                    decimalToPaise(settlementText) === null && (
+                      <Text accessibilityRole="alert">
+                        Enter a valid INR amount with up to two decimals.
+                      </Text>
+                    )}
+                </View>
+              )}
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={
@@ -840,7 +932,11 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                   onValidationChange={setReceiptValid}
                   disabled={busy || listening}
                   closeCamera={listening}
-                  paymentAmount={tx.amount}
+                  paymentAmount={
+                    !tx.currency || tx.currency === "INR"
+                      ? tx.amount
+                      : tx.inrAmount
+                  }
                   autoCapture={autoPhoto}
                   onCaptureHandled={() => setAutoPhoto(false)}
                   onUseMerchant={(value) => {
@@ -1012,7 +1108,15 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                 </Text>
               ) : null}
               <Button
-                disabled={busy || listening || !sheetReady || !receiptValid}
+                disabled={
+                  busy ||
+                  listening ||
+                  !sheetReady ||
+                  !receiptValid ||
+                  !!tx.emailMatchCandidates?.length ||
+                  (!!settlementText.trim() &&
+                    decimalToPaise(settlementText) === null)
+                }
                 onPress={async () => {
                   // Save confirms this draft. A late suggestion must not change
                   // the selected chip after the confirmed category is persisted.
@@ -1025,8 +1129,15 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                       merchant: merchantName,
                       note,
                       receipt: normalizeReceipt(receipt),
+                      inrAmount:
+                        tx.currency && tx.currency !== "INR"
+                          ? (decimalToPaise(settlementText) ?? undefined)
+                          : tx.inrAmount,
                       review:
-                        category === "Uncategorized" && kind === "purchase",
+                        (category === "Uncategorized" && kind === "purchase") ||
+                        (!!tx.currency &&
+                          tx.currency !== "INR" &&
+                          !decimalToPaise(settlementText)),
                       kind,
                       excluded,
                       reason: "Confirmed by you",

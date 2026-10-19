@@ -1,4 +1,4 @@
-import { CATEGORIES, Category, Transaction } from "./model";
+import { CATEGORIES, Category, Transaction, needsInrSettlement } from "./model";
 
 /** A voice answer given to the floating companion, sealed natively until the next unlock. */
 export interface CompanionAnswer {
@@ -58,7 +58,7 @@ export function applyAnswers(
       ...(category
         ? {
             category,
-            review: false,
+            review: needsInrSettlement(t) || !!t.emailMatchCandidates?.length,
             reason: "Confirmed by you",
             classification: {
               method: "user" as const,

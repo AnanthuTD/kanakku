@@ -189,5 +189,6 @@ fun main() {
   drafts.clear()
   verify(drafts.take(otherDraftId) == null)
   checks += modelDownloadChecks()
+  checks += bankEmailChecks()
   println("$checks native parser/tokenizer/import/review-policy/merchant-query checks passed (bank alerts are synthetic).")
 }

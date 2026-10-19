@@ -29,6 +29,8 @@ android {
   testOptions { unitTests.returnDefaultValues = true }
 }
 dependencies {
+  implementation 'com.google.android.gms:play-services-auth:22.0.0'
+  implementation 'org.jsoup:jsoup:1.23.2'
   // Bundled Latin-script OCR: works on first use without a model download or image upload.
   implementation 'com.google.mlkit:text-recognition:16.0.1'
   implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.31.0'

@@ -107,6 +107,8 @@ export function detectRecurringPayments(
     if (
       ids.has(t.id) ||
       t.excluded ||
+      (t.currency && t.currency !== "INR") ||
+      !!t.emailMatchCandidates?.length ||
       !Number.isSafeInteger(t.amount) ||
       t.amount <= 0 ||
       !Number.isFinite(new Date(t.at).getTime()) ||
