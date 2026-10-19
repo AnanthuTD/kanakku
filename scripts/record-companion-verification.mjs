@@ -193,14 +193,6 @@ try {
     );
   if (!connected) {
     shell(`pm clear ${app}`);
-    shell(`mkdir -p /data/data/${app}/shared_prefs`);
-    shell(
-      `printf '%s' ${q('<?xml version="1.0" encoding="utf-8" standalone="yes" ?>\n<map>\n    <boolean name="recordingMode" value="true" />\n</map>\n')} > /data/data/${app}/shared_prefs/kanakku-settings.xml`,
-    );
-    shell(
-      `chown $(stat -c %u /data/data/${app}):$(stat -c %g /data/data/${app}) /data/data/${app}/shared_prefs /data/data/${app}/shared_prefs/kanakku-settings.xml`,
-    );
-    shell(`chmod 660 /data/data/${app}/shared_prefs/kanakku-settings.xml`);
   } else {
     shell(`am force-stop ${app}`);
     if (

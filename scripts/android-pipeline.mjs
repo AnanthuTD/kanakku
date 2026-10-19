@@ -244,22 +244,14 @@ try {
   );
   if (!resume)
     verify(
-      shell("dumpsys window windows").match(/fl=[^\n]*\bSECURE\b/),
-      "Authenticated journal window carries FLAG_SECURE",
+      !shell("dumpsys window windows").match(/fl=[^\n]*\bSECURE\b/),
+      "Authenticated journal permits OS screenshots and recordings",
     );
-  // The test-only recording mode (scripts/record-sms-verification.mjs) waives FLAG_SECURE; the
-  // pipeline must run with it off so the assertion above means what it says.
-  verify(
-    !shell(
-      `cat /data/data/${app}/shared_prefs/kanakku-settings.xml 2>/dev/null || true`,
-    ).includes('name="recordingMode" value="true"'),
-    "Recording mode is not enabled during the pipeline run",
-  );
   flow("restart");
   if (resume)
     verify(
-      shell("dumpsys window windows").match(/fl=[^\n]*\bSECURE\b/),
-      "Authenticated journal window carries FLAG_SECURE after resumed PIN authentication",
+      !shell("dumpsys window windows").match(/fl=[^\n]*\bSECURE\b/),
+      "Resumed authenticated journal permits OS screenshots and recordings",
     );
   verify(
     true,

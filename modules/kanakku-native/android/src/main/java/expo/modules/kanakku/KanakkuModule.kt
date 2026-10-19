@@ -42,7 +42,7 @@ class KanakkuModule : Module() {
         if(foreground && appContext.currentActivity===activity && !activity.isFinishing && !activity.isDestroyed) {
           AvatarWindow.hide()
           reactContext.stopService(Intent(reactContext,AvatarService::class.java))
-          if(Vault(reactContext).ready()) secureWindow(reactContext, activity)
+          if(Vault(reactContext).ready()) allowScreenshots(activity)
         }
       }
     }
@@ -50,14 +50,14 @@ class KanakkuModule : Module() {
     OnDestroy { GmailAuthorization.cancel();foreground=false;pcmRecorder.cancel();MerchantLookup.cancel();instance=null; speech?.destroy();speech=null;speechPromise?.reject("CANCELLED","Voice session ended",null);speechPromise=null }
     Function("status") {
       val prefs=context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE)
-      mapOf("sms" to (ContextCompat.checkSelfPermission(context,Manifest.permission.READ_SMS)==PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(context,Manifest.permission.RECEIVE_SMS)==PackageManager.PERMISSION_GRANTED), "overlay" to Settings.canDrawOverlays(context), "capture" to Vault(context).enabled(), "offlineVoice" to SpeechRecognizer.isOnDeviceRecognitionAvailable(context), "overlayEnabled" to prefs.getBoolean("overlay",false), "sounds" to prefs.getBoolean("sounds",true), "testBuild" to (context.packageName==TEST_PACKAGE), "recordingMode" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("recordingMode",false)), "diagnostics" to Diagnostics.enabled(context), "voiceSupported" to WhisperEngine.supported, "debugVoiceClips" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("debugVoiceClips",false)))
+      mapOf("sms" to (ContextCompat.checkSelfPermission(context,Manifest.permission.READ_SMS)==PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(context,Manifest.permission.RECEIVE_SMS)==PackageManager.PERMISSION_GRANTED), "overlay" to Settings.canDrawOverlays(context), "capture" to Vault(context).enabled(), "offlineVoice" to SpeechRecognizer.isOnDeviceRecognitionAvailable(context), "overlayEnabled" to prefs.getBoolean("overlay",false), "sounds" to prefs.getBoolean("sounds",true), "testBuild" to (context.packageName==TEST_PACKAGE), "diagnostics" to Diagnostics.enabled(context), "voiceSupported" to WhisperEngine.supported, "debugVoiceClips" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("debugVoiceClips",false)))
     }
     AsyncFunction("unlock") { promise: Promise ->
       try {
         val activity=appContext.currentActivity as? FragmentActivity ?: throw Exception("Open Kanakku to unlock.")
         val vault=Vault(context);vault.initialize()
         val auth=BiometricPrompt(activity,ContextCompat.getMainExecutor(context),object: BiometricPrompt.AuthenticationCallback(){
-          override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { try { secureWindow(context, activity); promise.resolve(vault.databaseKey()) } catch(e:Exception) {promise.reject("KEY_UNAVAILABLE","Unable to unlock stored data. Device security may have changed. Reset the journal in Settings to re-import SMS; saved notes and rules cannot be recovered.",e)} }
+          override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { try { allowScreenshots(activity); promise.resolve(vault.databaseKey()) } catch(e:Exception) {promise.reject("KEY_UNAVAILABLE","Unable to unlock stored data. Device security may have changed. Reset the journal in Settings to re-import SMS; saved notes and rules cannot be recovered.",e)} }
           override fun onAuthenticationError(code:Int,message:CharSequence) {promise.reject("UNLOCK_CANCELLED",message.toString(),null)}
         })
         auth.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("Unlock Kanakku").setSubtitle("Your spending stays on this device").setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL).build())
@@ -138,14 +138,6 @@ class KanakkuModule : Module() {
       java.io.File(clip.path.removeSuffix(".wav")+".txt").writeText(text.take(2000))
       true
     }
-    // Test package only: let the Play-verification screen recording see the screen. The personal
-    // build never reads this preference, so its journal can never be captured.
-    AsyncFunction("setRecordingMode") { enabled:Boolean ->
-      require(context.packageName==TEST_PACKAGE) { "Recording mode exists only in the test build." }
-      context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).edit().putBoolean("recordingMode",enabled).commit()
-      appContext.currentActivity?.let { secureWindow(context,it) }
-      enabled
-    }.runOnQueue(Queues.MAIN)
     AsyncFunction("setDebugVoiceClips") { enabled:Boolean ->
       require(context.packageName==TEST_PACKAGE) { "Voice clip diagnostics exist only in the test build." }
       context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).edit().putBoolean("debugVoiceClips",enabled).commit()
@@ -218,11 +210,9 @@ class KanakkuModule : Module() {
   }
   companion object {
     const val TEST_PACKAGE="app.tinkerbox.kanakku.e2e"
-    /** FLAG_SECURE blocks every screenshot and recording of an unlocked journal. Only the isolated test package may waive it, for the Play verification recording. */
-    fun secureWindow(context:Context, activity:android.app.Activity) {
-      val waived=context.packageName==TEST_PACKAGE && context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).getBoolean("recordingMode",false)
-      if(waived) activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
-      else activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+    /** Keep Android screenshots and screen recordings available while the unlocked journal is open. */
+    fun allowScreenshots(activity:android.app.Activity) {
+      activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
     }
     @Volatile var foreground=false
     private var instance:WeakReference<KanakkuModule>?=null

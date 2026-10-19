@@ -13,8 +13,6 @@ export interface NativeStatus {
   sounds: boolean;
   /** True only for the isolated app.tinkerbox.kanakku.e2e package. */
   testBuild?: boolean;
-  /** Screenshot mode is available only in the isolated diagnostic package. */
-  recordingMode?: boolean;
   diagnostics?: boolean;
   /** False on processors without ARMv8.2 fp16/dot-product support. */
   voiceSupported?: boolean;
@@ -177,8 +175,6 @@ interface KanakkuNative {
   overlaySettings(): Promise<void>;
   previewFloatingPrompt(): Promise<"scheduled" | "permission">;
   setDebugVoiceClips(enabled: boolean): Promise<boolean>;
-  /** Test build only: waive FLAG_SECURE so a verification screen recording can see the screen. */
-  setRecordingMode(enabled: boolean): Promise<boolean>;
   /** Test build with clip diagnostics on: stores the app's text beside the newest clip. */
   saveDebugTranscript(text: string): Promise<boolean>;
   /** Verified optional Whisper model; missing models require an explicit Settings download. */

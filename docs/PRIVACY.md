@@ -15,6 +15,8 @@ Kanakku turns supported bank SMS alerts into a local spend journal. You do not c
 
 The journal uses SQLCipher. Android Keystore and your device authentication protect its keys. Alerts received while locked are sealed in an encrypted inbox until unlock. Hardware protection varies by device. Android backup of the app's data is disabled.
 
+Android screenshots and screen recordings are allowed while Kanakku is open, including when the journal is unlocked. Captured images may show balances, merchants, amounts and account hints; protect or delete any captures you make.
+
 ## Optional Gmail bank-email capture
 
 This new feature requires Google Cloud configuration and live consent acceptance before release. Connecting Gmail is optional and separate from SMS permission. Google grants read-only access to your mailbox, including email contents; its permission cannot be limited to bank messages. Kanakku uses that permission to find supported authenticated SBI debit-card and SBI Card purchase alerts within your selected history window. It fetches bounded message metadata and supported message bodies from Google, parses them on this phone, and does not fetch attachments. Unsupported messages are ignored.

@@ -48,9 +48,6 @@ export default function Settings() {
   const insets = useSafeAreaInsets();
   const [confirmConnect, setConfirmConnect] = useState(false);
   const testBuild = native?.status().testBuild === true;
-  const [testScreenshots, setTestScreenshots] = useState(
-    native?.status().recordingMode === true,
-  );
   const [voiceClips, setVoiceClips] = useState(
     native?.status().debugVoiceClips === true,
   );
@@ -162,40 +159,6 @@ export default function Settings() {
               {notice}
             </Text>
           ) : null}
-          {testBuild && (
-            <View
-              style={{
-                padding: 16,
-                borderWidth: 1,
-                borderColor: colors.line,
-                borderRadius: 18,
-                marginBottom: 20,
-                gap: 10,
-              }}
-            >
-              <Text bold>Diagnostic build only</Text>
-              <Text muted>
-                This separate app can allow screenshots and recordings for
-                testing. Your normal Kanakku app stays protected. Use synthetic
-                payments for recordings.
-              </Text>
-              <View style={ui.between}>
-                <Text>Allow test screenshots</Text>
-                <Switch
-                  accessibilityLabel="Allow test screenshots"
-                  value={testScreenshots}
-                  onValueChange={(value) => {
-                    native
-                      ?.setRecordingMode(value)
-                      .then(setTestScreenshots)
-                      .catch(() =>
-                        app.setError("Could not change test screenshot mode."),
-                      );
-                  }}
-                />
-              </View>
-            </View>
-          )}
           <GmailSettings />
           <ModelDownloadsSettings />
           <SectionTitle title="The look & feel" />

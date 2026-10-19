@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { View, Pressable, ActivityIndicator } from "react-native";
-import { Check, Pause, Play, X } from "lucide-react-native";
+import { Check, Pause, Play } from "lucide-react-native";
 import { Text, styles as ui } from "./ui";
 import { useApp } from "../state/AppContext";
 import { IMPORT_PERIODS } from "../domain/import";
@@ -8,11 +8,13 @@ import { IMPORT_PERIODS } from "../domain/import";
 export function ImportBanner() {
   const app = useApp();
   const { colors, importProgress: p, locked, busy } = app;
-  const [dismissed, setDismissed] = useState(0);
   if (
     app.mode !== "live" ||
     p.state === "idle" ||
-    (p.state === "complete" && p.pending === 0 && dismissed === p.until)
+    // Reconciliation is a quiet background catch-up check, not the user's
+    // selected history restore. Keep it out of the persistent restore banner.
+    (p.backfill && !["paused", "error"].includes(p.state)) ||
+    (p.state === "complete" && p.pending === 0)
   )
     return null;
   const active = ["queued", "running", "waiting"].includes(p.state);
@@ -84,15 +86,6 @@ export function ImportBanner() {
             ) : (
               <Play size={16} color={colors.text} />
             )}
-          </Pressable>
-        ) : p.pending === 0 ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss completed import"
-            onPress={() => setDismissed(p.until)}
-            style={{ padding: 9 }}
-          >
-            <X size={16} color={colors.muted} />
           </Pressable>
         ) : null}
       </View>

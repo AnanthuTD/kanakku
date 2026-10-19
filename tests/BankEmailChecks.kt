@@ -33,6 +33,15 @@ fun bankEmailChecks():Int {
   val d=debit()!!
   verify(d.amount==1643250L && d.bank=="SBI" && d.currency=="INR" && d.account=="9902" && d.reference=="TESTREF123456")
   verify(d.at=="2026-10-10T11:30:00Z" && d.transactionAt==d.at && d.timePrecision=="minute")
+  val octoberPurchase=rows.map { (key,value) -> key to when(key) {
+    "Terminal Owner Name" -> "WWW AMAZON IN"
+    "Transaction Number" -> "628311288436"
+    "Amount (INR)" -> "17437.00"
+    "Last 4 Digit of Card" -> "X6122"
+    else -> value
+  } }
+  val oct=debit(octoberPurchase)!!
+  verify(oct.amount==1_743_700L && oct.merchant=="WWW AMAZON IN" && oct.reference=="628311288436" && oct.account=="6122")
   verify(debit(rows+rows.first())==null)
   verify(debit(rows.filterNot{it.first=="Transaction Number"})==null)
   verify(debit(rows.map{if(it.first=="Transaction Type")it.first to "FAILED" else it})==null)
