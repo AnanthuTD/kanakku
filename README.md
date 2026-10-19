@@ -23,7 +23,7 @@
   <img src="docs/screenshots/settings.png" width="200" alt="Settings: theme, bank SMS, floating companion">
 </p>
 
-Kanakku reads supported bank transaction SMS on the phone, keeps an encrypted spending journal, and asks — in its own words — when a payment needs context. Its totals cover captured supported alerts. Optional Gmail capture adds authenticated SBI debit-card and SBI Card purchase emails; setup and live account acceptance are still pending. No Kanakku account, no journal server, no ads.
+Kanakku reads supported bank transaction SMS on the phone, keeps an encrypted spending journal, and asks — in its own words — when a payment needs context. Its totals cover captured supported alerts. Optional Gmail capture adds authenticated SBI debit-card and SBI Card purchase emails; Google setup is configured for owner testing; live account consent and Gmail acceptance remain untested. No Kanakku account, no journal server, no ads.
 
 ## Why you can trust it
 
