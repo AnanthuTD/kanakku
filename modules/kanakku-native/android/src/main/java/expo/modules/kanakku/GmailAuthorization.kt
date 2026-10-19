@@ -34,7 +34,12 @@ object GmailAuthorization {
   fun result(activity:Activity,requestCode:Int,resultCode:Int,data:Intent?) {
     if(requestCode!=REQUEST)return
     val attempt=pending?:return
-    if(resultCode!=Activity.RESULT_OK || data==null){cancel();return}
+    if(resultCode!=Activity.RESULT_OK || data==null){
+      val attempt=pending?:return
+      pending=null;GmailSync.epoch.incrementAndGet()
+      attempt.promise.reject("GMAIL_CANCELLED","Google sign-in returned a cancelled result (code $resultCode). If you selected an account, retry and keep Kanakku open until the Gmail permission step finishes.",null)
+      return
+    }
     try{finish(attempt,Identity.getAuthorizationClient(activity).getAuthorizationResultFromIntent(data))}catch(_:Exception){fail(attempt)}
   }
   private fun finish(attempt:Pending,result:AuthorizationResult) {

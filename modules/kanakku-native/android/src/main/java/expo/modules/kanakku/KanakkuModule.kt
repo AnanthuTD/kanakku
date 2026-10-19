@@ -47,7 +47,10 @@ class KanakkuModule : Module() {
       }
     }
     OnActivityEntersBackground { foreground=false;receiptGeneration++;pcmRecorder.cancel();MerchantLookup.cancel() }
-    OnDestroy { GmailAuthorization.cancel();foreground=false;pcmRecorder.cancel();MerchantLookup.cancel();instance=null; speech?.destroy();speech=null;speechPromise?.reject("CANCELLED","Voice session ended",null);speechPromise=null }
+    // Google authorization temporarily hands the Activity to Play Services. Do not
+    // cancel its pending result when Expo tears down/recreates this module during
+    // that handoff; the singleton authorization coordinator survives the Activity.
+    OnDestroy { foreground=false;pcmRecorder.cancel();MerchantLookup.cancel();instance=null; speech?.destroy();speech=null;speechPromise?.reject("CANCELLED","Voice session ended",null);speechPromise=null }
     Function("status") {
       val prefs=context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE)
       mapOf("sms" to (ContextCompat.checkSelfPermission(context,Manifest.permission.READ_SMS)==PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(context,Manifest.permission.RECEIVE_SMS)==PackageManager.PERMISSION_GRANTED), "overlay" to Settings.canDrawOverlays(context), "capture" to Vault(context).enabled(), "offlineVoice" to SpeechRecognizer.isOnDeviceRecognitionAvailable(context), "overlayEnabled" to prefs.getBoolean("overlay",false), "sounds" to prefs.getBoolean("sounds",true), "testBuild" to (context.packageName==TEST_PACKAGE), "diagnostics" to Diagnostics.enabled(context), "voiceSupported" to WhisperEngine.supported, "debugVoiceClips" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("debugVoiceClips",false)))
