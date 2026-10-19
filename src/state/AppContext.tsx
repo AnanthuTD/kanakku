@@ -444,6 +444,10 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     perform(async () => {
       if (!native || state.current.mode !== "live" || state.current.locked)
         throw new Error("Connect and unlock your vault first.");
+      // History import reads the SMS inbox directly. A reinstall or Android's
+      // permission reset can revoke SMS access even while the vault stays live,
+      // so request it here rather than failing inside the native reader.
+      await requestSms();
       setImportProgress(await native.importHistory(months));
       setNotice("Loading recent history first. You can keep using Kanakku.");
     });
