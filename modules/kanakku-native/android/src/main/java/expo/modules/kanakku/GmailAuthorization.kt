@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import com.google.android.gms.auth.api.identity.*
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.Scope
 import expo.modules.kotlin.Promise
 import java.util.concurrent.Executors
@@ -37,7 +38,14 @@ object GmailAuthorization {
     if(resultCode!=Activity.RESULT_OK || data==null){
       val attempt=pending?:return
       pending=null;GmailSync.epoch.incrementAndGet()
-      attempt.promise.reject("GMAIL_CANCELLED","Google sign-in returned a cancelled result (code $resultCode). If you selected an account, retry and keep Kanakku open until the Gmail permission step finishes.",null)
+      // Google can attach an AuthorizationResult error to a RESULT_CANCELED intent.
+      // Preserve only its numeric status code; never log intent contents or tokens.
+      val googleStatus=if(data==null)null else runCatching {
+        Identity.getAuthorizationClient(activity).getAuthorizationResultFromIntent(data)
+        null
+      }.getOrElse { (it as? ApiException)?.statusCode }
+      val detail=googleStatus?.let { ", Google status $it" }.orEmpty()
+      attempt.promise.reject("GMAIL_CANCELLED","Google sign-in returned a cancelled result (code $resultCode$detail). If Google displayed an error or consent page, note its message before retrying.",null)
       return
     }
     try{finish(attempt,Identity.getAuthorizationClient(activity).getAuthorizationResultFromIntent(data))}catch(_:Exception){fail(attempt)}
