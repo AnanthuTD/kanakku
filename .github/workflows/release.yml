@@ -42,8 +42,8 @@ jobs:
         with:
           packages: "platform-tools platforms;android-36 build-tools;36.0.0 ndk;27.1.12297006 cmake;3.22.1"
       - run: npm ci
-      - name: Fetch and verify bundled ML models
-        run: npm run models:fetch
+      - name: Write pinned optional-model catalog
+        run: npm run models:catalog
       - name: Check the tag matches package.json
         run: |
           tag="${GITHUB_REF_NAME#v}"

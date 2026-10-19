@@ -188,5 +188,6 @@ fun main() {
   verify(drafts.take("d".repeat(64))?.note == "d")
   drafts.clear()
   verify(drafts.take(otherDraftId) == null)
+  checks += modelDownloadChecks()
   println("$checks native parser/tokenizer/import/review-policy/merchant-query checks passed (bank alerts are synthetic).")
 }

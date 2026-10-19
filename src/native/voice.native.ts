@@ -199,7 +199,7 @@ export async function listen(
       // These explicit errors contain no microphone data or model output.
       if (
         error instanceof Error &&
-        /^(Microphone access|Voice took|Couldn't understand)/.test(
+        /^(Microphone access|Voice took|Couldn't understand|Download English voice)/.test(
           error.message,
         )
       )

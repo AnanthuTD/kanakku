@@ -1,6 +1,6 @@
 {
   "name": "kanakku",
-  "version": "0.2.0-beta.3",
+  "version": "0.2.0-beta.4",
   "description": "Kanakku: private on-device SMS spend journal for Android",
   "main": "expo-router/entry",
   "dependencies": {
@@ -74,7 +74,9 @@
     "test:android:credentials": "node scripts/android-credentials.mjs",
     "test:voice:fixtures": "node scripts/evaluate-whisper-audio.mjs --verify && node --test tests/voice/scorer-checks.mjs",
     "voice:model": "node scripts/set-voice-model.mjs",
-    "models:fetch": "node scripts/fetch-models.mjs"
+    "models:fetch": "node scripts/fetch-models.mjs",
+    "models:catalog": "node scripts/write-model-catalog.mjs",
+    "test:models:android": "node scripts/test-model-downloads.mjs"
   },
   "private": true,
   "overrides": {

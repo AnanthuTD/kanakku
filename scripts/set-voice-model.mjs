@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 // Selects the bundled offline Whisper model from the pinned catalog in
 // scripts/voice-models.json. Downloads once into ~/.cache/kanakku, verifies the
 // exact size and SHA-256, replaces the bundled asset and updates provenance.
@@ -130,4 +131,10 @@ Recognized notes and categories remain editable. Evaluation note: ${model.note}
 );
 console.log(
   `Selected ${id}. Rebuild the E2E and personal APKs, then run npm run verify:apk.`,
+);
+
+execFileSync(
+  process.execPath,
+  [join(root, "scripts/write-model-catalog.mjs")],
+  { stdio: "inherit" },
 );

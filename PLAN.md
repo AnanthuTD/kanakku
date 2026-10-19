@@ -157,7 +157,7 @@ Exclude sensitive local data from unprotected Android backups. Define recovery a
 
 ### Categorization and voice
 
-Use personal overrides → known merchant mappings → bundled quantized all-MiniLM-L6-v2 ONNX category suggestion → review queue. Jeff and Gemini are not integrated. Similarity is not a calibrated probability; deterministic mixed-purpose guards abstain, and real merchant precision/review burden still need held-out evaluation.
+Use personal overrides → known merchant mappings → optional downloaded quantized all-MiniLM-L6-v2 ONNX category suggestion → review queue. Jeff and Gemini are not integrated. Similarity is not a calibrated probability; deterministic mixed-purpose guards abstain, and real merchant precision/review burden still need held-out evaluation.
 
 The current language is **English only**, using **Whisper base.en Q5_1** through Kanakku's custom JNI bridge to vendored whisper.cpp. Audio stays in native memory and only text reaches JavaScript. Development observations on the physical `24053PY09I` phone found better output from direct whisper.cpp than the earlier whisper.rn path on the same audio. The model catalog records roughly 4.5 seconds per tested base.en clip with four CPU threads. These are development observations, not a formal acceptance benchmark for the current app/runtime or other devices.
 
@@ -262,3 +262,9 @@ Remaining acceptance includes real card/bank variants, legacy duplicate review, 
 - [Android activity security](https://developer.android.com/guide/components/activities/secure-bal) and [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
 - [whisper.cpp](https://github.com/ggml-org/whisper.cpp) and [Whisper model/license information](https://github.com/openai/whisper); installed provenance remains beside the bundled assets.
 - [Google Play SMS policy](https://support.google.com/googleplay/android-developer/answer/10208820?hl=en); public store distribution remains outside current beta acceptance.
+
+## Optional models (16 October implementation)
+
+The base APK contains runtime libraries, deterministic SMS rules, vocabulary/prototypes, model metadata and licenses. Settings exposes separate optional downloads for Whisper English voice and MiniLM category suggestions. These are pinned model files, not executable libraries. Explicit WorkManager HTTPS delivery uses immutable Hugging Face revisions so both Play and direct APK installs work without an app backend. Size/SHA-256 checks precede atomic private installation; cancelled/stale work cannot publish a model. Requested work can continue in background; interrupted files can resume where the host supports ranges, or restart safely otherwise. Compatible APK/OTA updates reuse files. Removal affects model files only.
+
+Missing voice gives download guidance before recording, and missing MiniLM falls back to deterministic rules/review. Neither path silently downloads. Settings shows sizes, progress, checking integrity, waiting/error states, cancellation/retry and confirmed removal. Download-host metadata is disclosed in the privacy policy. Play Asset Delivery remains a store-specific follow-up; it is not required for this HTTPS implementation. The production app keeps screen/authentication protections.

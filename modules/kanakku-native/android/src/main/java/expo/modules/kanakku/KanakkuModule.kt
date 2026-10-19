@@ -50,7 +50,7 @@ class KanakkuModule : Module() {
     OnDestroy { foreground=false;pcmRecorder.cancel();MerchantLookup.cancel();instance=null; speech?.destroy();speech=null;speechPromise?.reject("CANCELLED","Voice session ended",null);speechPromise=null }
     Function("status") {
       val prefs=context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE)
-      mapOf("sms" to (ContextCompat.checkSelfPermission(context,Manifest.permission.READ_SMS)==PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(context,Manifest.permission.RECEIVE_SMS)==PackageManager.PERMISSION_GRANTED), "overlay" to Settings.canDrawOverlays(context), "capture" to Vault(context).enabled(), "offlineVoice" to SpeechRecognizer.isOnDeviceRecognitionAvailable(context), "overlayEnabled" to prefs.getBoolean("overlay",false), "sounds" to prefs.getBoolean("sounds",true), "testBuild" to (context.packageName==TEST_PACKAGE), "diagnostics" to Diagnostics.enabled(context), "voiceSupported" to WhisperEngine.supported, "debugVoiceClips" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("debugVoiceClips",false)))
+      mapOf("sms" to (ContextCompat.checkSelfPermission(context,Manifest.permission.READ_SMS)==PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(context,Manifest.permission.RECEIVE_SMS)==PackageManager.PERMISSION_GRANTED), "overlay" to Settings.canDrawOverlays(context), "capture" to Vault(context).enabled(), "offlineVoice" to SpeechRecognizer.isOnDeviceRecognitionAvailable(context), "overlayEnabled" to prefs.getBoolean("overlay",false), "sounds" to prefs.getBoolean("sounds",true), "testBuild" to (context.packageName==TEST_PACKAGE), "recordingMode" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("recordingMode",false)), "diagnostics" to Diagnostics.enabled(context), "voiceSupported" to WhisperEngine.supported, "debugVoiceClips" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("debugVoiceClips",false)))
     }
     AsyncFunction("unlock") { promise: Promise ->
       try {
@@ -93,7 +93,20 @@ class KanakkuModule : Module() {
       val clips=if(test&&context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).getBoolean("debugVoiceClips",false)) context.getExternalFilesDir("voice-debug") else null
       pcmRecorder.start(promise,test,clips)
     }.runOnQueue(Queues.MAIN)
-    AsyncFunction("voiceModelPath") { asset:String, sha256:String -> VoiceModels.path(context,asset,sha256) }
+    AsyncFunction("modelDownloads") { ModelDownloads.status(context) }
+    AsyncFunction("downloadModel") { id:String ->
+      check(foreground) { "Open Kanakku to download a model." }
+      ModelDownloads.start(context,id);ModelDownloads.status(context)
+    }
+    AsyncFunction("cancelModelDownload") { id:String -> ModelDownloads.cancel(context,id);ModelDownloads.status(context) }
+    AsyncFunction("removeModel") { id:String ->
+      if(id=="categories")SemanticClassifier.removeModel(context) else ModelDownloads.remove(context,id)
+      ModelDownloads.status(context)
+    }
+    AsyncFunction("voiceModelPath") { asset:String, sha256:String, promise:Promise ->
+      try { promise.resolve(VoiceModels.path(context,asset,sha256)) }
+      catch(_:Exception) { promise.reject("MODEL_NOT_READY","Download English voice in Settings → Optional models first. If already downloaded, remove it and try again.",null) }
+    }
     AsyncFunction("logDiagnostic") { level:String, source:String, event:String, detail:String ->
       val json=runCatching{org.json.JSONObject(detail)}.getOrDefault(org.json.JSONObject())
       Diagnostics.log(level.take(10), source.take(20), event.take(60), json.keys().asSequence().take(20).associateWith { json.opt(it) })
@@ -121,8 +134,9 @@ class KanakkuModule : Module() {
     AsyncFunction("setRecordingMode") { enabled:Boolean ->
       require(context.packageName==TEST_PACKAGE) { "Recording mode exists only in the test build." }
       context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).edit().putBoolean("recordingMode",enabled).commit()
+      appContext.currentActivity?.let { secureWindow(context,it) }
       enabled
-    }
+    }.runOnQueue(Queues.MAIN)
     AsyncFunction("setDebugVoiceClips") { enabled:Boolean ->
       require(context.packageName==TEST_PACKAGE) { "Voice clip diagnostics exist only in the test build." }
       context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).edit().putBoolean("debugVoiceClips",enabled).commit()
@@ -134,7 +148,10 @@ class KanakkuModule : Module() {
       val clip=pcmRecorder.takeClip() ?: throw IllegalStateException("There is no recording to transcribe.")
       val started=android.os.SystemClock.elapsedRealtime()
       try {
-        val result=WhisperEngine.transcribe(model,clip,threads,language,translate,prompt)
+        val result=ModelDownloads.withModel(context,"voice") { verified ->
+          require(model==verified) { "Unexpected voice model." }
+          WhisperEngine.transcribe(verified,clip,threads,language,translate,prompt)
+        }
         Diagnostics.log("info","voice","transcribed",mapOf("ms" to android.os.SystemClock.elapsedRealtime()-started,"seconds" to clip.size/16000.0,"aborted" to result.aborted,"language" to result.language,"empty" to result.text.isBlank()))
         mapOf("text" to result.text,"language" to result.language,"aborted" to result.aborted)
       } finally { clip.fill(0) }

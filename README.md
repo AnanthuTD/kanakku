@@ -29,10 +29,10 @@ Kanakku reads supported bank transaction SMS on the phone, keeps an encrypted sp
 
 Every claim below is in the source, and most are covered by tests.
 
-- **Offline by design.** The app makes no network calls on its own. The only two are opt-in and visible: a merchant lookup you approve per search (a public business name, nothing else), and the manual _Check for updates_ button in Settings.
+- **Offline by design.** The app makes no network calls on its own. Optional network features are visible: merchant lookup, the manual _Check for updates_ button, and model downloads in Settings. Model downloads send no journal, note or audio content.
 - **Raw SMS is never stored.** Each alert is parsed and discarded; only the extracted payment fields are kept. OTPs and anything unrelated are rejected before they reach storage.
 - **The journal is encrypted at rest** with SQLCipher. Its key lives in the Android Keystore and is gated by your device lock. Alerts that arrive while the phone is locked are sealed into an encrypted inbox and only opened after you unlock.
-- **Voice and bill photos are processed on-device.** Speech goes through a bundled Whisper model; bills through a bundled ML Kit text recogniser. Audio is held briefly in memory and never written to storage. OCR text and photos are not persisted.
+- **Voice and bill photos are processed on-device.** Speech goes through an optional downloaded Whisper model; bills through a bundled ML Kit text recogniser. Audio is held briefly in memory and never written to storage. OCR text and photos are not persisted.
 - **Money is integer paise** and every total is computed from the ledger on demand. Refunds subtract; transfers, income, cash and card repayments never inflate spending.
 - **Your corrections win.** Original values, classifier provenance and your edits are all kept; nothing you confirmed is overwritten by a suggestion.
 - **Releases are reproducible.** Every APK on the [Releases](https://github.com/AnanthuTD/kanakku/releases) page is built by a public GitHub Actions workflow from the tagged commit, signed with the project's release key, and published with `SHA256SUMS` and the signing certificate fingerprint.
@@ -60,8 +60,9 @@ See [SECURITY.md](SECURITY.md) for the full policy and how to report a problem p
    apksigner verify --print-certs kanakku-*.apk   # must match SIGNING-CERTIFICATE.txt
    ```
 3. Open the APK on the phone and allow installing from that source.
-4. In Kanakku, go to Settings → **Connect bank SMS**, choose how far back to import, and grant **SMS** and **Notifications**. Microphone, camera and _display over other apps_ are each optional and only asked for when you use the feature.
-5. A screen lock must be set — it protects the journal key.
+4. Optional: Settings → **Optional models** downloads English voice (~57 MiB) and smart category suggestions (~22 MiB). These remain on the phone across compatible updates; SMS import and manual categorization work without them.
+5. In Kanakku, go to Settings → **Connect bank SMS**, choose how far back to import, and grant **SMS** and **Notifications**. Microphone, camera and _display over other apps_ are each optional and only asked for when you use the feature.
+6. A screen lock must be set — it protects the journal key.
 
 On Xiaomi/HyperOS phones, also allow _Autostart_ and set battery saver to _No restrictions_ so background import and alert capture keep running.
 
@@ -71,7 +72,7 @@ Node 24, JDK 17, Android SDK 36 (platform, build-tools 36.0.0, NDK 27.1, CMake 3
 
 ```sh
 npm ci
-npm run models:fetch            # downloads the two bundled ML models and verifies their hashes
+npm run models:catalog          # writes small pinned metadata; weights download in-app
 npx expo prebuild --platform android --no-install
 (cd android && ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --max-workers=4)
 node scripts/verify-apk.mjs android/app/build/outputs/apk/release/app-release.apk

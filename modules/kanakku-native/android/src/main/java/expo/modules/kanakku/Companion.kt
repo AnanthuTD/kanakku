@@ -370,6 +370,7 @@ object AvatarWindow {
   }
 
   private fun startListening(context: Context) {
+    if(ModelDownloads.status(context).none { it["id"]=="voice" && it["state"]=="ready" }) { openApp(context,true);return }
     val mic = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     // Without permission, a supported processor or the microphone service, answer in Kanakku.
     val service = if (mic && WhisperEngine.supported) AvatarService.microphone(true) else null
@@ -416,8 +417,10 @@ object AvatarWindow {
         val path = VoiceModels.path(context, model.asset, model.sha256)
         val samples = clip.takeClip() ?: error("No recording")
         try {
-          val result = WhisperEngine.transcribe(path, samples, 4,
-            if (model.languages.size == 1) model.languages[0] else "auto", model.languages.any { it != "en" }, hint)
+          val result = ModelDownloads.withModel(context,"voice") { verified ->
+            WhisperEngine.transcribe(verified, samples, 4,
+              if (model.languages.size == 1) model.languages[0] else "auto", model.languages.any { it != "en" }, hint)
+          }
           val text = result.text.trim()
           if (result.aborted || text.isEmpty() || VoiceText.isFiller(text) || result.language !in model.languages) null
           else {

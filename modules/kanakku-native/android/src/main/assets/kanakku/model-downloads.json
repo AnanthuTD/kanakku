@@ -1,0 +1,20 @@
+[
+  {
+    "id": "voice",
+    "label": "English voice",
+    "description": "Transcribe short voice notes on this phone.",
+    "asset": "whisper-base.en-q5_1.bin",
+    "bytes": 59721011,
+    "sha256": "4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base.en-q5_1.bin"
+  },
+  {
+    "id": "categories",
+    "label": "Smart category suggestions",
+    "description": "Suggest categories for unclear merchants and notes on this phone.",
+    "asset": "minilm.onnx",
+    "bytes": 23026053,
+    "sha256": "4278337fd0ff3c68bfb6291042cad8ab363e1d9fbc43dcb499fe91c871902474",
+    "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/onnx/model_qint8_arm64.onnx"
+  }
+]

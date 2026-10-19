@@ -15,26 +15,14 @@ object VoiceModels {
     return Bundled(j.getString("asset"), j.getString("sha256"), languages)
   }
 
-  /** Verified private copy, made once per model; whisper.cpp then reads a plain file. */
-  @Synchronized fun path(context: Context, asset: String, sha256: String): String {
-    require(Regex("^whisper-[A-Za-z0-9._-]+\\.bin$").matches(asset) && Regex("^[0-9a-f]{64}$").matches(sha256)) { "Unexpected voice model." }
-    val dir = File(context.noBackupFilesDir, "voice-models").apply { mkdirs() }
-    val target = File(dir, asset)
-    val marker = File(dir, "$asset.sha256")
-    if (!(target.isFile && marker.isFile && marker.readText() == sha256)) {
-      dir.listFiles()?.forEach { it.delete() }
-      val partial = File(dir, "$asset.partial")
-      val digest = MessageDigest.getInstance("SHA-256")
-      context.assets.open("kanakku/$asset").use { input -> partial.outputStream().use { out ->
-        val buffer = ByteArray(1 shl 20)
-        while (true) { val count = input.read(buffer); if (count < 0) break; digest.update(buffer, 0, count); out.write(buffer, 0, count) }
-      } }
-      if (digest.digest().joinToString("") { "%02x".format(it) } != sha256) { partial.delete(); throw IllegalStateException("The bundled voice model failed its integrity check.") }
-      check(partial.renameTo(target)) { "Could not prepare the voice model." }
-      marker.writeText(sha256)
-    }
-    return target.absolutePath
+  /** Only a verified, explicitly downloaded model may be used; never initiate network I/O. */
+  fun path(context: Context, asset: String, sha256: String): String {
+    val selected=bundled(context)
+    require(asset==selected.asset && sha256==selected.sha256) { "Unexpected voice model." }
+    val spec=ModelDownloads.spec(context,"voice")
+    check(spec.asset==asset && spec.sha256==sha256) { "Voice catalog mismatch" }
+    return ModelDownloads.withModel(context,"voice"){it}
   }
 
-  fun dir(context: Context) = File(context.noBackupFilesDir, "voice-models").path
+  fun dir(context: Context) = ModelDownloads.dir(context).path
 }

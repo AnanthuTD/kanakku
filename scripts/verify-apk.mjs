@@ -101,21 +101,44 @@ const expectedModels = {
   // Whisper model chosen with npm run voice:model.
   [voiceModel.asset]: voiceModel.sha256,
 };
-// Models stay uncompressed so they are copied and loaded exactly as pinned.
-const listing = run("unzip", ["-v", apk]);
+// Large weights must never leak back into the base APK. Only pinned download metadata ships.
 for (const name of Object.keys(expectedModels))
   check(
-    new RegExp(
-      `\\sStored\\s.*\\sassets/kanakku/${name.replace(".", "\\.")}$`,
-      "m",
-    ).test(listing),
-    `Bundled ${name} must be stored uncompressed`,
+    !entries.includes(`assets/kanakku/${name}`),
+    `Optional model ${name} was bundled in the base APK`,
   );
-for (const [name, expected] of Object.entries(expectedModels)) {
-  const hash = createHash("sha256")
-    .update(run("unzip", ["-p", apk, `assets/kanakku/${name}`], true))
-    .digest("hex");
-  check(hash === expected, `Bundled ${name} provenance hash differs`);
+check(
+  !entries.some((name) => /^assets\/kanakku\/.*\.(?:onnx|bin)$/.test(name)),
+  "Unexpected bundled model weights",
+);
+const catalog = JSON.parse(
+  run("unzip", ["-p", apk, "assets/kanakku/model-downloads.json"]),
+);
+const sourceCatalog = JSON.parse(
+  readFileSync(
+    new URL("../src/native/modelCatalog.json", import.meta.url),
+    "utf8",
+  ),
+);
+check(
+  JSON.stringify(catalog) === JSON.stringify(sourceCatalog),
+  "APK download catalog differs from source",
+);
+check(catalog.length === 2, "Unexpected optional models");
+for (const model of catalog) {
+  check(
+    expectedModels[model.asset] === model.sha256,
+    "Optional model provenance differs",
+  );
+  check(
+    model.url.startsWith("https://huggingface.co/") &&
+      /\/resolve\/[a-f0-9]{40}\//.test(model.url),
+    "Model source must pin an immutable revision",
+  );
+  check(
+    Number.isSafeInteger(model.bytes) && model.bytes > 0,
+    "Missing pinned model size",
+  );
 }
 for (const name of [
   // Vendored whisper.cpp (modules/kanakku-native/android/src/main/cpp).
@@ -132,7 +155,7 @@ console.log(
       signing: developmentSigning
         ? "development"
         : "non-development (owner must verify certificate identity)",
-      models: "verified",
+      models: "optional weights absent; pinned download catalog verified",
       backup: "disabled",
       debuggable: false,
       productionSigningGate: flags.has("--production")

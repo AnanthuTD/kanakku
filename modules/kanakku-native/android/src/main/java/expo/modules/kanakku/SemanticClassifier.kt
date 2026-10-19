@@ -13,8 +13,9 @@ object SemanticClassifier {
   private var prototypes:List<Pair<String,FloatArray>> = emptyList()
   private val environment by lazy { OrtEnvironment.getEnvironment() }
   private fun initialize(context:Context) {
+    val path=ModelDownloads.withModel(context,"categories"){it}
     if(session!=null)return
-    val bytes=context.assets.open("kanakku/minilm.onnx").use{it.readBytes()}
+    val bytes=java.io.File(path).readBytes()
     val hash=MessageDigest.getInstance("SHA-256").digest(bytes).joinToString(""){"%02x".format(it)}
     check(hash=="4278337fd0ff3c68bfb6291042cad8ab363e1d9fbc43dcb499fe91c871902474") {"Model integrity check failed"}
     val vocab=context.assets.open("kanakku/vocab.txt").bufferedReader().use{it.readLines()}.withIndex().associate{it.value to it.index}
@@ -45,6 +46,10 @@ object SemanticClassifier {
         return SemanticSuggestion(best.key,best.value,margin)
       }
     }finally{tokens.values.forEach{it.close()}}
+  }
+  @Synchronized fun removeModel(context:Context) {
+    session?.close();session=null;tokenizer=null;prototypes=emptyList()
+    ModelDownloads.remove(context,"categories")
   }
   fun enrich(context:Context,t:ParsedTransaction):ParsedTransaction {
     if(t.kind!="purchase")return t

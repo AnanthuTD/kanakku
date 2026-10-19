@@ -1,3 +1,4 @@
+import { ModelDownloadsSettings } from "../src/components/ModelDownloadsSettings";
 import Constants from "expo-constants";
 import { AppUpdatesSettings } from "../src/components/AppUpdatesSettings";
 import { isVoiceActive } from "../src/native/voice";
@@ -46,6 +47,9 @@ export default function Settings() {
   const insets = useSafeAreaInsets();
   const [confirmConnect, setConfirmConnect] = useState(false);
   const testBuild = native?.status().testBuild === true;
+  const [testScreenshots, setTestScreenshots] = useState(
+    native?.status().recordingMode === true,
+  );
   const [voiceClips, setVoiceClips] = useState(
     native?.status().debugVoiceClips === true,
   );
@@ -157,6 +161,41 @@ export default function Settings() {
               {notice}
             </Text>
           ) : null}
+          {testBuild && (
+            <View
+              style={{
+                padding: 16,
+                borderWidth: 1,
+                borderColor: colors.line,
+                borderRadius: 18,
+                marginBottom: 20,
+                gap: 10,
+              }}
+            >
+              <Text bold>Diagnostic build only</Text>
+              <Text muted>
+                This separate app can allow screenshots and recordings for
+                testing. Your normal Kanakku app stays protected. Use synthetic
+                payments for recordings.
+              </Text>
+              <View style={ui.between}>
+                <Text>Allow test screenshots</Text>
+                <Switch
+                  accessibilityLabel="Allow test screenshots"
+                  value={testScreenshots}
+                  onValueChange={(value) => {
+                    native
+                      ?.setRecordingMode(value)
+                      .then(setTestScreenshots)
+                      .catch(() =>
+                        app.setError("Could not change test screenshot mode."),
+                      );
+                  }}
+                />
+              </View>
+            </View>
+          )}
+          <ModelDownloadsSettings />
           <SectionTitle title="The look & feel" />
           <View style={{ flexDirection: "row", gap: 10, marginBottom: 30 }}>
             {(
@@ -404,10 +443,10 @@ export default function Settings() {
               </Text>
             </View>
             <Text muted style={{ fontSize: 12, lineHeight: 20 }}>
-              {voiceLanguageLabel}, processed on your phone with bundled
-              Whisper. Your words become an editable note for category
-              suggestions. The microphone starts after your tap; typing and
-              category buttons are always available.
+              {voiceLanguageLabel}, processed on your phone after downloading
+              the optional Whisper model. Your words become an editable note for
+              category suggestions. The microphone starts after your tap; typing
+              and category buttons are always available.
             </Text>
             {testBuild ? (
               <View style={[ui.between, { gap: 15, marginTop: 14 }]}>

@@ -183,3 +183,15 @@ it("formats notes with a capital and a final stop only", () => {
   expect(formatNote("Hi, how are you?")).toBe("Hi, how are you?");
   expect(formatNote("")).toBe("");
 });
+
+it("missing optional voice model gives download guidance and never opens the microphone", async () => {
+  mock.model.mockRejectedValueOnce(
+    Object.assign(
+      new Error("Download English voice in Settings → Optional models first."),
+      { code: "MODEL_NOT_READY" },
+    ),
+  );
+  await expect(listen()).rejects.toThrow("Download English voice in Settings");
+  expect(mock.record).not.toHaveBeenCalled();
+  expect(mock.transcribe).not.toHaveBeenCalled();
+});

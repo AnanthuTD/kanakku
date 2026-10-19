@@ -13,6 +13,8 @@ export interface NativeStatus {
   sounds: boolean;
   /** True only for the isolated app.tinkerbox.kanakku.e2e package. */
   testBuild?: boolean;
+  /** Screenshot mode is available only in the isolated diagnostic package. */
+  recordingMode?: boolean;
   diagnostics?: boolean;
   /** False on processors without ARMv8.2 fp16/dot-product support. */
   voiceSupported?: boolean;
@@ -65,7 +67,24 @@ export const emptyImport: ImportProgress = {
   coverageSince: -1,
   coverageUntil: 0,
 };
+export interface ModelDownloadStatus {
+  id: "voice" | "categories";
+  state:
+    | "missing"
+    | "queued"
+    | "downloading"
+    | "verifying"
+    | "waiting"
+    | "ready"
+    | "error";
+  downloaded: number;
+  total: number;
+}
 interface KanakkuNative {
+  modelDownloads(): Promise<ModelDownloadStatus[]>;
+  downloadModel(id: string): Promise<ModelDownloadStatus[]>;
+  cancelModelDownload(id: string): Promise<ModelDownloadStatus[]>;
+  removeModel(id: string): Promise<ModelDownloadStatus[]>;
   /** On-device OCR from an ephemeral app-cache photo; never uploaded. */
   recognizeReceipt(uri: string): Promise<{ text: string }>;
   status(): NativeStatus;
@@ -146,7 +165,7 @@ interface KanakkuNative {
   setRecordingMode(enabled: boolean): Promise<boolean>;
   /** Test build with clip diagnostics on: stores the app's text beside the newest clip. */
   saveDebugTranscript(text: string): Promise<boolean>;
-  /** Verified private copy of the bundled Whisper model (made once per model). */
+  /** Verified optional Whisper model; missing models require an explicit Settings download. */
   voiceModelPath(asset: string, sha256: string): Promise<string>;
   setPreferences(
     overlay: boolean,
