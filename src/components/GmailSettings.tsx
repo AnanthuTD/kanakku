@@ -86,7 +86,8 @@ export function GmailSettings() {
       <SectionTitle title="Gmail transaction alerts" />
       <Text muted>
         Optional support for authenticated SBI debit-card and SBI Card purchase
-        emails. Kanakku reads them on this phone and checks for matching SMS.
+        emails. They can be imported without SMS; when SMS is connected, Kanakku
+        checks for matching alerts to avoid counting the same payment twice.
         Other bank formats, OTPs, order emails and unsupported alerts are not
         imported.
       </Text>

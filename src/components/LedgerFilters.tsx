@@ -194,6 +194,24 @@ export function LedgerFilters({
           />
         ))}
       </View>
+      <Text bold>Source</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        <Option
+          label="All sources"
+          selected={!draft.source}
+          onPress={() => setDraft({ ...draft, source: null })}
+        />
+        <Option
+          label="SMS"
+          selected={draft.source === "sms"}
+          onPress={() => setDraft({ ...draft, source: "sms" })}
+        />
+        <Option
+          label="Email"
+          selected={draft.source === "email"}
+          onPress={() => setDraft({ ...draft, source: "email" })}
+        />
+      </View>
       <Text bold>Category</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         <Option

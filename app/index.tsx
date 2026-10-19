@@ -118,6 +118,7 @@ export default function Home() {
   const [kind, setKind] = useState<Kind | null>(null);
   const [activityRange, setActivityRange] = useState<DateRange | undefined>();
   const [merchant, setMerchant] = useState<string | null>(null);
+  const [source, setSource] = useState<"sms" | "email" | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const activityList = useRef<FlashListRef<Transaction>>(null);
   const activityOffset = useRef(0);
@@ -227,6 +228,7 @@ export default function Home() {
     account,
     kind,
     merchant,
+    source,
     query,
     reviewOnly,
     awaitingContextOnly,
@@ -242,6 +244,7 @@ export default function Home() {
       account,
       kind,
       merchant,
+      source,
       query,
       reviewOnly,
       awaitingContextOnly,
@@ -260,6 +263,7 @@ export default function Home() {
     account,
     kind,
     merchant,
+    source,
     query,
     reviewOnly,
     awaitingContextOnly,
@@ -301,6 +305,7 @@ export default function Home() {
     setQuery("");
     setKind(null);
     setMerchant(null);
+    setSource(null);
     setActivityRange(undefined);
     activityOffset.current = 0;
     setTab("Activity");
@@ -311,6 +316,7 @@ export default function Home() {
     setAccount(filter.account || null);
     setKind(filter.kind || null);
     setMerchant(filter.merchant || null);
+    setSource(filter.source || null);
     setReviewOnly(!!filter.reviewOnly);
     setAwaitingContextOnly(!!filter.awaitingContextOnly);
     setDay(null);
@@ -395,7 +401,7 @@ export default function Home() {
     </View>
   );
   const period = (
-    <View style={[ui.between, { marginBottom: 23 }]}>
+    <View style={[ui.between, { marginBottom: 15 }]}>
       <View style={ui.row}>
         <Pressable
           accessibilityRole="button"
@@ -840,14 +846,14 @@ export default function Home() {
           </ScrollView>
         )}
         {tab === "Activity" && (
-          <View style={{ flex: 1, paddingHorizontal: 24 }}>
+          <View style={{ flex: 1, paddingHorizontal: 20 }}>
             <Text
               serif
               style={{
-                fontSize: 34,
-                lineHeight: 45,
-                marginTop: 16,
-                marginBottom: 18,
+                fontSize: 27,
+                lineHeight: 34,
+                marginTop: 5,
+                marginBottom: 7,
               }}
             >
               The everyday details.
@@ -913,15 +919,15 @@ export default function Home() {
               style={[
                 ui.between,
                 {
-                  minHeight: 48,
-                  marginTop: 10,
-                  paddingHorizontal: 14,
-                  borderRadius: 13,
+                  minHeight: 40,
+                  marginTop: 6,
+                  paddingHorizontal: 12,
+                  borderRadius: 11,
                   backgroundColor: colors.accentSoft,
                 },
               ]}
             >
-              <Text bold style={{ fontSize: 12 }}>
+              <Text bold style={{ fontSize: 11 }}>
                 Dates, accounts & transaction types
               </Text>
               <ListFilter size={18} color={colors.accent} />
@@ -929,7 +935,7 @@ export default function Home() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={{ flexGrow: 0, marginVertical: 14 }}
+              style={{ flexGrow: 0, marginVertical: 7 }}
               contentContainerStyle={{ gap: 8 }}
             >
               <Chip
@@ -943,6 +949,7 @@ export default function Home() {
                   setAccount(null);
                   setKind(null);
                   setMerchant(null);
+                  setSource(null);
                   setActivityRange(undefined);
                   activityOffset.current = 0;
                 }}
@@ -1013,7 +1020,7 @@ export default function Home() {
               style={[
                 ui.between,
                 {
-                  paddingVertical: 13,
+                  paddingVertical: 8,
                   borderBottomWidth: 1,
                   borderColor: colors.line,
                 },
@@ -1092,7 +1099,7 @@ export default function Home() {
                       style={{
                         fontSize: 10,
                         letterSpacing: 1.2,
-                        marginTop: 22,
+                        marginTop: 12,
                         marginBottom: 4,
                       }}
                     >

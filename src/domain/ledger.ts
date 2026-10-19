@@ -22,6 +22,7 @@ export interface LedgerFilter {
   awaitingContextOnly?: boolean;
   query?: string;
   merchant?: string | null;
+  source?: "sms" | "email" | null;
 }
 export const KIND_OPTIONS: { value: Kind; label: string }[] = [
   { value: "purchase", label: "Purchases" },
@@ -80,6 +81,7 @@ export function filterLedger(rows: Transaction[], f: LedgerFilter) {
         (!f.reviewOnly || t.review) &&
         (!f.awaitingContextOnly || awaitingContext(t)) &&
         (!f.merchant || merchantKey(t.merchant) === merchantKey(f.merchant)) &&
+        (!f.source || t.source === f.source) &&
         (!query ||
           `${t.merchant} ${t.note} ${t.bank} ${t.account}`
             .toLowerCase()

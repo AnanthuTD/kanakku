@@ -43,6 +43,13 @@ class GmailPayloadInstrumentedTest {
     assertNull(GmailPayload.parse(message(html,true).put("labelIds",JSONArray().put("DRAFT")),"a".repeat(64)))
     assertNull(GmailPayload.parse(message(html,true).put("sizeEstimate",2_000_000),"a".repeat(64)))
   }
+  @Test fun gmailSearchIncludesSbiDebitAlertSubdomainAndKeepsSelectedWindow() {
+    val query=GmailSync.searchQuery(1_791_619_200_000L,1_792_483_200_000L)
+    assertTrue(query.contains("from:alerts.sbi.co.in"))
+    assertTrue(query.contains("subject:\"Transaction alert for your State Bank of India Debit Card\""))
+    assertTrue(query.contains("after:1791619200"))
+    assertTrue(query.contains("before:1792483201"))
+  }
   @Test fun accountIdentityIsEncryptedAndLocalDisconnectDropsOnlyConnectionMetadata() {
     GmailSync.detach(c)
     val fake="synthetic-fixture@example.invalid"

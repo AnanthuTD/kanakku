@@ -20,6 +20,11 @@ class GmailAuthorizationRequired:Exception()
 class GmailHttpFailure(val status:Int):Exception()
 object GmailSync {
   const val SCOPE="https://www.googleapis.com/auth/gmail.readonly"
+  /** Keep Gmail search aligned with accepted senders; SBI debit alerts use this subdomain. */
+  internal fun searchQuery(since:Long,until:Long):String =
+    "{from:sbi.co.in from:alerts.sbi.co.in from:sbi.bank.in from:onlinesbi.com from:sbicard.com} " +
+      "{subject:\"Transaction Alert from SBI Card\" subject:\"Transaction alert for your State Bank of India Debit Card\"} " +
+      "after:${since/1000} before:${until/1000+1}"
   val epoch=AtomicLong()
   private val guard=Any()
   private val runLock=ReentrantLock()
@@ -106,7 +111,7 @@ object GmailSync {
       val since=pref.getLong("scanSince",0).takeIf{it>0}?:maxOf(pref.getLong("floor",until),pref.getLong("lastSync",0)-2*24*60*60_000L)
       synchronized(guard){if(!valid())return true;pref.edit().putLong("scanUntil",until).putLong("scanSince",since).putString("state","syncing").commit()}
       var page=pref.getString("page","").orEmpty()
-      val query="{from:sbi.co.in from:sbi.bank.in from:onlinesbi.com from:sbicard.com} {subject:\"Transaction Alert from SBI Card\" subject:\"Transaction alert for your State Bank of India Debit Card\"} after:${since/1000} before:${until/1000+1}"
+      val query=searchQuery(since,until)
       fun get(path:String):JSONObject {
         try{return request(access,path,::valid)}catch(e:GmailHttpFailure){
           if(e.status!=401)throw e

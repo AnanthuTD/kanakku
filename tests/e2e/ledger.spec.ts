@@ -1,4 +1,4 @@
-import { test, expect, home, activity } from "./fixtures";
+import { test, expect, home, activity, transactions } from "./fixtures";
 
 test("net spending subtracts refunds and ignores repayment, income, transfer and excluded rows", async ({
   page,
@@ -83,6 +83,47 @@ test("custom dates, account, type and category combine and survive navigation", 
   await page.getByRole("button", { name: "Back to overview" }).click();
   await expect(page.getByTestId("activity-total")).toHaveText("₹1,000");
   await expect(page.getByTestId("transaction-flipkart")).toBeVisible();
+});
+
+test.describe("source filters", () => {
+  test.use({
+    journal: {
+      transactions: [
+        {
+          ...transactions[0],
+          id: "bank-sms",
+          merchant: "SBI debit",
+          bank: "SBI",
+          source: "sms",
+        },
+        {
+          ...transactions[0],
+          id: "bank-email",
+          merchant: "SBI Card",
+          amount: 18_000,
+          bank: "SBI Card",
+          source: "email",
+        },
+      ],
+      rules: [],
+    },
+  });
+  test("Activity can show only SMS or email payments", async ({ page }) => {
+    await home(page);
+    await activity(page);
+    await page
+      .getByRole("button", { name: "Open transaction filters" })
+      .click();
+    const filters = page.getByTestId("filters-sheet");
+    await filters.getByRole("button", { name: "Email", exact: true }).click();
+    await filters.getByRole("button", { name: "Show transactions" }).click();
+    await expect(page.getByTestId("activity-count")).toHaveText(
+      "1 TRANSACTIONS",
+    );
+    await expect(page.getByTestId("activity-total")).toHaveText("₹180");
+    await expect(page.getByTestId("transaction-bank-email")).toBeVisible();
+    await expect(page.getByTestId("transaction-bank-sms")).toHaveCount(0);
+  });
 });
 
 for (const [from, to] of [

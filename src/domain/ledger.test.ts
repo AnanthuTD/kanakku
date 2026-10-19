@@ -77,6 +77,18 @@ describe("ledger queries", () => {
     expect(matches.map((t) => t.id)).toEqual(["b"]);
     expect(netSpend(matches)).toBe(-2500);
   });
+  it("filters transaction history by its SMS or email source", () => {
+    const mixed = [
+      row("sms", "2026-10-10T12:00:00", { source: "sms" }),
+      row("email", "2026-10-11T12:00:00", { source: "email" }),
+    ];
+    expect(filterLedger(mixed, { source: "sms" }).map((t) => t.id)).toEqual([
+      "sms",
+    ]);
+    expect(filterLedger(mixed, { source: "email" }).map((t) => t.id)).toEqual([
+      "email",
+    ]);
+  });
   it("normalizes merchant names and subtracts refunds, excluding repayments", () => {
     expect(
       merchantTotals([
