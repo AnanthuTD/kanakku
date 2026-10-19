@@ -3,9 +3,63 @@ package expo.modules.kanakku
 import android.util.Base64
 import org.json.JSONObject
 import org.jsoup.Jsoup
+import java.math.BigDecimal
 
 /** No WebView, external image requests, attachments, scripts or raw-mail persistence. */
 object GmailPayload {
+  /** Returns an ephemeral, content-minimised parser report. Never includes message IDs or raw body text. */
+  fun diagnose(message:JSONObject,mailboxHash:String):Map<String,Any?> {
+    val payload=message.optJSONObject("payload")
+    val headers=payload?.optJSONArray("headers")
+    val pairs=headers?.let{h->(0 until h.length()).mapNotNull{i->h.optJSONObject(i)?.let{it.optString("name") to it.optString("value")}}}.orEmpty()
+    val from=pairs.filter{it.first.equals("From",true)}.singleOrNull()?.second.orEmpty()
+    val domain=BankEmailParser.senderDomain(from)
+    val auth=pairs.filter{it.first.equals("Authentication-Results",true)}.map{it.second}
+    val subject=pairs.filter{it.first.equals("Subject",true)}.singleOrNull()?.second.orEmpty()
+    val kind=when {
+      subject.equals("Transaction alert for your State Bank of India Debit Card",true)->"SBI debit"
+      subject.equals("Transaction Alert from SBI Card",true)->"SBI Card"
+      else->"Other"
+    }
+    val trusted=BankEmailParser.trusted(from,auth)
+    val base=mutableMapOf<String,Any?>("senderDomain" to domain,"alertType" to kind,"authenticationPassed" to trusted)
+    if(!trusted){base["outcome"]="sender or DMARC check failed";return base}
+    if(kind=="Other"){base["outcome"]="unsupported subject";return base}
+    if(message.optLong("sizeEstimate",0)>512_000){base["outcome"]="message exceeds size limit";return base}
+    val labels=message.optJSONArray("labelIds")
+    if(labels!=null&&(0 until labels.length()).any{labels.optString(it) in setOf("DRAFT","SENT","SPAM","TRASH")}){base["outcome"]="excluded Gmail label";return base}
+    val mimeTypes=mutableSetOf<String>();val rowKeys=mutableSetOf<String>()
+    fun inspect(part:JSONObject,depth:Int){
+      if(depth>8||part.optString("filename").isNotEmpty())return
+      part.optString("mimeType").takeIf{it=="text/html"||it=="text/plain"}?.let(mimeTypes::add)
+      if(part.optString("mimeType")=="text/html"){
+        val encoded=part.optJSONObject("body")?.optString("data").orEmpty()
+        val html=runCatching{String(Base64.decode(encoded,Base64.URL_SAFE or Base64.NO_WRAP),Charsets.UTF_8)}.getOrNull().orEmpty()
+        Jsoup.parse(html).select("tr").forEach{tr->
+          val cells=tr.children().filter{it.tagName() in setOf("td","th")}
+          if(cells.size==2)rowKeys.add(cells[0].text().trim().lowercase().replace(Regex("\\s+")," ").take(80))
+        }
+      }
+      part.optJSONArray("parts")?.let{children->for(i in 0 until minOf(children.length(),40))children.optJSONObject(i)?.let{inspect(it,depth+1)}}
+    }
+    if(payload!=null)inspect(payload,0)
+    val parsed=parse(message,mailboxHash)
+    base["mimeTypes"]=mimeTypes.toList().sorted()
+    if(parsed!=null){
+      base["outcome"]="parsed"
+      base["amount"]=BigDecimal(parsed.amount).movePointLeft(2).toPlainString()
+      base["currency"]=parsed.currency
+      base["merchant"]=parsed.merchant
+      base["transactionDate"]=parsed.transactionAt?:parsed.at
+    }else{
+      base["outcome"]="template rejected"
+      if(kind=="SBI debit"){
+        val required=setOf("terminal owner name","last 4 digit of card","amount (inr)","transaction number","transaction type","channel","date & time")
+        base["missingRowLabels"]=required-rowKeys
+      }
+    }
+    return base
+  }
   fun eligibleMetadata(message:JSONObject):Boolean {
     val p=message.optJSONObject("payload")?:return false
     val h=p.optJSONArray("headers")?:return false

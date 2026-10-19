@@ -30,6 +30,25 @@ class GmailPayloadInstrumentedTest {
     assertEquals("email",parsed.source);assertEquals("INR",parsed.currency)
     assertEquals("2026-10-10T11:30:00Z",parsed.transactionAt)
   }
+  @Test fun oneShotDiagnosticReturnsOnlyStructuredSummaryAndNeverBodyOrMessageId() {
+    val html="""
+      <table><tr><th>Description</th><th>Value</th></tr>
+      <tr><td>Terminal Owner Name</td><td>WWW AMAZON IN</td></tr>
+      <tr><td>Terminal Id</td><td>89051631</td></tr>
+      <tr><td>Date &amp; Time</td><td>Oct 10, 2026, 17:00</td></tr>
+      <tr><td>Transaction Number</td><td>628311288436</td></tr>
+      <tr><td>Amount (INR)</td><td>17437.00</td></tr>
+      <tr><td>Last 4 Digit of Card</td><td>X6122</td></tr>
+      <tr><td>Transaction Type</td><td>PURCHASE</td></tr>
+      <tr><td>Channel</td><td>POS / ECOM</td></tr></table>
+    """.trimIndent()
+    val input=message(html)
+    val result=GmailPayload.diagnose(input,"a".repeat(64))
+    assertEquals("parsed",result["outcome"])
+    assertEquals("17437.00",result["amount"])
+    assertEquals("WWW AMAZON IN",result["merchant"])
+    assertFalse(result.containsKey("id"));assertFalse(result.containsKey("body"));assertFalse(result.containsKey("transactionNumber"))
+  }
   @Test fun creditCurrencyAndAuthenticationAreNotInferredFromPromotionsOrDisplayNames() {
     val html="<p>USD35.00 spent on your SBI Credit Card ending 9901 at SAMPLE STORE on 14/10/26. Txn. not done by you?</p><p>Never share OTP. Offers Rs.200 and Rs.2500.</p>"
     val input=message(html,true)

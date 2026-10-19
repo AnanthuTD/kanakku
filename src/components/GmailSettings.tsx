@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AppState, Switch, View } from "react-native";
+import { AppState, ScrollView, Switch, View } from "react-native";
 import { native, type GmailStatus } from "../native/bridge";
 import { useApp } from "../state/AppContext";
 import { Button, Text, SectionTitle } from "./ui";
@@ -16,6 +16,8 @@ export function GmailSettings() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [disconnect, setDisconnect] = useState(false);
+  const [inspection, setInspection] = useState<Record<string, unknown>[] | null>(null);
+  const [inspecting, setInspecting] = useState(false);
   const generation = useRef(0);
   useEffect(() => {
     if (!native) return;
@@ -79,6 +81,19 @@ export function GmailSettings() {
         );
     } finally {
       if (token === generation.current) setBusy(false);
+    }
+  }
+  async function inspectAlerts() {
+    if (!native || inspecting) return;
+    setInspecting(true);
+    setInspection(null);
+    setError("");
+    try {
+      setInspection(await native.inspectGmailAlerts());
+    } catch {
+      setError("Could not inspect Gmail alerts. Check the connection and try again.");
+    } finally {
+      setInspecting(false);
     }
   }
   return (
@@ -150,6 +165,30 @@ export function GmailSettings() {
           >
             Check bank emails now
           </Button>
+          <Text muted>
+            A one-time diagnostic can inspect matching alerts on this phone. It shows only parser results and never saves message contents.
+          </Text>
+          <Button secondary disabled={busy || inspecting} onPress={inspectAlerts}>
+            {inspecting ? "Inspecting alerts…" : "Inspect recent alert parsing"}
+          </Button>
+          {inspection && (
+            <ScrollView style={{ maxHeight: 280 }} accessibilityLabel="Email parser diagnostic results">
+              <Text selectable>
+                {inspection.length === 0
+                  ? "No matching alerts found in the selected time range."
+                  : inspection.map((item, index) => {
+                      const missing = Array.isArray(item.missingRowLabels)
+                        ? ` · Missing rows: ${item.missingRowLabels.join(", ") || "none"}`
+                        : "";
+                      const parsed = item.outcome === "parsed"
+                        ? ` · ${String(item.currency)} ${String(item.amount)} · ${String(item.merchant)} · ${String(item.transactionDate)}`
+                        : "";
+                      const received = item.receivedAt ? ` · received ${String(item.receivedAt).slice(0, 10)}` : "";
+                      return `${index + 1}. ${String(item.alertType)} · ${String(item.senderDomain ?? "unknown sender")}${received} · ${String(item.outcome ?? "not inspected")}${parsed}${missing}`;
+                    }).join("\n")}
+              </Text>
+            </ScrollView>
+          )}
           <Button secondary disabled={busy} onPress={() => setDisconnect(true)}>
             Disconnect Gmail
           </Button>

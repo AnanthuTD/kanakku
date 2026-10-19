@@ -94,6 +94,8 @@ interface KanakkuNative {
   gmailStatus(): Promise<GmailStatus>;
   connectGmail(months: number): Promise<GmailStatus>;
   syncGmail(): Promise<GmailStatus>;
+  /** Ephemeral summaries only; never returns IDs or message bodies. */
+  inspectGmailAlerts(): Promise<Record<string, unknown>[]>;
   disconnectGmail(): Promise<GmailStatus>;
   modelDownloads(): Promise<ModelDownloadStatus[]>;
   downloadModel(id: string): Promise<ModelDownloadStatus[]>;

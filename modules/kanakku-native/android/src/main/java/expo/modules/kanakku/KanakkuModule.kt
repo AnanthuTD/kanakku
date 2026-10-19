@@ -98,6 +98,7 @@ class KanakkuModule : Module() {
     }.runOnQueue(Queues.MAIN)
     OnActivityResult { activity,result -> GmailAuthorization.result(activity,result.requestCode,result.resultCode,result.data) }
     AsyncFunction("gmailStatus") { GmailSync.status(context) }
+    AsyncFunction("inspectGmailAlerts") { GmailSync.inspectRecent(context) }
     AsyncFunction("connectGmail") { months:Int,promise:Promise ->
       val activity=appContext.currentActivity
       if(!foreground||activity==null)promise.reject("GMAIL_FOREGROUND","Open Kanakku to connect Gmail.",null)

@@ -11,6 +11,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.io.ByteArrayOutputStream
+import java.time.Instant
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
@@ -80,6 +81,34 @@ object GmailSync {
     if(p(c).getString("state","")!="syncing")p(c).edit().putString("state","queued").commit()
     try { WorkManager.getInstance(c).enqueueUniqueWork("kanakku-gmail-now",ExistingWorkPolicy.KEEP,OneTimeWorkRequestBuilder<GmailSyncWorker>().setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build()) }
     catch(e:Exception){p(c).edit().putString("state","error").commit();throw e}
+  }
+  /** One-shot, in-memory inspection for support. Does not mutate the vault, counters, or sync checkpoint. */
+  fun inspectRecent(c:Context):List<Map<String,Any?>> {
+    val account=GmailStore.account(c)?:throw IllegalStateException("Connect Gmail first")
+    val access=token(c,account)
+    val pref=p(c);val until=System.currentTimeMillis()
+    val since=pref.getLong("floor",ImportWindow.since(pref.getInt("months",1),until))
+    val query=searchQuery(since,until)
+    val report=mutableListOf<Map<String,Any?>>()
+    var page=""
+    repeat(4){
+      val list=request(access,"messages?maxResults=50&q="+URLEncoder.encode(query,"UTF-8")+if(page.isNotEmpty())"&pageToken="+URLEncoder.encode(page,"UTF-8") else ""){true}
+      val messages=list.optJSONArray("messages")
+      if(messages!=null)for(i in 0 until messages.length()){
+        val id=messages.getJSONObject(i).getString("id")
+        if(!Regex("[a-fA-F0-9]{1,64}").matches(id))continue
+        val meta=try{request(access,"messages/$id?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Authentication-Results"){true}}catch(_:GmailHttpFailure){continue}
+        val metaReport=GmailPayload.diagnose(meta,"0".repeat(64))
+        val eligible=GmailPayload.eligibleMetadata(meta)
+        val full=if(eligible)try{request(access,"messages/$id?format=full"){true}}catch(_:GmailHttpFailure){null}else null
+        val safe=if(full!=null)GmailPayload.diagnose(full,hash(account.lowercase())) else metaReport
+        val received=meta.optLong("internalDate",0).takeIf{it>0}?.let{Instant.ofEpochMilli(it).toString()}
+        report.add(safe+mapOf("message" to (report.size+1),"receivedAt" to received))
+      }
+      page=list.optString("nextPageToken")
+      if(page.isEmpty())return report
+    }
+    return report
   }
   /** Invalidate in-flight callbacks/requests before dropping account metadata. Saved payments remain. */
   fun detach(c:Context) = synchronized(guard) {
