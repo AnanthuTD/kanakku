@@ -133,6 +133,9 @@ export function GmailSettings() {
             process an alert again; ledger replay is idempotent.
           </Text>
           <Text muted>
+            Manual checks revisit the selected history window, so newly supported alerts can be recovered safely.
+          </Text>
+          <Text muted>
             {status.lastSync
               ? `Last completed check: ${new Date(status.lastSync).toLocaleString("en-IN")}`
               : "First check is queued or in progress. Your coverage is incomplete until it finishes."}
@@ -172,7 +175,12 @@ export function GmailSettings() {
             {inspecting ? "Inspecting alerts…" : "Inspect recent alert parsing"}
           </Button>
           {inspection && (
-            <ScrollView style={{ maxHeight: 280 }} accessibilityLabel="Email parser diagnostic results">
+            <ScrollView
+              style={{ maxHeight: 360 }}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+              accessibilityLabel="Email parser diagnostic results"
+            >
               <Text selectable>
                 {inspection.length === 0
                   ? "No matching alerts found in the selected time range."

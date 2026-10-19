@@ -78,7 +78,9 @@ object GmailSync {
   }
   fun syncNow(c:Context) {
     check(p(c).contains("accountCipher"))
-    if(p(c).getString("state","")!="syncing")p(c).edit().putString("state","queued").commit()
+    // A user-requested check replays the selected history window. This lets newly supported
+    // formats recover messages that an earlier parser/auth check ignored; email identity keeps it idempotent.
+    p(c).edit().remove("page").remove("scanSince").remove("scanUntil").putBoolean("replayFromFloor",true).putString("state","queued").commit()
     try { WorkManager.getInstance(c).enqueueUniqueWork("kanakku-gmail-now",ExistingWorkPolicy.KEEP,OneTimeWorkRequestBuilder<GmailSyncWorker>().setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build()) }
     catch(e:Exception){p(c).edit().putString("state","error").commit();throw e}
   }
@@ -123,6 +125,8 @@ object GmailSync {
       Tasks.await(Identity.getAuthorizationClient(c).revokeAccess(RevokeAccessRequest.builder().setAccount(Account(account,"com.google")).setScopes(listOf(Scope(SCOPE))).build()),30,TimeUnit.SECONDS);true
     }.getOrDefault(false)
   }
+  internal fun scanStart(floor:Long,lastSync:Long,replayFromFloor:Boolean):Long =
+    if(replayFromFloor)floor else maxOf(floor,lastSync-2*24*60*60_000L)
   private fun token(c:Context,account:String):String {
     val result=Tasks.await(Identity.getAuthorizationClient(c).authorize(AuthorizationRequest.builder().setAccount(Account(account,"com.google")).setRequestedScopes(listOf(Scope(SCOPE))).setOptOutIncludingGrantedScopes(true).build()),40,TimeUnit.SECONDS)
     if(result.hasResolution() || SCOPE !in result.grantedScopes)throw GmailAuthorizationRequired()
@@ -137,8 +141,8 @@ object GmailSync {
       if(!Vault(c).ready())return false
       var access=token(c,account)
       val until=pref.getLong("scanUntil",0).takeIf{it>0}?:System.currentTimeMillis()
-      val since=pref.getLong("scanSince",0).takeIf{it>0}?:maxOf(pref.getLong("floor",until),pref.getLong("lastSync",0)-2*24*60*60_000L)
-      synchronized(guard){if(!valid())return true;pref.edit().putLong("scanUntil",until).putLong("scanSince",since).putString("state","syncing").commit()}
+      val since=pref.getLong("scanSince",0).takeIf{it>0}?:scanStart(pref.getLong("floor",until),pref.getLong("lastSync",0),pref.getBoolean("replayFromFloor",false))
+      synchronized(guard){if(!valid())return true;pref.edit().putLong("scanUntil",until).putLong("scanSince",since).remove("replayFromFloor").putString("state","syncing").commit()}
       var page=pref.getString("page","").orEmpty()
       val query=searchQuery(since,until)
       fun get(path:String):JSONObject {

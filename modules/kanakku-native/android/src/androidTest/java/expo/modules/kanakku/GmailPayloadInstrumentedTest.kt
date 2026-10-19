@@ -49,6 +49,15 @@ class GmailPayloadInstrumentedTest {
     assertEquals("WWW AMAZON IN",result["merchant"])
     assertFalse(result.containsKey("id"));assertFalse(result.containsKey("body"));assertFalse(result.containsKey("transactionNumber"))
   }
+  @Test fun dmarcRelaxedAlignmentAcceptsSbiAlertSubdomain() {
+    val input=message("<table><tr><td>Terminal Owner Name</td><td>WWW AMAZON IN</td></tr><tr><td>Date &amp; Time</td><td>Oct 10, 2026, 17:00</td></tr><tr><td>Transaction Number</td><td>TESTREF123456</td></tr><tr><td>Amount (INR)</td><td>17437.00</td></tr><tr><td>Last 4 Digit of Card</td><td>X6122</td></tr><tr><td>Transaction Type</td><td>PURCHASE</td></tr><tr><td>Channel</td><td>POS / ECOM</td></tr></table>")
+    val headers=input.getJSONObject("payload").getJSONArray("headers")
+    headers.getJSONObject(0).put("value","State Bank Alerts <alerts@sbi.co.in>")
+    headers.getJSONObject(2).put("value","mx.google.com; dmarc=pass header.from=alerts.sbi.co.in")
+    assertEquals("parsed",GmailPayload.diagnose(input,"a".repeat(64))["outcome"])
+    headers.getJSONObject(2).put("value","mx.google.com; dmarc=pass header.from=attacker.example")
+    assertFalse(GmailPayload.eligibleMetadata(input))
+  }
   @Test fun creditCurrencyAndAuthenticationAreNotInferredFromPromotionsOrDisplayNames() {
     val html="<p>USD35.00 spent on your SBI Credit Card ending 9901 at SAMPLE STORE on 14/10/26. Txn. not done by you?</p><p>Never share OTP. Offers Rs.200 and Rs.2500.</p>"
     val input=message(html,true)
@@ -61,6 +70,12 @@ class GmailPayloadInstrumentedTest {
     assertNull(GmailPayload.parse(input,"a".repeat(64)))
     assertNull(GmailPayload.parse(message(html,true).put("labelIds",JSONArray().put("DRAFT")),"a".repeat(64)))
     assertNull(GmailPayload.parse(message(html,true).put("sizeEstimate",2_000_000),"a".repeat(64)))
+  }
+  @Test fun manualGmailCheckReplaysSelectedWindowButRoutineSyncKeepsShortOverlap() {
+    val floor=1_790_000_000_000L
+    val lastSync=1_792_000_000_000L
+    assertEquals(floor,GmailSync.scanStart(floor,lastSync,true))
+    assertEquals(maxOf(floor,lastSync-2*24*60*60_000L),GmailSync.scanStart(floor,lastSync,false))
   }
   @Test fun gmailSearchIncludesSbiDebitAlertSubdomainAndKeepsSelectedWindow() {
     val query=GmailSync.searchQuery(1_791_619_200_000L,1_792_483_200_000L)

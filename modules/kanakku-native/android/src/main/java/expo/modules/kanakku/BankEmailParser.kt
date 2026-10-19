@@ -10,7 +10,8 @@ import java.util.Locale
 /** Bounded, deterministic SBI templates. Caller discards MIME/HTML after extraction. */
 object BankEmailParser {
   private val roots=setOf("sbi.co.in","sbi.bank.in","onlinesbi.com","sbicard.com")
-  fun allowedDomain(domain:String)=roots.any{domain==it || domain.endsWith(".$it")}
+  private fun trustedRoot(domain:String)=roots.firstOrNull{domain==it || domain.endsWith(".$it")}
+  fun allowedDomain(domain:String)=trustedRoot(domain)!=null
   fun senderDomain(from:String):String? {
     if(from.length>400 || from.contains('\n') || from.contains('\r'))return null
     val address=if('<' in from)Regex("^[^<>]*<([^<>]+)>\\s*$").matchEntire(from)?.groupValues?.get(1) else from.trim()
@@ -24,7 +25,7 @@ object BankEmailParser {
     if(!first.startsWith("mx.google.com;",ignoreCase=true))return false
     return first.split(';').any { part ->
       Regex("^\\s*dmarc=pass\\b",RegexOption.IGNORE_CASE).containsMatchIn(part) &&
-        Regex("\\bheader\\.from=([A-Za-z0-9.-]+)",RegexOption.IGNORE_CASE).find(part)?.groupValues?.get(1)?.lowercase(Locale.ROOT)==domain
+        Regex("\\bheader\\.from=([A-Za-z0-9.-]+)",RegexOption.IGNORE_CASE).find(part)?.groupValues?.get(1)?.lowercase(Locale.ROOT)?.let(::trustedRoot)==trustedRoot(domain)
     }
   }
   private fun amount(value:String):Long?=runCatching {
