@@ -4,6 +4,15 @@ Status: implementation in progress; bill capture and OTA source added. Combined-
 Updated: 19 October 2026. Live implementation status is maintained in [CHECKLIST.md](CHECKLIST.md); exact artifact/revision evidence belongs in [the build manifest](artifacts/build-manifest.json).
 Source: [Spend Aggregator — Project Spec](https://docs.google.com/document/d/14-naGduZZfzcmomNR4rfdh-PeIU-UJ-f/edit).
 
+## Encrypted backup and restore (planned before destructive migration)
+
+- Add explicit user-initiated backup to the user's Google Drive app-data area; encrypt locally before upload so Drive and any app backend never receive plaintext ledger data.
+- Keep the recovery secret separate from Google sign-in (for example, a user-held recovery key/passphrase); explain that account login alone cannot decrypt the backup.
+- Include only user-selected journal data and a schema version, authenticate the encrypted payload, and validate integrity/version before offering restore.
+- Preview record counts and date range on restore; offer merge or replace with duplicate safeguards and never silently overwrite local corrections.
+- Before vault reset or a known signing-key migration that requires uninstall/reinstall, offer backup and explain the consequence of continuing without it. Do not interrupt normal Play Store or OTA updates that preserve app data.
+- Specify Drive consent scope, account switching, offline behavior, recovery and deletion controls before OAuth implementation.
+
 ## Current execution and delivery order
 
 Follow the prioritised queue in CHECKLIST.md, beginning with duplicate-SMS correctness and real spending totals. On 16 October, the user moved on-demand model delivery and a separate diagnostic test build ahead of the remaining bill/companion acceptance. Download models only on explicit request, show progress/recovery, verify integrity, retain compatible downloads across updates and keep basic SMS/manual review usable without them. Screenshots and recordings are allowed while the journal is open; biometric unlock and encrypted storage remain enabled. Complete tasks one at a time: implement, run relevant regressions, update the checklist, commit/push, then verify and install the matching personal APK on the connected phone. Preserve the personal signing identity, journal and settings; never clear/uninstall the personal app to work around an update failure. Native changes require a rebuilt APK. Record the exact source revision, package, signing certificate, APK hash and verified installation status for each delivered task.
