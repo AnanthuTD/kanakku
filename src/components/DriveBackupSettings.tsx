@@ -379,6 +379,9 @@ export function DriveBackupSettings({
         <Text>
           Kanakku will save an encrypted copy {autoSchedule?.intervalDays === 1 ? "every day" : autoSchedule?.intervalDays === 30 ? "every month" : "every week"}. To run without asking you each time, the backup password is stored encrypted on this phone using Android Keystore. It is never uploaded. You’ll still need this password to restore on a different phone.
         </Text>
+        <Text muted style={{ fontSize: 12, lineHeight: 18 }}>
+          Google account access is used to save the encrypted file and remember which account to use for scheduled backups. The account address stays on this phone.
+        </Text>
         <TextInput accessibilityLabel="Backup password" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} style={{ padding: 15, borderWidth: 1, borderColor: colors.line, borderRadius: 13, color: colors.text, backgroundColor: colors.card }} />
         <TextInput accessibilityLabel="Confirm backup password" value={passwordConfirm} onChangeText={setPasswordConfirm} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} style={{ padding: 15, borderWidth: 1, borderColor: colors.line, borderRadius: 13, color: colors.text, backgroundColor: colors.card }} />
         {busy ? <ActivityIndicator color={colors.accent} /> : null}

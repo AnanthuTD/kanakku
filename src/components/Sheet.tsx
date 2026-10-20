@@ -42,7 +42,9 @@ export function Sheet({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        // Padding lifts the whole sheet above Android's keyboard without
+        // assigning an explicit height that collapses intrinsic-size dialogs.
+        behavior="padding"
         keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
         style={{
           flex: 1,
@@ -89,10 +91,10 @@ export function Sheet({
             </Pressable>
           </View>
           <ScrollView
-            style={{ flex: 1 }}
+            style={{ maxHeight: "88%", flexShrink: 1 }}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-            contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 10, gap: 18 }}
+            contentContainerStyle={{ padding: 24, paddingTop: 10, gap: 18 }}
           >
             {children}
           </ScrollView>

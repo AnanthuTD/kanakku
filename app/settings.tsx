@@ -8,7 +8,7 @@ import { isReceiptActive } from "../src/native/receipt";
 import { hasPendingInteractions } from "../src/state/interactions";
 import { MerchantLookupSettings } from "../src/components/MerchantLookupSettings";
 import { voiceLanguageLabel } from "../src/native/voiceModel";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   ScrollView,
@@ -21,6 +21,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ChevronLeft,
+  ChevronRight,
   ShieldCheck,
   Smartphone,
   Mic,
@@ -49,9 +50,6 @@ export default function Settings() {
   const { colors, theme, mode, rules, busy, error, notice } = app;
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ section?: string }>();
-  const settingsScroll = useRef<ScrollView>(null);
-  const modelSectionY = useRef(0);
-  const backupSectionY = useRef(0);
   const [confirmConnect, setConfirmConnect] = useState(false);
   const testBuild = native?.status().testBuild === true;
   const [voiceClips, setVoiceClips] = useState(
@@ -77,9 +75,6 @@ export default function Settings() {
     app.importProgress.state,
   );
   const [status, setStatus] = useState(native?.status());
-  const [expandedSettings, setExpandedSettings] = useState("bank");
-  const toggleSettings = (key: string) =>
-    setExpandedSettings((current) => (current === key ? "" : key));
   const [capture, setCapture] = useState(status?.capture || false);
   useEffect(() => {
     setStatus(native?.status());
@@ -101,29 +96,24 @@ export default function Settings() {
       );
     }
   };
-  const scrollToModelSettings = () => {
-    if (params.section !== "models" && params.section !== "backup") return;
-    requestAnimationFrame(() =>
-      settingsScroll.current?.scrollTo({
-        y:
-          params.section === "backup"
-            ? backupSectionY.current
-            : modelSectionY.current,
-        animated: true,
-      }),
-    );
-  };
-  useEffect(() => {
-    const key = params.section;
-    if (!key) return;
-    const group =
-      key === "backup" ? "accounts" :
-      key === "models" ? "models" :
-      key === "bank" ? "bank" :
-      key === "appearance" ? "appearance" :
-      key === "privacy" ? "privacy" : "";
-    setExpandedSettings(group);
-  }, [params.section]);
+  const section = typeof params.section === "string" ? params.section : "";
+  const selectedGroup =
+    section === "backup" || section === "accounts" ? "accounts" :
+    section === "models" ? "models" :
+    section === "bank" ? "bank" :
+    section === "appearance" ? "appearance" :
+    section === "companion" ? "companion" :
+    section === "tools" ? "tools" :
+    section === "privacy" ? "privacy" : "";
+  const settingsItems = [
+    { key: "bank", title: "Bank alerts & import", summary: mode === "live" ? "Connected · import more history" : "Connect alerts and choose history", icon: Smartphone, group: "Everyday" },
+    { key: "companion", title: "Reminders & helper", summary: "Quiet time, reminders and floating helper", icon: MessageSquare, group: "Everyday" },
+    { key: "appearance", title: "Appearance", summary: `System, light or dark · ${theme}`, icon: theme === "dark" ? Moon : theme === "light" ? Sun : Monitor, group: "Everyday" },
+    { key: "accounts", title: "Email & backup", summary: "Connect Gmail or keep an encrypted recovery copy", icon: ShieldCheck, group: "Accounts & data" },
+    { key: "tools", title: "Categories & extra tools", summary: "Create categories and manage merchant tools", icon: Plus, group: "Personalise" },
+    { key: "models", title: "Voice & suggestions", summary: "Optional voice and on-device suggestions", icon: Mic, group: "Advanced" },
+    { key: "privacy", title: "Privacy & device", summary: "Protection, data and device controls", icon: LockKeyhole, group: "Advanced" },
+  ];
   return (
     <View
       testID="settings-screen"
@@ -145,9 +135,11 @@ export default function Settings() {
         >
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Back to overview"
+            accessibilityLabel={selectedGroup ? "Back to settings" : "Back to overview"}
             onPress={() =>
-              router.canGoBack() ? router.back() : router.replace("/")
+              selectedGroup
+                ? router.replace("/settings")
+                : router.replace("/")
             }
             style={{ padding: 12 }}
           >
@@ -158,7 +150,6 @@ export default function Settings() {
           </Text>
         </View>
         <ScrollView
-          ref={settingsScroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -187,42 +178,76 @@ export default function Settings() {
               {notice}
             </Text>
           ) : null}
+          {!selectedGroup ? (
+            <View testID="settings-menu" style={{ gap: 8 }}>
+              {Array.from(new Set(settingsItems.map((item) => item.group))).map((group) => (
+                <View key={group} style={{ marginBottom: 12 }}>
+                  <Text muted bold style={{ fontSize: 11, letterSpacing: 0.7, marginHorizontal: 4, marginBottom: 6 }}>
+                    {group.toUpperCase()}
+                  </Text>
+                  {settingsItems.filter((item) => item.group === group).map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Pressable
+                        key={item.key}
+                        testID={`settings-menu-${item.key}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${item.title}. ${item.summary}`}
+                        onPress={() => router.replace({ pathname: "/settings", params: { section: item.key } })}
+                        style={({ pressed }) => ({
+                          minHeight: 72,
+                          paddingHorizontal: 15,
+                          paddingVertical: 11,
+                          borderRadius: 16,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                          backgroundColor: colors.card,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 12,
+                          opacity: pressed ? 0.82 : 1,
+                        })}
+                      >
+                        <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" }}>
+                          <Icon size={19} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text bold style={{ fontSize: 13 }}>{item.title}</Text>
+                          <Text muted style={{ fontSize: 11, lineHeight: 16 }}>{item.summary}</Text>
+                        </View>
+                        <ChevronRight size={18} color={colors.muted} />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          ) : null}
+          {selectedGroup === "accounts" && (
           <SettingsGroup
             testID="settings-accounts-group"
             title="Email & backup"
             detail="Add card alerts from Gmail or save an encrypted recovery copy."
             summary="Gmail and Google Drive"
-            expanded={expandedSettings === "accounts"}
-            onPress={() => toggleSettings("accounts")}
           >
             <GmailSettings />
-            <DriveBackupSettings
-              onLayout={(event) => {
-                backupSectionY.current = event.nativeEvent.layout.y;
-                scrollToModelSettings();
-              }}
-            />
+            <DriveBackupSettings />
           </SettingsGroup>
+          )}
+          {selectedGroup === "models" && (
           <SettingsGroup
             testID="settings-models-group"
             title="Voice & suggestions"
             detail="Add voice notes or smarter category suggestions when you need them."
-            expanded={expandedSettings === "models"}
-            onPress={() => toggleSettings("models")}
           >
-            <ModelDownloadsSettings
-              onLayout={(event) => {
-                modelSectionY.current = event.nativeEvent.layout.y;
-                scrollToModelSettings();
-              }}
-            />
+            <ModelDownloadsSettings />
           </SettingsGroup>
+          )}
+          {selectedGroup === "appearance" && (
           <SettingsGroup
             testID="settings-appearance-group"
             title="Appearance"
             detail="Choose a theme that feels comfortable."
-            expanded={expandedSettings === "appearance"}
-            onPress={() => toggleSettings("appearance")}
           >
           <View style={{ flexDirection: "row", gap: 10, marginBottom: 30 }}>
             {(
@@ -257,13 +282,13 @@ export default function Settings() {
             ))}
           </View>
           </SettingsGroup>
+          )}
+          {selectedGroup === "bank" && (
           <SettingsGroup
             testID="settings-bank-group"
             title="Bank alerts & import"
             detail="Connect bank alerts, choose how much history to bring in, and see import progress."
             summary={mode === "live" ? "Connected on this device" : "Not connected yet"}
-            expanded={expandedSettings === "bank"}
-            onPress={() => toggleSettings("bank")}
           >
           <View
             style={[
@@ -378,12 +403,12 @@ export default function Settings() {
             )}
           </View>
           </SettingsGroup>
+          )}
+          {selectedGroup === "companion" && (
           <SettingsGroup
             testID="settings-companion-group"
             title="Reminders & helper"
             detail="Choose when Kanakku reminds you and how the floating helper appears."
-            expanded={expandedSettings === "companion"}
-            onPress={() => toggleSettings("companion")}
           >
           <ReviewPreferences />
           <SectionTitle title="Floating helper" />
@@ -455,12 +480,12 @@ export default function Settings() {
             Subscriptions & recurring payments
           </Button>
           </SettingsGroup>
+          )}
+          {selectedGroup === "tools" && (
           <SettingsGroup
             testID="settings-tools-group"
             title="Categories & extra tools"
             detail="Personalize categories, improve merchant names, and manage optional tools."
-            expanded={expandedSettings === "tools"}
-            onPress={() => toggleSettings("tools")}
           >
           <MerchantLookupSettings
             onPreferencesChanged={app.refreshMerchantLookup}
@@ -702,12 +727,12 @@ export default function Settings() {
             </Text>
           )}
           </SettingsGroup>
+          )}
+          {selectedGroup === "privacy" && (
           <SettingsGroup
             testID="settings-privacy-group"
             title="Privacy & device"
             detail="Review device protection, app updates and journal reset options."
-            expanded={expandedSettings === "privacy"}
-            onPress={() => toggleSettings("privacy")}
           >
           <SectionTitle title="Your device journal" />
           <View
@@ -755,6 +780,7 @@ export default function Settings() {
             </Button>
           </View>
           </SettingsGroup>
+          )}
           {mode === "live" && (!native || native.status().testBuild) && (
             <Button secondary style={{ marginTop: 20 }} onPress={app.useDemo}>
               Return to sample data

@@ -143,6 +143,14 @@ internal object DriveBackupApi {
     val encoded = URLEncoder.encode(id, "UTF-8")
     return String(request(token, "https://www.googleapis.com/drive/v3/files/$encoded?alt=media"), Charsets.UTF_8)
   }
+  fun accountEmail(token: String): String {
+    // AuthorizationResult.toGoogleSignInAccount() is deprecated and may not
+    // include an account when Drive is authorized through the Identity API.
+    // Read only the email claim explicitly granted for scheduled backups.
+    val profile = JSONObject(request(token, "https://openidconnect.googleapis.com/v1/userinfo").toString(Charsets.UTF_8))
+    return profile.optString("email").takeIf { it.isNotBlank() }
+      ?: throw IllegalStateException("Google did not share the selected account email. Allow account email access and try again.")
+  }
 }
 
 /** Additional Drive authorization is requested only when the user starts backup or restore. */
@@ -163,7 +171,7 @@ internal object DriveBackupAuthorization {
     autoPending = attempt
     // The email scope lets us persist which selected Google account the periodic worker must use.
     // The backup payload remains encrypted locally and is sent only to Drive.
-    val request = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(DriveBackupApi.SCOPE), Scope("email")))
+    val request = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(DriveBackupApi.SCOPE), Scope("https://www.googleapis.com/auth/userinfo.email")))
       // Keep drive.file in the returned grant set even if manual backup granted it earlier.
       .setOptOutIncludingGrantedScopes(false).setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT).build()
     Identity.getAuthorizationClient(activity).authorize(request).addOnSuccessListener { result ->
@@ -211,13 +219,16 @@ internal object DriveBackupAuthorization {
   }
   private fun finishAuto(attempt: AutoPending, result: AuthorizationResult) {
     val token = result.accessToken
-    val account = runCatching { result.toGoogleSignInAccount()?.email }.getOrNull()
     if (result.hasResolution()) { failAuto(attempt, "Google Drive still needs approval. Try setting up automatic backup again."); return }
     if (token.isNullOrBlank()) { failAuto(attempt, "Google did not return Drive access. Check your connection and try again."); return }
     if (DriveBackupApi.SCOPE !in result.grantedScopes) { failAuto(attempt, "Drive access was not granted. Try again and allow Kanakku to save its backup file."); return }
-    if (account.isNullOrBlank()) { failAuto(attempt, "Kanakku could not identify the Google account you selected. Try again and allow account email access."); return }
+    if ("https://www.googleapis.com/auth/userinfo.email" !in result.grantedScopes) {
+      failAuto(attempt, "Google account identity access was not granted. Try again and allow Kanakku to access your account email.")
+      return
+    }
     worker.execute {
       try {
+        val account = DriveBackupApi.accountEmail(token)
         val encrypted = BackupCrypto.encrypt(attempt.payload, attempt.password)
         val uploaded = DriveBackupApi.upload(token, encrypted)
         DriveAutoBackupStore.enable(attempt.context, attempt.payload, attempt.password, account, attempt.days)

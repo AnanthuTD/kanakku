@@ -1,6 +1,6 @@
 # Kanakku UX rework plan
 
-Updated 20 October 2026. This plan targets people who want a simple spending journal and may not know Android permissions, model downloads, OAuth, or backup encryption.
+Updated 20 October 2026. Phase 1 Settings navigation is implemented and all 20 Settings browser journeys pass on phone and desktop. This plan targets people who want a simple spending journal and may not know Android permissions, model downloads, OAuth, or backup encryption.
 
 ## Product goal
 
@@ -77,7 +77,7 @@ Keep the Settings home short enough to scan without scrolling on a typical phone
 
 ## Delivery phases
 
-1. **Structure and copy:** implement Settings index/subpages, move debug-only rows into Advanced, update direct setup links and labels.
+1. **Structure and copy — in progress:** grouped Settings index and focused pages are implemented; each menu item opens its own section and returns to the index. Continue moving/debugging advanced controls, direct setup links, and plain-language explanations.
 2. **Guided first run:** checklist on home, inline explanations and opt-in permission requests, quick access to sample mode, resumable progress.
 3. **Trust and recovery:** data coverage, source-specific help, clearer error/reconnect/restore flows, and personal-data confirmations.
 4. **Polish and validation:** dark/light contrast, larger text, talkback order/labels, reduced motion, small-screen/landscape checks, and end-to-end tests for setup, skip/resume, denial/retry, and settings deep links.

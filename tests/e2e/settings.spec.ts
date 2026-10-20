@@ -12,6 +12,7 @@ test("dark/light choice survives reload and system follows the browser theme", a
   await page.getByRole("button", { name: "Open settings" }).click();
   await page.getByRole("button", { name: /Appearance/ }).click();
   await page.getByRole("button", { name: "Light", exact: true }).click();
+  await page.getByRole("button", { name: "Back to settings" }).click();
   await page.getByRole("button", { name: "Back to overview" }).click();
   await expect(
     page.getByRole("button", { name: "Switch to dark theme" }),
@@ -20,6 +21,7 @@ test("dark/light choice survives reload and system follows the browser theme", a
   await page.getByRole("button", { name: /Appearance/ }).click();
   await page.emulateMedia({ colorScheme: "dark" });
   await page.getByRole("button", { name: "System", exact: true }).click();
+  await page.getByRole("button", { name: "Back to settings" }).click();
   await page.getByRole("button", { name: "Back to overview" }).click();
   await expect(
     page.getByRole("button", { name: "Switch to light theme" }),
@@ -36,6 +38,18 @@ test("settings opened directly can return to the overview after reload", async (
   await page.reload();
   await page.getByRole("button", { name: "Back to overview" }).click();
   await expect(page.getByTestId("overview-total")).toHaveText("₹1,650");
+});
+
+test("settings menu opens a dedicated page and back returns to the menu", async ({
+  page,
+}) => {
+  await page.goto("/settings");
+  await expect(page.getByTestId("settings-menu")).toBeVisible();
+  await page.getByRole("button", { name: /Appearance/ }).click();
+  await expect(page.getByTestId("settings-menu")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Dark", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back to settings" }).click();
+  await expect(page.getByTestId("settings-menu")).toBeVisible();
 });
 
 test("Drive backup clearly explains encryption and stays unavailable in web preview", async ({
@@ -82,7 +96,6 @@ test("custom categories can be created and survive reload", async ({
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText("Pets", { exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: /Categories & extra tools/ }).click();
   await expect(page.getByText("Pets", { exact: true })).toBeVisible();
   await page.goto("/");
   await activity(page);
@@ -129,7 +142,6 @@ test("quiet hours and reminder time validate, persist and can be disabled", asyn
       ),
   ).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: /Reminders & helper/ }).click();
   await expect(
     page.getByRole("switch", { name: "Quiet hours", exact: true }),
   ).toBeChecked();
@@ -159,7 +171,6 @@ test("quiet hours and reminder time validate, persist and can be disabled", asyn
       ),
   ).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: /Reminders & helper/ }).click();
   await expect(
     page.getByRole("switch", { name: "Quiet hours", exact: true }),
   ).not.toBeChecked();
@@ -173,6 +184,7 @@ test("SMS setup offers the chosen calendar window, recent-first processing, skip
 }) => {
   await home(page);
   await page.getByRole("button", { name: "Open settings" }).click();
+  await page.getByRole("button", { name: /Bank alerts & import/ }).click();
   await page
     .getByRole("button", { name: "Connect bank SMS", exact: true })
     .click();
@@ -214,6 +226,7 @@ test("browser cannot pretend to connect SMS, enable an overlay or reset the devi
   await expect(
     page.getByRole("button", { name: "Reset device journal" }),
   ).toBeDisabled();
+  await page.getByRole("button", { name: "Back to settings" }).click();
   await page.getByRole("button", { name: /Bank alerts & import/ }).click();
   await page
     .getByRole("button", { name: "Connect bank SMS", exact: true })
@@ -229,6 +242,7 @@ test("browser cannot pretend to connect SMS, enable an overlay or reset the devi
       .getByTestId("settings-screen")
       .getByText("Connected on this device", { exact: true }),
   ).toHaveCount(0);
+  await page.getByRole("button", { name: "Back to settings" }).click();
   await page.getByRole("button", { name: /Reminders & helper/ }).click();
   await page.getByRole("switch", { name: "Enable floating avatar" }).click();
   await expect(
@@ -244,8 +258,7 @@ test("browser cannot pretend to connect SMS, enable an overlay or reset the devi
 test("floating prompt preview explains it needs the Android build", async ({
   page,
 }) => {
-  await page.goto("/settings");
-  await page.getByRole("button", { name: /Reminders & helper/ }).click();
+  await page.goto("/settings?section=companion");
   await page.getByRole("button", { name: "Try the floating prompt" }).click();
   await expect(
     page.getByText("Floating over other apps requires the Android build."),
