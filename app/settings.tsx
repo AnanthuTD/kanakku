@@ -46,6 +46,7 @@ import { ReviewPreferences } from "../src/components/ReviewPreferences";
 import { ImportPeriodPicker } from "../src/components/ImportPeriodPicker";
 import { ImportBanner } from "../src/components/ImportProgress";
 import { SettingsGroup } from "../src/components/SettingsGroup";
+import { AUTO_LOCK_OPTIONS } from "../src/domain/autoLock";
 export default function Settings() {
   const app = useApp();
   const { colors, theme, mode, rules, busy, error, notice } = app;
@@ -751,6 +752,40 @@ export default function Settings() {
             detail="Review device protection, app updates and journal reset options."
           >
           <SectionTitle title="Your device journal" />
+          <View style={{ gap: 9, marginBottom: 18 }}>
+            <Text bold>Ask for unlock after</Text>
+            <Text muted style={{ fontSize: 12, lineHeight: 19 }}>
+              Kanakku stays open briefly when you switch apps. It locks and clears
+              the journal when this time passes. Choose Immediately for the
+              strongest protection.
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {AUTO_LOCK_OPTIONS.map((option) => {
+                const selected = app.autoLockDelay === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    onPress={() => app.setAutoLockDelay(option.value)}
+                    style={{
+                      minHeight: 42,
+                      justifyContent: "center",
+                      paddingHorizontal: 14,
+                      borderRadius: 22,
+                      borderWidth: 1,
+                      borderColor: selected ? colors.accent : colors.line,
+                      backgroundColor: selected ? colors.accent + "18" : colors.card,
+                    }}
+                  >
+                    <Text style={{ color: selected ? colors.accent : colors.text, fontSize: 12 }}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
           <View
             style={[
               ui.card,

@@ -32,6 +32,10 @@ import {
   restoreLentTransaction,
 } from "../domain/lending";
 import { makeJournalBackup } from "../domain/backup";
+import {
+  DEFAULT_AUTO_LOCK_DELAY,
+  shouldLockAfterBackground,
+} from "../domain/autoLock";
 import { validDay } from "../domain/ledger";
 import React, {
   createContext,
@@ -155,6 +159,8 @@ interface ContextValue {
   /** True only while the sample journal is shown (web preview and the test build). */
   sampleData: boolean;
   locked: boolean;
+  autoLockDelay: number;
+  setAutoLockDelay: (delayMs: number) => void;
   busy: boolean;
   loaded: boolean;
   error: string;
@@ -203,6 +209,7 @@ const DEMO = "kanakku-demo-v1";
 const realBuild = !!native && native.status().testBuild !== true;
 installDiagnostics();
 const MODE = "kanakku-mode";
+const AUTO_LOCK = "kanakku-auto-lock-delay";
 export function AppProvider({ children }: React.PropsWithChildren) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [rules, setRules] = useState<MerchantRule[]>([]);
@@ -240,6 +247,9 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     if (error) logDiagnostic("error", "ui", "shown", { message: error, mode });
   }, [error, mode]);
   const [sounds, setSounds] = useState(true);
+  const [autoLockDelay, setAutoLockDelayState] = useState(
+    DEFAULT_AUTO_LOCK_DELAY,
+  );
   const [overlay, setOverlayState] = useState(false);
   const [importProgress, setImportProgress] =
     useState<ImportProgress>(emptyImport);
@@ -255,6 +265,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     loans,
     mode,
     locked,
+    autoLockDelay,
   });
   state.current = {
     transactions,
@@ -264,6 +275,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     loans,
     mode,
     locked,
+    autoLockDelay,
   };
   const generation = useRef(0);
   const task = useRef(false);
@@ -272,14 +284,21 @@ export function AppProvider({ children }: React.PropsWithChildren) {
   useEffect(() => {
     let live = true;
     (async () => {
-      const [savedTheme, savedDemo, savedMode] = await Promise.all([
-        AsyncStorage.getItem(THEME),
-        AsyncStorage.getItem(DEMO),
-        AsyncStorage.getItem(MODE),
-      ]);
+      const [savedTheme, savedDemo, savedMode, savedAutoLock] =
+        await Promise.all([
+          AsyncStorage.getItem(THEME),
+          AsyncStorage.getItem(DEMO),
+          AsyncStorage.getItem(MODE),
+          AsyncStorage.getItem(AUTO_LOCK),
+        ]);
       if (!live) return;
       if (savedTheme && ["light", "dark", "system"].includes(savedTheme))
         setThemeState(savedTheme as ThemeMode);
+      if (savedAutoLock !== null) {
+        const delay = Number(savedAutoLock);
+        if ([0, 60_000, 300_000, 900_000].includes(delay))
+          setAutoLockDelayState(delay);
+      }
       if (savedMode === "live" && native) {
         setMode("live");
         setLocked(true);
@@ -326,6 +345,13 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     setThemeState(value);
     AsyncStorage.setItem(THEME, value).catch(() =>
       setError("Could not save theme preference."),
+    );
+  };
+  const setAutoLockDelay = (delayMs: number) => {
+    if (![0, 60_000, 300_000, 900_000].includes(delayMs)) return;
+    setAutoLockDelayState(delayMs);
+    AsyncStorage.setItem(AUTO_LOCK, String(delayMs)).catch(() =>
+      setError("Could not save the auto-lock preference."),
     );
   };
   const perform = async (action: () => Promise<void>) => {
@@ -1421,6 +1447,25 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         .catch(() => {});
   }, [mode, locked, transactions]);
   useEffect(() => {
+    let backgroundedAt: number | null = null;
+    let lockTimer: ReturnType<typeof setTimeout> | undefined;
+    const clearTimer = () => {
+      if (lockTimer) clearTimeout(lockTimer);
+      lockTimer = undefined;
+    };
+    const lockJournal = () => {
+      if (state.current.mode !== "live" || state.current.locked) return;
+      generation.current++;
+      setLocked(true);
+      setTransactions([]);
+      setRules([]);
+      setRecurringDecisions({});
+      setCustomCategories([]);
+      setLoans([]);
+      setPrevious(null);
+      closeLive().catch(() => {});
+      cancelVoice();
+    };
     const listener = AppState.addEventListener("change", (status) => {
       if (status !== "active") {
         lookupEpoch.current++;
@@ -1432,19 +1477,30 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         setMerchantLookupPending([]);
       } else setLookupRevision((value) => value + 1);
       if (status === "background" && state.current.mode === "live") {
-        generation.current++;
-        setLocked(true);
-        setTransactions([]);
-        setRules([]);
-        setRecurringDecisions({});
-        setCustomCategories([]);
-        setLoans([]);
-        setPrevious(null);
-        closeLive().catch(() => {});
-        cancelVoice();
+        backgroundedAt = Date.now();
+        clearTimer();
+        if (state.current.autoLockDelay <= 0) lockJournal();
+        else {
+          lockTimer = setTimeout(lockJournal, state.current.autoLockDelay);
+        }
+      } else if (status === "active" && backgroundedAt !== null) {
+        const elapsedFrom = backgroundedAt;
+        backgroundedAt = null;
+        clearTimer();
+        if (
+          shouldLockAfterBackground(
+            state.current.autoLockDelay,
+            elapsedFrom,
+            Date.now(),
+          )
+        )
+          lockJournal();
       }
     });
-    return () => listener.remove();
+    return () => {
+      clearTimer();
+      listener.remove();
+    };
   }, []);
   requestRefresh.current = () => {
     if (state.current.mode !== "live" || state.current.locked) return;
@@ -1554,6 +1610,8 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         colors: palettes[dark ? "dark" : "light"],
         mode,
         locked,
+        autoLockDelay,
+        setAutoLockDelay,
         busy,
         loaded,
         error,
