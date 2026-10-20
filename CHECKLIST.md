@@ -4,7 +4,7 @@ Updated: 20 October 2026. Plan: [PLAN.md](PLAN.md).
 
 Checked boxes mean the named implementation or check is complete. Device acceptance is tracked separately; a successful APK build is not a device test.
 
-## Prioritised remaining tasks — 19 October 2026
+## Prioritised remaining tasks — 20 October 2026
 
 **Gmail release disclosure update (20 Oct):** privacy policy now describes the live optional Gmail flow without stale “consent pending” wording. The owner’s local-signed build completed Google consent, synced the mailbox and imported the previously missing SBI debit alert. Gmail content is parsed and stored locally; under Play’s definition, this alone does not make Emails “collected” because the app does not transmit email content off-device. Keep the privacy policy/in-app disclosure explicit about mailbox-wide read-only access. Remaining Gmail gates: Google restricted-scope OAuth verification, a Play app-signing OAuth client, and live Play-signed/background/revocation checks. Recheck the full Data safety form for other outbound data; Gmail by itself does not require an “Emails collected” checkbox on this data flow. The live Play Console Publishing overview currently has one unsubmitted change: Closed testing – Alpha, versionCode 7 / beta.6, “Start full rollout.”
 
