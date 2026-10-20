@@ -189,7 +189,7 @@ Work is serial, foreground-only, bounded and cancellable. Sources distinguish ex
 
 Expo EAS Update is linked to the verified `@ananthutds-team/kanakku` project in `eas-project.json`. Owner-approved browser CLI authorization and separate **e2e**/**personal-beta** channels/branches are set up. No update was published by this setup.
 
-Settings offers manual check → download → Later or confirmed restart. Recheck active-session/save/voice/receipt guards immediately before reload. No timer or background event forces a restart. Offline/error states keep the installed version usable; a downloaded update can apply on the next full app start.
+The app checks for compatible updates at launch and downloads them automatically in the background. It never reloads on its own: Settings shows readiness and the user confirms when to restart. Recheck active-session/save/voice/receipt guards immediately before reload. Offline/error states keep the installed version usable; a downloaded update can apply on the next full app start.
 
 Fingerprint runtime compatibility separates native changes from compatible JavaScript improvements. Camera/OCR/update libraries, native code, permissions, bundled model/runtime or signing/config changes require a new APK. Old APKs without the update library need an in-place update signed with the existing certificate first. EAS build profiles use local credentials; no new Android keystore is generated for OTA setup. Real published download/apply/restart, runtime/channel isolation and rollback are acceptance tasks in [OTA.md](docs/OTA.md).
 

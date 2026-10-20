@@ -24,7 +24,7 @@ export interface UpdateTransport {
   reload(): Promise<void>;
 }
 
-/** No reload is triggered by checking, fetching, backgrounding or a timer. */
+/** OTA updates can be checked and fetched automatically; reload stays explicit. */
 export class AppUpdatesController {
   private state: UpdateState;
   private listeners = new Set<() => void>();
@@ -79,6 +79,17 @@ export class AppUpdatesController {
           "Could not check for updates. Check your connection and try again. Your installed app still works offline.",
       });
     }
+  }
+  /** Check and fetch an update without interrupting the current app session. */
+  async checkAndDownload() {
+    if (this.working || ["unavailable", "ready"].includes(this.state.phase))
+      return;
+    if (this.state.retry === "download") {
+      await this.download();
+      return;
+    }
+    await this.check();
+    if (this.state.phase === "available") await this.download();
   }
   async download() {
     if (

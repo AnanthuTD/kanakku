@@ -48,6 +48,15 @@ describe("app update delivery policy", () => {
     expect(calls).toEqual(["check", "download", "reload"]);
   });
 
+  it("automatically downloads an available update but never restarts the app", async () => {
+    const { updater, calls } = setup();
+    await updater.checkAndDownload();
+    expect(updater.getSnapshot().phase).toBe("ready");
+    expect(calls).toEqual(["check", "download"]);
+    await updater.restart(() => true);
+    expect(calls).toEqual(["check", "download", "reload"]);
+  });
+
   it("does not fake updates in an unconfigured or preview build", async () => {
     const { updater, calls } = setup({ unavailableReason: "Not connected" });
     await updater.check();

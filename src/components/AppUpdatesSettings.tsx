@@ -73,18 +73,18 @@ export function AppUpdatesSettings({
             : state.phase === "checking"
               ? "Checking for an update…"
               : state.phase === "current"
-                ? "You have the latest compatible update. Some changes need a new APK."
+                ? "You have the latest compatible update. Kanakku checks again when you reopen the app. Some changes need a new APK."
                 : state.phase === "available"
-                  ? "An update is available. Download it when you are ready."
+                  ? "An update is available. Downloading automatically…"
                   : state.phase === "downloading"
-                    ? "Downloading the update… Keep this screen open."
+                    ? "Downloading the update in the background…"
                     : state.phase === "ready"
                       ? "Update downloaded. Restart when your changes are saved, or it will apply on the next full app start."
                       : state.phase === "restarting"
                         ? "Restarting Kanakku…"
                         : state.phase === "error"
                           ? "Update not completed."
-                          : "Check for improvements to this version of Kanakku."}
+                          : "Kanakku checks for updates automatically when you open the app."}
         </Text>
         {!!state.error && <Text accessibilityRole="alert">{state.error}</Text>}
         {restartWarning && (
@@ -112,18 +112,14 @@ export function AppUpdatesSettings({
             >
               Restart to update
             </Button>
-          ) : state.phase === "available" || state.retry === "download" ? (
-            <Button onPress={() => void appUpdates.download()}>
-              Download update
-            </Button>
-          ) : (
+          ) : state.phase === "available" || state.phase === "downloading" ? null : (
             <Button
               disabled={["checking", "downloading", "restarting"].includes(
                 state.phase,
               )}
-              onPress={() => void appUpdates.check()}
+              onPress={() => void appUpdates.checkAndDownload()}
             >
-              Check for updates
+              {state.retry ? "Retry update" : "Check now"}
             </Button>
           ))}
         {restartReady && restartBlocked && (

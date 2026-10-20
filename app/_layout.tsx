@@ -1,5 +1,5 @@
 import "react-native-gesture-handler";
-import React from "react";
+import React, { useEffect } from "react";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -15,6 +15,7 @@ import { View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { AppProvider, useApp } from "../src/state/AppContext";
 import { LaunchSplash } from "../src/components/LaunchSplash";
+import { appUpdates } from "../src/services/appUpdates";
 
 // The native splash stays up until LaunchSplash draws an identical frame.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -40,6 +41,11 @@ export default function Layout() {
     DMSansBold: DMSans_700Bold,
     Fraunces: Fraunces_400Regular,
   });
+  useEffect(() => {
+    // Fetch compatible OTA updates in the background after launch. Applying
+    // one remains a deliberate restart so active edits are never interrupted.
+    void appUpdates.checkAndDownload();
+  }, []);
   // Fonts load behind the native splash.
   if (!fonts && !error) return null;
   return (
