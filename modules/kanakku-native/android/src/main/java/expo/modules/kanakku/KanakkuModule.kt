@@ -86,6 +86,8 @@ class KanakkuModule : Module() {
     AsyncFunction("removeMerchantLookup") { MerchantLookup.reset(context);MerchantLookup.settings(context) }
     AsyncFunction("reviewSettings") { ReviewReminders.settings(context) }
     AsyncFunction("saveReviewSettings") { notifications:Boolean,quiet:Boolean,start:Int,end:Int,reminder:Boolean,time:Int -> ReviewReminders.save(context,notifications,quiet,start,end,reminder,time); ReviewReminders.settings(context) }
+    AsyncFunction("scheduleLendingReminder") { id:String, dueAt:Double -> LendingReminders.schedule(context,id,dueAt.toLong()) }
+    AsyncFunction("cancelLendingReminder") { id:String -> LendingReminders.cancel(context,id); true }
     AsyncFunction("setReviewCount") { count:Int -> context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).edit().putInt("ledgerReviewCount",count.coerceAtLeast(0)).apply(); if(count==0&&Vault(context).pendingReviewCount()==0)context.getSystemService(android.app.NotificationManager::class.java).cancel(41) }
     AsyncFunction("securityStatus") { Vault(context).security() }
     AsyncFunction("recordAudio") { promise:Promise ->

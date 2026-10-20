@@ -100,7 +100,7 @@ describe("SQLite ledger persistence and migrations (not cryptographic validation
     expect(await readLive()).toEqual({
       transactions: [transaction],
       rules: [{ merchant: "Rahul", category: "Transport" }],
-      metadata: { recurringDecisions: {}, customCategories: [] },
+      metadata: { recurringDecisions: {}, customCategories: [], loans: [] },
     });
   });
   it("restores an exact journal snapshot and rolls back replacement on failure", async () => {
@@ -121,6 +121,7 @@ describe("SQLite ledger persistence and migrations (not cryptographic validation
       metadata: {
         recurringDecisions: { "Cafe:monthly": "confirmed" },
         customCategories: [],
+        loans: [],
       },
     });
 
@@ -140,6 +141,7 @@ describe("SQLite ledger persistence and migrations (not cryptographic validation
       metadata: {
         recurringDecisions: { "Cafe:monthly": "confirmed" },
         customCategories: [],
+        loans: [],
       },
     });
   });

@@ -14,7 +14,13 @@ export const CATEGORIES = [
 /** Built-ins plus labels created by the user in their own journal. */
 export type Category = (typeof CATEGORIES)[number] | (string & {});
 export type Kind =
-  "purchase" | "income" | "refund" | "transfer" | "card_payment" | "cash";
+  | "purchase"
+  | "income"
+  | "refund"
+  | "transfer"
+  | "card_payment"
+  | "cash"
+  | "lent";
 export type ThemeMode = "system" | "light" | "dark";
 export interface Transaction {
   id: string;

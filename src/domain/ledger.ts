@@ -31,6 +31,7 @@ export const KIND_OPTIONS: { value: Kind; label: string }[] = [
   { value: "card_payment", label: "Card repayments" },
   { value: "income", label: "Income" },
   { value: "cash", label: "Cash withdrawals" },
+  { value: "lent", label: "Money lent" },
 ];
 export function dateKey(value: string | Date) {
   const d = new Date(value);

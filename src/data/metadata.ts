@@ -1,7 +1,10 @@
+import { validLoan } from "../domain/lending";
+
 export type RecurringDecision = "confirmed" | "ignored";
 export interface LedgerMetadata {
   recurringDecisions: Record<string, RecurringDecision>;
   customCategories?: string[];
+  loans?: import("../domain/lending").LoanRecord[];
 }
 export function ledgerMetadata(value?: unknown): LedgerMetadata {
   const valueObject =
@@ -26,6 +29,11 @@ export function ledgerMetadata(value?: unknown): LedgerMetadata {
       customCategories.map((item) => [item.toLocaleLowerCase(), item]),
     ).values(),
   ].slice(0, 40);
+  const loans = Array.isArray(valueObject.loans)
+    ? valueObject.loans
+        .filter((loan) => validLoan(loan))
+        .slice(0, 10_000)
+    : [];
   return {
     recurringDecisions: Object.fromEntries(
       input && typeof input === "object"
@@ -38,5 +46,6 @@ export function ledgerMetadata(value?: unknown): LedgerMetadata {
         : [],
     ),
     customCategories: uniqueCategories,
+    loans,
   };
 }

@@ -92,7 +92,10 @@ export interface ModelDownloadStatus {
 }
 interface KanakkuNative {
   /** Uploads a passphrase-encrypted journal archive to this user's Drive. */
-  backupToDrive(payload: string, password: string): Promise<{ fileName: string; modifiedTime: string }>;
+  backupToDrive(
+    payload: string,
+    password: string,
+  ): Promise<{ fileName: string; modifiedTime: string }>;
   /** Downloads and decrypts the latest Kanakku Drive backup. */
   restoreFromDrive(password: string): Promise<string>;
   gmailStatus(): Promise<GmailStatus>;
@@ -135,6 +138,8 @@ interface KanakkuNative {
     reminder: boolean,
     time: number,
   ): Promise<ReviewPreferences>;
+  scheduleLendingReminder(id: string, dueAt: number): Promise<boolean>;
+  cancelLendingReminder(id: string): Promise<boolean>;
   setReviewCount(count: number): Promise<void>;
   securityStatus(): Promise<{
     deviceSecure: boolean;

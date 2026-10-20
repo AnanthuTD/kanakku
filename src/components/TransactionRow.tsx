@@ -81,12 +81,14 @@ export function TransactionRow({
                     ? "Transfer"
                     : t.kind === "income"
                       ? "Income"
-                      : t.timePrecision === "day"
-                        ? "Date only"
-                        : new Date(t.at).toLocaleTimeString("en-IN", {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
+                      : t.kind === "lent"
+                        ? "Money lent · repayment tracked separately"
+                        : t.timePrecision === "day"
+                          ? "Date only"
+                          : new Date(t.at).toLocaleTimeString("en-IN", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
         </Text>
       </View>
       <ChevronRight size={13} color={colors.muted} />

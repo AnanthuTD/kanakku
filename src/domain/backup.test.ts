@@ -57,6 +57,40 @@ describe("encrypted Drive journal archive data", () => {
     expect(restored.metadata.customCategories).toEqual(["Family"]);
   });
 
+  it("includes money lent, repayment history and reminders in the Drive archive", () => {
+    const loan = {
+      id: "loan-1",
+      person: "Maya",
+      amount: 50_000,
+      lentAt: "2026-10-20T10:00:00.000Z",
+      dueDate: "2026-11-01",
+      remind: true,
+      note: "Trip booking",
+      transactionId: "sms-1",
+      repayments: [
+        { id: "repayment-1", amount: 10_000, at: "2026-10-21T10:00:00.000Z" },
+      ],
+    };
+    const backup = makeJournalBackup(
+      [{ ...payment, id: "sms-1", kind: "lent" }],
+      [],
+      { recurringDecisions: {}, loans: [loan] },
+    );
+    const restored = parseJournalBackup(JSON.parse(JSON.stringify(backup)));
+    expect(restored.metadata.loans).toEqual([loan]);
+    expect(restored.transactions[0].kind).toBe("lent");
+    expect(() =>
+      parseJournalBackup({
+        ...backup,
+        transactions: [{ ...payment, id: "sms-1", kind: "purchase" }],
+      }),
+    ).toThrow(/invalid transaction/);
+    expect(() => parseJournalBackup({
+      ...backup,
+      metadata: { ...backup.metadata, loans: [{ ...loan, amount: 500 }] },
+    })).toThrow(/lending record/);
+  });
+
   it("rejects unsupported formats, malformed values, and unknown transaction kinds", () => {
     expect(() => parseJournalBackup({ format: "other", version: 1 })).toThrow(
       /not supported/,

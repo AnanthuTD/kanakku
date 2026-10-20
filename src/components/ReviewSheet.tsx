@@ -16,6 +16,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
+import { router, type Href } from "expo-router";
 import {
   View,
   Pressable,
@@ -69,6 +70,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
       transactions,
       rules,
       categories,
+      loans,
       update,
       busy,
       notice,
@@ -1188,6 +1190,20 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
               >
                 {queueMode ? "Skip for now" : "Done"}
               </Button>
+              {!queueMode && tx.kind !== "lent" && !loans.some((loan) => loan.transactionId === tx.id) && (
+                <Button
+                  secondary
+                  style={{ marginTop: 10 }}
+                  onPress={() => {
+                    modal.current?.dismiss();
+                    router.push(
+                      `/lending?transactionId=${encodeURIComponent(tx.id)}` as Href,
+                    );
+                  }}
+                >
+                  Record this payment as money lent
+                </Button>
+              )}
               {canUndo && (
                 <Button secondary onPress={undo} style={{ marginTop: 10 }}>
                   Undo last change

@@ -23,6 +23,8 @@ import {
   ledgerMetadata,
 } from "../data/metadata";
 import { cancelVoice } from "../native/voice";
+import { LoanRecord, loanOutstanding } from "../domain/lending";
+import { validDay } from "../domain/ledger";
 import React, {
   createContext,
   useContext,
@@ -57,6 +59,7 @@ import {
   ImportProgress,
   emptyImport,
   GmailStatus,
+  requestNotifications,
 } from "../native/bridge";
 const palettes = {
   light: {
@@ -116,6 +119,18 @@ interface ContextValue {
   categories: Category[];
   customCategories: string[];
   addCategory: (label: string) => Promise<boolean>;
+  loans: LoanRecord[];
+  addLoan: (
+    input: Omit<LoanRecord, "id" | "lentAt" | "repayments" | "remind"> & {
+      lentAt?: string;
+      remind?: boolean;
+    },
+  ) => Promise<boolean>;
+  recordLoanRepayment: (
+    loanId: string,
+    amount: number,
+    note?: string,
+  ) => Promise<boolean>;
   recurringDecisions: Record<string, RecurringDecision>;
   setRecurringDecision: (
     key: string,
@@ -198,6 +213,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     Record<string, RecurringDecision>
   >({});
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [loans, setLoans] = useState<LoanRecord[]>([]);
   const [theme, setThemeState] = useState<ThemeMode>("system");
   const system = useColorScheme();
   const dark = theme === "dark" || (theme === "system" && system === "dark");
@@ -225,6 +241,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     rules,
     recurringDecisions,
     customCategories,
+    loans,
     mode,
     locked,
   });
@@ -233,6 +250,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     rules,
     recurringDecisions,
     customCategories,
+    loans,
     mode,
     locked,
   };
@@ -266,6 +284,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         setCustomCategories(
           ledgerMetadata(data?.metadata).customCategories ?? [],
         );
+        setLoans(ledgerMetadata(data?.metadata).loans ?? []);
       }
       setSounds(native?.status().sounds ?? true);
       setOverlayState(native?.status().overlayEnabled || false);
@@ -374,7 +393,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         transactions,
         answers,
         Date.now(),
-        data.metadata.customCategories,
+        data.metadata.customCategories ?? [],
       );
       if (applied.done.length) {
         transactions = applied.transactions;
@@ -417,6 +436,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
+      setLoans(ledgerMetadata(data.metadata).loans ?? []);
       setLocked(false);
       setMode("live");
       await AsyncStorage.setItem(MODE, "live");
@@ -443,6 +463,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
+      setLoans(ledgerMetadata(data.metadata).loans ?? []);
       setMode("live");
       setLocked(false);
       setPrevious(null);
@@ -468,6 +489,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
+      setLoans(ledgerMetadata(data.metadata).loans ?? []);
       setMode("live");
       setLocked(false);
       setPrevious(null);
@@ -500,12 +522,14 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     nextRules: MerchantRule[],
     decisions = state.current.recurringDecisions,
     categories = state.current.customCategories,
+    nextLoans = state.current.loans,
   ) => {
     if (state.current.mode === "live") {
       if (state.current.locked) throw new Error("Unlock Kanakku first");
       await saveLive(next, nextRules, {
         recurringDecisions: decisions,
         customCategories: categories,
+        loans: nextLoans,
       });
       await native?.saveRules(
         nextRules
@@ -521,6 +545,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           metadata: {
             recurringDecisions: decisions,
             customCategories: categories,
+            loans: nextLoans,
           },
         }),
       );
@@ -675,6 +700,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
+      setLoans(ledgerMetadata(data.metadata).loans ?? []);
       setPrevious(null);
       await AsyncStorage.setItem(MODE, "demo");
     });
@@ -749,6 +775,175 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save the category.");
+      return false;
+    }
+  };
+  const addLoan: ContextValue["addLoan"] = async (input) => {
+    const person = input.person.trim().replace(/\s+/g, " ");
+    if (
+      !person ||
+      person.length > 80 ||
+      !Number.isSafeInteger(input.amount) ||
+      input.amount <= 0
+    ) {
+      setError("Enter a person’s name and a valid amount to lend.");
+      return false;
+    }
+    if (input.dueDate && !validDay(input.dueDate)) {
+      setError("Enter the return date as YYYY-MM-DD.");
+      return false;
+    }
+    const id =
+      globalThis.crypto?.randomUUID?.() ||
+      `loan-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const loan: LoanRecord = {
+      id,
+      person,
+      amount: input.amount,
+      lentAt: input.lentAt || new Date().toISOString(),
+      dueDate: input.dueDate || null,
+      note: input.note.trim().slice(0, 500),
+      repayments: [],
+      remind: Boolean(input.remind && input.dueDate),
+      ...(input.transactionId ? { transactionId: input.transactionId } : {}),
+    };
+    const existing = state.current.transactions.find(
+      (t) => t.id === input.transactionId,
+    );
+    if (
+      input.transactionId &&
+      state.current.loans.some((loan) => loan.transactionId === input.transactionId)
+    ) {
+      setError("This bank payment is already linked to a loan.");
+      return false;
+    }
+    if (input.transactionId && !existing) {
+      setError(
+        "That bank transaction is no longer available. Reopen it and try again.",
+      );
+      return false;
+    }
+    const nextTransactions = existing
+      ? state.current.transactions.map((transaction) =>
+          transaction.id === existing.id
+            ? {
+                ...transaction,
+                merchant: person,
+                category: "Friends & family",
+                kind: "lent" as const,
+                review: false,
+                reason: "Money lent; repayment tracked separately",
+                classification: {
+                  method: "user" as const,
+                  version: "lending-v1",
+                },
+              }
+            : transaction,
+        )
+      : state.current.transactions;
+    const nextLoans = [...state.current.loans, loan];
+    try {
+      await persist(
+        nextTransactions,
+        state.current.rules,
+        undefined,
+        undefined,
+        nextLoans,
+      );
+      if (existing) {
+        setPrevious({
+          transactions: state.current.transactions,
+          rules: state.current.rules,
+        });
+        setTransactions(nextTransactions);
+      }
+      setLoans(nextLoans);
+      setError("");
+      if (input.remind && loan.dueDate && native) {
+        try {
+          const granted = await requestNotifications();
+          if (granted) {
+            const [year, month, day] = loan.dueDate.split("-").map(Number);
+            const dueAt = new Date(year, month - 1, day, 10, 0, 0, 0).getTime();
+            await native.scheduleLendingReminder(
+              id,
+              Math.max(dueAt, Date.now() + 60_000),
+            );
+            setNotice(
+              `Added money lent to ${person}; reminder set for ${loan.dueDate}.`,
+            );
+          } else {
+            setNotice(
+              `Added money lent to ${person}. Turn on notifications to get a return-date reminder.`,
+            );
+          }
+        } catch {
+          setNotice(
+            `Added money lent to ${person}. The return date is saved, but Android could not schedule a notification.`,
+          );
+        }
+      } else {
+        setNotice(`Added money lent to ${person}.`);
+      }
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save this loan.");
+      return false;
+    }
+  };
+  const recordLoanRepayment: ContextValue["recordLoanRepayment"] = async (
+    loanId,
+    amount,
+    note = "",
+  ) => {
+    const currentLoan = state.current.loans.find((loan) => loan.id === loanId);
+    if (
+      !currentLoan ||
+      !Number.isSafeInteger(amount) ||
+      amount <= 0 ||
+      amount > loanOutstanding(currentLoan)
+    ) {
+      setError(
+        "Enter a valid repayment no larger than the outstanding amount.",
+      );
+      return false;
+    }
+    const nextLoans = state.current.loans.map((loan) =>
+      loan.id === loanId
+        ? {
+            ...loan,
+            repayments: [
+              ...loan.repayments,
+              {
+                id:
+                  globalThis.crypto?.randomUUID?.() ||
+                  `repayment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                amount,
+                at: new Date().toISOString(),
+                ...(note.trim() ? { note: note.trim().slice(0, 200) } : {}),
+              },
+            ],
+          }
+        : loan,
+    );
+    try {
+      await persist(
+        state.current.transactions,
+        state.current.rules,
+        undefined,
+        undefined,
+        nextLoans,
+      );
+      setLoans(nextLoans);
+      if (loanOutstanding(nextLoans.find((loan) => loan.id === loanId)!) === 0)
+        await native?.cancelLendingReminder(loanId).catch(() => {});
+      setError("");
+      setNotice("Repayment recorded. It does not count as income or spending.");
+      return true;
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Could not record the repayment.",
+      );
       return false;
     }
   };
@@ -990,6 +1185,8 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           "Type RESET to confirm removing this device's journal.",
         );
       cancelVoice();
+      for (const loan of state.current.loans)
+        await native.cancelLendingReminder(loan.id).catch(() => false);
       lookupEpoch.current++;
       lookupRequests.current.clear();
       void merchantLookup.clear();
@@ -1001,6 +1198,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules([]);
       setRecurringDecisions({});
       setCustomCategories([]);
+      setLoans([]);
       setPrevious(null);
       await closeLive();
       await native.resetVault(confirmation);
@@ -1012,6 +1210,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules([]);
       setRecurringDecisions({});
       setCustomCategories([]);
+      setLoans([]);
       setImportProgress(emptyImport);
       setOverlayState(false);
       setNotice(
@@ -1035,6 +1234,8 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       // The user confirms replacement in the restore sheet first, then verifies
       // the action with the device credential before the SQLCipher transaction.
       const key = await native.unlock();
+      for (const oldLoan of state.current.loans)
+        await native.cancelLendingReminder(oldLoan.id).catch(() => false);
       generation.current++;
       cancelVoice();
       await closeLive();
@@ -1051,6 +1252,18 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setCustomCategories(
         ledgerMetadata(backup.metadata).customCategories ?? [],
       );
+      const restoredLoans = ledgerMetadata(backup.metadata).loans ?? [];
+      setLoans(restoredLoans);
+      for (const loan of restoredLoans) {
+        if (!loan.remind || !loan.dueDate || loanOutstanding(loan) === 0)
+          continue;
+        const [year, month, day] = loan.dueDate.split("-").map(Number);
+        const dueAt = new Date(year, month - 1, day, 10, 0, 0, 0).getTime();
+        if (dueAt > Date.now())
+          await native
+            .scheduleLendingReminder(loan.id, dueAt)
+            .catch(() => false);
+      }
       setPrevious(null);
       setNotice(
         "Backup restored. Your journal now matches the selected Drive backup.",
@@ -1083,6 +1296,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         setRules([]);
         setRecurringDecisions({});
         setCustomCategories([]);
+        setLoans([]);
         setPrevious(null);
         closeLive().catch(() => {});
         cancelVoice();
@@ -1108,6 +1322,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           setRules([]);
           setRecurringDecisions({});
           setCustomCategories([]);
+          setLoans([]);
           setPrevious(null);
           await closeLive();
         }
@@ -1185,6 +1400,9 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         ],
         customCategories,
         addCategory,
+        loans,
+        addLoan,
+        recordLoanRepayment,
         recurringDecisions,
         setRecurringDecision,
         theme,

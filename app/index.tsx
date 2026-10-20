@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import {
   House,
   ArrowUpRight,
@@ -44,6 +44,7 @@ import {
 import { FlashList, FlashListRef } from "@shopify/flash-list";
 import { LedgerFilters } from "../src/components/LedgerFilters";
 import { SpendingQuestions } from "../src/components/SpendingQuestions";
+import { loanOutstanding } from "../src/domain/lending";
 import {
   DateRange,
   LedgerFilter,
@@ -1177,6 +1178,37 @@ export default function Home() {
               Small details. Useful perspective.
             </Text>
             {period}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open money lent tracker"
+              onPress={() => router.push("/lending" as Href)}
+              style={[
+                ui.card,
+                {
+                  backgroundColor: colors.accentSoft,
+                  borderColor: colors.line,
+                  borderWidth: 1,
+                  marginBottom: 18,
+                },
+              ]}
+            >
+              <Text muted style={{ fontSize: 11 }}>
+                Money lent · tracked separately
+              </Text>
+              <View style={[ui.between, { marginTop: 7 }]}>
+                <Text serif style={{ fontSize: 27 }}>
+                  {money(
+                    app.loans.reduce(
+                      (sum, loan) => sum + loanOutstanding(loan),
+                      0,
+                    ),
+                  )}
+                </Text>
+                <Text bold style={{ color: colors.accent, fontSize: 12 }}>
+                  View loans →
+                </Text>
+              </View>
+            </Pressable>
             <View
               style={[
                 ui.card,

@@ -6,6 +6,7 @@ import {
 } from "./model";
 import { ledgerMetadata, type LedgerMetadata } from "../data/metadata";
 import type { ReceiptDraft } from "./receipt";
+import { validLoan } from "./lending";
 
 export interface JournalBackup {
   format: "kanakku-journal";
@@ -23,6 +24,7 @@ const kinds = new Set([
   "transfer",
   "card_payment",
   "cash",
+  "lent",
 ]);
 const sources = new Set(["sample", "sms", "email"]);
 const text = (value: unknown, max = 500) =>
@@ -110,6 +112,23 @@ export function parseJournalBackup(value: unknown): JournalBackup {
   )
     throw new Error("This Kanakku backup format is not supported.");
   const metadata = ledgerMetadata(input.metadata);
+  if (
+    Array.isArray(
+      (input.metadata as Record<string, unknown> | undefined)?.loans,
+    ) &&
+    ((input.metadata as Record<string, unknown>).loans as unknown[]).length >
+      10_000
+  )
+    throw new Error("This backup has too many lending records.");
+  const inputLoans = (input.metadata as Record<string, unknown> | undefined)
+    ?.loans;
+  if (
+    inputLoans !== undefined &&
+    (!Array.isArray(inputLoans) || !inputLoans.every(validLoan))
+  )
+    throw new Error(
+      "This backup contains a lending record that failed validation.",
+    );
   const allowedCategories = new Set([
     ...CATEGORIES,
     ...(metadata.customCategories ?? []),
@@ -179,6 +198,17 @@ export function parseJournalBackup(value: unknown): JournalBackup {
       );
     return r as unknown as MerchantRule;
   });
+  const ids = new Set(transactions.map((transaction) => transaction.id));
+  if (
+    (metadata.loans ?? []).some(
+      (loan) =>
+        loan.transactionId &&
+        (!ids.has(loan.transactionId) ||
+          transactions.find((transaction) => transaction.id === loan.transactionId)
+            ?.kind !== "lent"),
+    )
+  )
+    throw new Error("This backup links a loan to an invalid transaction.");
   return {
     format: "kanakku-journal",
     version: 1,
