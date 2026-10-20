@@ -6,7 +6,11 @@ import {
   buildReceiptNote,
   type ReceiptDraft,
 } from "../domain/receipt";
-import { isAccountPayee, rememberedRuleFor } from "../domain/payees";
+import {
+  isAccountPayee,
+  payeeRuleImpactCount,
+  rememberedRuleFor,
+} from "../domain/payees";
 import { cancelReceipt } from "../native/receipt";
 import { beginInteraction } from "../state/interactions";
 import React, {
@@ -23,6 +27,7 @@ import {
   Pressable,
   Switch,
   ActivityIndicator,
+  Alert,
   TextInput,
   Platform,
 } from "react-native";
@@ -37,6 +42,7 @@ import { useApp } from "../state/AppContext";
 import {
   Category,
   Kind,
+  MerchantRule,
   classify,
   isMixedCategoryText,
   money,
@@ -1222,35 +1228,74 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                     (!!settlementText.trim() &&
                       decimalToPaise(settlementText) === null)
                   }
-                  onPress={async () => {
-                    // Save confirms this draft. A late suggestion must not change
-                    // the selected chip after the confirmed category is persisted.
-                    suggestionVersion.current++;
-                    setSuggesting(false);
-                    const saved = await update(
+                  onPress={() => {
+                    const saveDraft = async () => {
+                      // Save confirms this draft. A late suggestion must not change
+                      // the selected chip after the confirmed category is persisted.
+                      suggestionVersion.current++;
+                      setSuggesting(false);
+                      const saved = await update(
+                        tx.id,
+                        {
+                          category,
+                          merchant: merchantName,
+                          note,
+                          receipt: normalizeReceipt(receipt),
+                          inrAmount:
+                            tx.currency && tx.currency !== "INR"
+                              ? (decimalToPaise(settlementText) ?? undefined)
+                              : tx.inrAmount,
+                          review:
+                            (category === "Uncategorized" &&
+                              kind === "purchase") ||
+                            (!!tx.currency &&
+                              tx.currency !== "INR" &&
+                              !decimalToPaise(settlementText)),
+                          kind,
+                          excluded,
+                          reason: "Confirmed by you",
+                        },
+                        tx.kind === "lent" ? null : remember,
+                      );
+                      if (saved && queueMode) advance();
+                    };
+                    if (!remember || tx.kind === "lent") {
+                      void saveDraft();
+                      return;
+                    }
+                    const rule: MerchantRule = {
+                      merchant: tx.originalMerchant || tx.merchant,
+                      ...(isAccountPayee(tx) ? { bank: tx.bank } : {}),
+                      category,
+                      alias: merchantName.trim() || tx.merchant,
+                      ...(kind !== "purchase" ? { kind } : {}),
+                    };
+                    const affected = payeeRuleImpactCount(
+                      transactions,
                       tx.id,
-                      {
-                        category,
-                        merchant: merchantName,
-                        note,
-                        receipt: normalizeReceipt(receipt),
-                        inrAmount:
-                          tx.currency && tx.currency !== "INR"
-                            ? (decimalToPaise(settlementText) ?? undefined)
-                            : tx.inrAmount,
-                        review:
-                          (category === "Uncategorized" &&
-                            kind === "purchase") ||
-                          (!!tx.currency &&
-                            tx.currency !== "INR" &&
-                            !decimalToPaise(settlementText)),
-                        kind,
-                        excluded,
-                        reason: "Confirmed by you",
-                      },
-                      tx.kind === "lent" ? null : remember,
+                      rule,
                     );
-                    if (saved && queueMode) advance();
+                    const typeNote =
+                      kind !== "purchase"
+                        ? ` and mark them as ${kind === "transfer" ? "self transfer" : kind}`
+                        : "";
+                    const scope = isAccountPayee(tx)
+                      ? `Future ${tx.bank} alerts with this masked ending are also covered. Similar account endings can belong to different people.`
+                      : "Future payments with this same payee will also be covered.";
+                    const title = `Apply to ${affected} payment${affected === 1 ? "" : "s"}?`;
+                    const message = `This will use “${category}”${typeNote} for ${affected} matching payment${affected === 1 ? "" : "s"}, including this one. ${scope}`;
+                    if (Platform.OS === "web") {
+                      if (globalThis.confirm(`${title}\n\n${message}`))
+                        void saveDraft();
+                    } else {
+                      Alert.alert(title, message, [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: `Save for ${affected}`,
+                          onPress: () => void saveDraft(),
+                        },
+                      ]);
+                    }
                   }}
                 >
                   {busy

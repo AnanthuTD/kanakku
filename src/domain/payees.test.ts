@@ -4,6 +4,7 @@ import {
   applyPayeeRules,
   awaitingContext,
   isAccountPayee,
+  payeeRuleImpactCount,
   rememberedRuleFor,
   removePayeeRuleEffects,
   setRememberedRule,
@@ -190,7 +191,9 @@ it("reverts only automatically labeled payments when a remembered rule is remove
     classification: { method: "user" as const, version: "review-v1" },
   };
 
-  expect(removePayeeRuleEffects([autoLabeled, explicitlyNamed], rule)).toMatchObject([
+  expect(
+    removePayeeRuleEffects([autoLabeled, explicitlyNamed], rule),
+  ).toMatchObject([
     {
       merchant: "A/c ••7788",
       originalMerchant: "A/c ••7788",
@@ -216,4 +219,19 @@ it("does not revert an automatic label from a different bank", () => {
   )[0];
 
   expect(removePayeeRuleEffects([autoLabeled], rule)[0]).toBe(autoLabeled);
+});
+
+it("counts the current payment and only matching review payments for a rule confirmation", () => {
+  const matching = { ...row, id: "matching" };
+  const otherBank = { ...row, id: "other-bank", bank: "SBI" };
+  const rule: MerchantRule = {
+    merchant: row.merchant,
+    bank: row.bank,
+    category: "Friends & family",
+    alias: "Ashwin",
+  };
+
+  expect(payeeRuleImpactCount([row, matching, otherBank], row.id, rule)).toBe(
+    2,
+  );
 });

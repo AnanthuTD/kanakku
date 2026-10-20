@@ -1,4 +1,9 @@
-import { MerchantRule, Transaction, isAccountPayee, merchantKey } from "./model";
+import {
+  MerchantRule,
+  Transaction,
+  isAccountPayee,
+  merchantKey,
+} from "./model";
 export { awaitingContext, isAccountPayee } from "./model";
 
 /** A masked destination suffix cannot uniquely identify a recipient. */
@@ -13,7 +18,9 @@ export function rememberedRuleFor(
   const merchant = merchantKey(
     transaction.originalMerchant || transaction.merchant,
   );
-  const matching = rules.filter((rule) => merchantKey(rule.merchant) === merchant);
+  const matching = rules.filter(
+    (rule) => merchantKey(rule.merchant) === merchant,
+  );
   if (isAccountPayee(transaction))
     return matching.find(
       (rule) => merchantKey(rule.bank || "") === merchantKey(transaction.bank),
@@ -97,6 +104,25 @@ export function applyPayeeRules(
   });
 }
 
+/** Count the current payment plus existing rows that a new rule would change. */
+export function payeeRuleImpactCount(
+  rows: Transaction[],
+  currentId: string,
+  rule: MerchantRule,
+): number {
+  const updated = applyPayeeRules(rows, [rule]);
+  return rows.reduce((count, transaction, index) => {
+    if (transaction.id === currentId) return count + 1;
+    const next = updated[index];
+    const changed =
+      transaction.merchant !== next.merchant ||
+      transaction.category !== next.category ||
+      transaction.kind !== next.kind ||
+      transaction.review !== next.review;
+    return count + (changed ? 1 : 0);
+  }, 0);
+}
+
 /**
  * Removing a remembered rule should also undo its automatic changes to other
  * rows. Keep the row the user explicitly named (classification.method=user),
@@ -114,9 +140,11 @@ export function removePayeeRuleEffects(
       transaction.classification?.method !== "rule" ||
       (merchantKey(transaction.originalMerchant || transaction.merchant) !==
         merchant &&
-        !(rule.alias &&
+        !(
+          rule.alias &&
           !transaction.originalMerchant &&
-          merchantKey(transaction.merchant) === merchantKey(rule.alias))) ||
+          merchantKey(transaction.merchant) === merchantKey(rule.alias)
+        )) ||
       (rule.bank && merchantKey(transaction.bank) !== merchantKey(rule.bank))
     )
       return transaction;
@@ -129,7 +157,10 @@ export function removePayeeRuleEffects(
       kind: "purchase" as const,
       review: true,
       reason: "Needs your context",
-      classification: { method: "unknown" as const, version: "rule-removed-v1" },
+      classification: {
+        method: "unknown" as const,
+        version: "rule-removed-v1",
+      },
     };
   });
   return changed ? restored : rows;
