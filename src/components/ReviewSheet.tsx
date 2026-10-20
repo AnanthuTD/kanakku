@@ -516,6 +516,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
           />
         )}
         keyboardBehavior="interactive"
+        android_keyboardInputMode="adjustResize"
       >
         <BottomSheetScrollView
           {...(Platform.OS === "web"

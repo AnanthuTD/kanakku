@@ -1095,6 +1095,8 @@ export default function Home() {
               // Dispose stale cell measurements when a filter changes the result count.
               key={filtered.length}
               testID="activity-list"
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               maintainVisibleContentPosition={{ disabled: true }}
               ref={attachActivityList}
               onScroll={(event) => {

@@ -97,6 +97,8 @@ export default function LendingScreen() {
       </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 56 }}
       >
         <View

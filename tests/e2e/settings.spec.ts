@@ -58,6 +58,21 @@ test("Drive backup clearly explains encryption and stays unavailable in web prev
   ).toBeDisabled();
 });
 
+test("shared sheets keep focused inputs accessible on a short screen", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 720 });
+  await page.goto("/");
+  await activity(page);
+  await page.getByRole("button", { name: "Open transaction filters" }).click();
+  const startDate = page.getByRole("textbox", { name: "Start date" });
+  await startDate.focus();
+  // Simulate the smaller viewport available above an on-screen keyboard.
+  await page.setViewportSize({ width: 390, height: 420 });
+  await expect(startDate).toBeVisible();
+  await expect(startDate).toBeInViewport();
+});
+
 test("custom categories can be created and survive reload", async ({
   page,
 }) => {

@@ -42,7 +42,8 @@ export function Sheet({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
         style={{
           flex: 1,
           justifyContent: "flex-end",
@@ -88,8 +89,10 @@ export function Sheet({
             </Pressable>
           </View>
           <ScrollView
+            style={{ flex: 1 }}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ padding: 24, paddingTop: 10, gap: 18 }}
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 10, gap: 18 }}
           >
             {children}
           </ScrollView>

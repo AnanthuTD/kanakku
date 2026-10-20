@@ -160,6 +160,8 @@ export default function Settings() {
         <ScrollView
           ref={settingsScroll}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 60 }}
         >
           <View style={{ marginBottom: mode === "live" ? 16 : 0 }}>
