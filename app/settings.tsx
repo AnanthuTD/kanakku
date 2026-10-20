@@ -118,13 +118,13 @@ export default function Settings() {
     return () => subscription.remove();
   }, [selectedGroup]);
   const settingsItems = [
-    { key: "bank", title: "Bank alerts & import", summary: mode === "live" ? "Connected · import more history" : "Connect alerts and choose history", icon: Smartphone, group: "Everyday" },
-    { key: "companion", title: "Reminders & helper", summary: "Quiet time, reminders and floating helper", icon: MessageSquare, group: "Everyday" },
-    { key: "appearance", title: "Appearance", summary: `System, light or dark · ${theme}`, icon: theme === "dark" ? Moon : theme === "light" ? Sun : Monitor, group: "Everyday" },
-    { key: "accounts", title: "Email & backup", summary: "Connect Gmail or keep an encrypted recovery copy", icon: ShieldCheck, group: "Accounts & data" },
-    { key: "tools", title: "Categories & extra tools", summary: "Create categories and manage merchant tools", icon: Plus, group: "Personalise" },
-    { key: "models", title: "Voice & suggestions", summary: "Optional voice and on-device suggestions", icon: Mic, group: "Advanced" },
-    { key: "privacy", title: "Privacy & device", summary: "Protection, data and device controls", icon: LockKeyhole, group: "Advanced" },
+    { key: "bank", title: "Bank alerts & import", summary: mode === "live" ? "Connected · Review past alerts" : "Connect alerts and choose history", icon: Smartphone, group: "Everyday" },
+    { key: "companion", title: "Reminders & helper", summary: "Set reminders and assistant preferences", icon: MessageSquare, group: "Everyday" },
+    { key: "appearance", title: "Appearance", summary: `Choose light, dark or system · ${theme}`, icon: theme === "dark" ? Moon : theme === "light" ? Sun : Monitor, group: "Everyday" },
+    { key: "accounts", title: "Email & backup", summary: "Connect email and manage journal backups", icon: ShieldCheck, group: "Accounts & data" },
+    { key: "tools", title: "Categories & extra tools", summary: "Manage spending categories and merchants", icon: Plus, group: "Personalise" },
+    { key: "models", title: "Voice & suggestions", summary: "Voice notes and spending suggestions", icon: Mic, group: "Advanced" },
+    { key: "privacy", title: "Privacy & device", summary: "Lock, security and your data", icon: LockKeyhole, group: "Advanced" },
   ];
   return (
     <View
@@ -191,44 +191,44 @@ export default function Settings() {
             </Text>
           ) : null}
           {!selectedGroup ? (
-            <View testID="settings-menu" style={{ gap: 8 }}>
+            <View testID="settings-menu">
               {Array.from(new Set(settingsItems.map((item) => item.group))).map((group) => (
-                <View key={group} style={{ marginBottom: 14, gap: 10 }}>
-                  <Text muted bold style={{ fontSize: 11, letterSpacing: 0.7, marginHorizontal: 4, marginBottom: 6 }}>
-                    {group.toUpperCase()}
+                <View key={group} style={{ marginBottom: 22 }}>
+                  <Text muted bold style={{ fontSize: 13, letterSpacing: 0.15, marginHorizontal: 12, marginBottom: 7 }}>
+                    {group}
                   </Text>
-                  {settingsItems.filter((item) => item.group === group).map((item) => {
+                  {settingsItems.filter((item) => item.group === group).map((item, index, items) => {
                     const Icon = item.icon;
                     return (
-                      <Pressable
-                        key={item.key}
-                        testID={`settings-menu-${item.key}`}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${item.title}. ${item.summary}`}
-                        onPress={() => router.replace({ pathname: "/settings", params: { section: item.key } })}
-                        style={({ pressed }) => ({
-                          minHeight: 72,
-                          paddingHorizontal: 15,
-                          paddingVertical: 11,
-                          borderRadius: 16,
-                          borderWidth: 1,
-                          borderColor: colors.line,
-                          backgroundColor: colors.card,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 12,
-                          opacity: pressed ? 0.82 : 1,
-                        })}
-                      >
-                        <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" }}>
-                          <Icon size={19} color={colors.accent} />
+                      <View key={item.key}>
+                        <Pressable
+                          testID={`settings-menu-${item.key}`}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${item.title}. ${item.summary}`}
+                          onPress={() => router.replace({ pathname: "/settings", params: { section: item.key } })}
+                          style={({ pressed }) => ({
+                            minHeight: 72,
+                            marginHorizontal: -8,
+                            paddingHorizontal: 12,
+                            paddingVertical: 12,
+                            borderRadius: 12,
+                            backgroundColor: pressed ? colors.card : "transparent",
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 13,
+                          })}
+                        >
+                          <Icon size={21} color={colors.accent} />
+                          <View style={{ flex: 1, gap: 3 }}>
+                            <Text bold style={{ fontSize: 15, lineHeight: 20 }}>{item.title}</Text>
+                            <Text muted style={{ fontSize: 12.5, lineHeight: 18 }}>{item.summary}</Text>
+                          </View>
+                          <ChevronRight size={17} color={colors.muted} />
+                        </Pressable>
+                        {index < items.length - 1 ? (
+                          <View style={{ height: 1, marginLeft: 46, backgroundColor: colors.line, opacity: 0.7 }} />
+                        ) : null}
                         </View>
-                        <View style={{ flex: 1, gap: 2 }}>
-                          <Text bold style={{ fontSize: 13 }}>{item.title}</Text>
-                          <Text muted style={{ fontSize: 11, lineHeight: 16 }}>{item.summary}</Text>
-                        </View>
-                        <ChevronRight size={18} color={colors.muted} />
-                      </Pressable>
                     );
                   })}
                 </View>
