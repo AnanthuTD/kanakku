@@ -146,4 +146,36 @@ describe("money lent tracking", () => {
     expect(restored.category).toBe("Uncategorized");
     expect(restored.review).toBe(true);
   });
+
+  it("keeps available details when unmarking a legacy loan without a snapshot", () => {
+    const legacyLoan: LoanRecord = { ...loan, repayments: [] };
+    const currentlyMarked: Transaction = {
+      id: "sms-1",
+      amount: 50_000,
+      merchant: "Maya",
+      originalMerchant: "A/c ••46975",
+      account: "1234",
+      bank: "Kerala Gramin Bank",
+      at: loan.lentAt,
+      category: "Friends & family",
+      kind: "lent",
+      review: false,
+      excluded: false,
+      note: "Trip booking details",
+      source: "sms",
+      reason: "Money lent; repayment tracked separately",
+      classification: { method: "user", version: "lending-v1" },
+    };
+
+    const restored = restoreLentTransaction(currentlyMarked, legacyLoan);
+    expect(restored).toMatchObject({
+      merchant: "Maya",
+      category: "Friends & family",
+      kind: "purchase",
+      note: "Trip booking details",
+      account: "1234",
+      bank: "Kerala Gramin Bank",
+      review: false,
+    });
+  });
 });

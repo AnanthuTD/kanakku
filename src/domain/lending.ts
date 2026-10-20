@@ -75,18 +75,22 @@ export function restoreLentTransaction(
 ): Transaction {
   if (loan.transactionId !== transaction.id) return transaction;
   const previous = loan.previousTransaction;
+  // Older loan records predate the transaction snapshot. Keep the data that is
+  // still present on those rows instead of replacing the borrower/category
+  // with the original masked SMS payee or a generic fallback category.
+  if (!previous) {
+    return {
+      ...transaction,
+      kind: "purchase",
+      review: false,
+      reason: "Money lent tracking removed; saved transaction details kept",
+      classification: { method: "user", version: "review-v1" },
+    };
+  }
   return {
     ...transaction,
-    ...(previous ?? {
-      kind: "purchase" as const,
-      category: "Friends & family",
-      review: false,
-      reason: "Removed from money lent; counted as spending",
-    }),
-    merchant:
-      previous?.merchant ||
-      transaction.originalMerchant ||
-      transaction.merchant,
+    ...previous,
+    merchant: previous.merchant || transaction.merchant,
   };
 }
 

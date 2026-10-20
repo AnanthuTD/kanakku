@@ -10,13 +10,14 @@ import { isAccountPayee, rememberedRuleFor } from "../domain/payees";
 import { cancelReceipt } from "../native/receipt";
 import { beginInteraction } from "../state/interactions";
 import React, {
+  useCallback,
   useEffect,
   useRef,
   useState,
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { router, type Href } from "expo-router";
+import { router, type Href, useFocusEffect } from "expo-router";
 import {
   View,
   Pressable,
@@ -128,6 +129,8 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
     const [kind, setKind] = useState<Kind>("purchase");
     const [excluded, setExcluded] = useState(false);
     const [confirmUnmark, setConfirmUnmark] = useState(false);
+    const reopenAfterLoan = useRef<string | null>(null);
+    const openTransactionRef = useRef<(value: string) => void>(() => {});
     const tx = transactions.find((t) => t.id === id);
     const linkedLoan =
       tx?.kind === "lent"
@@ -203,39 +206,61 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
         })
         .catch(() => {});
     };
+    const openTransaction = (
+      value: string,
+      options?: {
+        queue?: boolean;
+        queueIds?: string[];
+        voice?: boolean;
+        photo?: boolean;
+      },
+    ) => {
+      const t = transactions.find((x) => x.id === value);
+      if (!t) return;
+      if (Platform.OS === "web") {
+        openedFrom.current =
+          document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+      }
+      visited.current.clear();
+      queue.current = options?.queue
+        ? [
+            value,
+            ...transactions
+              .filter(
+                (x) =>
+                  x.review &&
+                  x.id !== value &&
+                  (!options.queueIds || options.queueIds.includes(x.id)),
+              )
+              .map((x) => x.id),
+          ]
+        : [];
+      setQueueMode(!!options?.queue);
+      setAutoVoice(!!options?.voice && !options?.photo);
+      setSheetReady(false);
+      load(value);
+      setAutoPhoto(!!options?.photo);
+      modal.current?.present();
+    };
+    openTransactionRef.current = (value) => openTransaction(value);
+    useFocusEffect(
+      useCallback(() => {
+        const transactionId = reopenAfterLoan.current;
+        if (!transactionId) return;
+        reopenAfterLoan.current = null;
+        const timer = setTimeout(
+          () => openTransactionRef.current(transactionId),
+          150,
+        );
+        return () => clearTimeout(timer);
+      }, []),
+    );
     useImperativeHandle(
       ref,
       () => ({
-        open(value, options) {
-          const t = transactions.find((x) => x.id === value);
-          if (!t) return;
-          if (Platform.OS === "web") {
-            openedFrom.current =
-              document.activeElement instanceof HTMLElement
-                ? document.activeElement
-                : null;
-          }
-          visited.current.clear();
-          queue.current = options?.queue
-            ? [
-                value,
-                ...transactions
-                  .filter(
-                    (x) =>
-                      x.review &&
-                      x.id !== value &&
-                      (!options.queueIds || options.queueIds.includes(x.id)),
-                  )
-                  .map((x) => x.id),
-              ]
-            : [];
-          setQueueMode(!!options?.queue);
-          setAutoVoice(!!options?.voice && !options?.photo);
-          setSheetReady(false);
-          load(value);
-          setAutoPhoto(!!options?.photo);
-          modal.current?.present();
-        },
+        open: openTransaction,
       }),
       [transactions, rules],
     );
@@ -1245,15 +1270,49 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                   !loans.some((loan) => loan.transactionId === tx.id) && (
                     <Button
                       secondary
+                      disabled={
+                        busy ||
+                        !sheetReady ||
+                        !receiptValid ||
+                        (!!settlementText.trim() &&
+                          decimalToPaise(settlementText) === null)
+                      }
                       style={{ marginTop: 10 }}
-                      onPress={() => {
+                      onPress={async () => {
+                        suggestionVersion.current++;
+                        setSuggesting(false);
+                        const saved = await update(
+                          tx.id,
+                          {
+                            category,
+                            merchant: merchantName,
+                            note,
+                            receipt: normalizeReceipt(receipt),
+                            inrAmount:
+                              tx.currency && tx.currency !== "INR"
+                                ? (decimalToPaise(settlementText) ?? undefined)
+                                : tx.inrAmount,
+                            review:
+                              (category === "Uncategorized" &&
+                                kind === "purchase") ||
+                              (!!tx.currency &&
+                                tx.currency !== "INR" &&
+                                !decimalToPaise(settlementText)),
+                            kind,
+                            excluded,
+                            reason: "Confirmed by you",
+                          },
+                          null,
+                        );
+                        if (!saved) return;
+                        reopenAfterLoan.current = tx.id;
                         modal.current?.dismiss();
                         router.push(
                           `/lending?transactionId=${encodeURIComponent(tx.id)}` as Href,
                         );
                       }}
                     >
-                      Record this payment as money lent
+                      {busy ? "Saving…" : "Record this payment as money lent"}
                     </Button>
                   )}
                 {!queueMode &&

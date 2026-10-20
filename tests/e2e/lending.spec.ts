@@ -1,4 +1,4 @@
-import { test, expect, home } from "./fixtures";
+import { test, expect, home, activity } from "./fixtures";
 
 test("money lent stays outside spending and partial repayments persist", async ({
   page,
@@ -70,4 +70,33 @@ test("marking a counted bank payment as lent immediately lowers monthly spending
   await detail.getByRole("button", { name: "Unmark loan" }).click();
   await page.getByRole("tab", { name: "Overview" }).click();
   await expect(page.getByTestId("overview-total")).toHaveText("₹1,650");
+});
+
+test("saves edited payee before opening the loan form and restores the review sheet on back", async ({
+  page,
+}) => {
+  await home(page);
+  await activity(page);
+  await page.getByTestId("transaction-rahul").click();
+  const review = page.getByRole("dialog", { name: "Review payment" });
+  await review
+    .getByRole("textbox", { name: "Merchant name", exact: true })
+    .fill("Rahul's rent share");
+  await review
+    .getByRole("button", { name: "Record this payment as money lent" })
+    .click();
+
+  await expect(
+    page.getByRole("textbox", { name: "Person who owes you" }),
+  ).toHaveValue("Rahul's rent share");
+
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  const returnedReview = page.getByRole("dialog", { name: "Review payment" });
+  await expect(returnedReview).toBeVisible();
+  await expect(
+    returnedReview.getByRole("textbox", {
+      name: "Merchant name",
+      exact: true,
+    }),
+  ).toHaveValue("Rahul's rent share");
 });
