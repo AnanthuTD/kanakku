@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AppState, ScrollView, Switch, View } from "react-native";
+import { AppState, Pressable, ScrollView, Switch, View } from "react-native";
 import { native, type GmailStatus } from "../native/bridge";
 import { useApp } from "../state/AppContext";
 import { Button, Text, SectionTitle } from "./ui";
@@ -13,6 +13,7 @@ export function GmailSettings() {
   const [disclose, setDisclose] = useState(false);
   const [agree, setAgree] = useState(false);
   const [months, setMonths] = useState(1);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [disconnect, setDisconnect] = useState(false);
@@ -100,18 +101,28 @@ export function GmailSettings() {
     <View testID="gmail-settings" style={{ marginVertical: 24, gap: 12 }}>
       <SectionTitle title="Gmail transaction alerts" />
       <Text muted>
-        Optional support for authenticated SBI debit-card and SBI Card purchase
-        emails. They can be imported without SMS; when SMS is connected, Kanakku
-        checks for matching alerts to avoid counting the same payment twice.
-        Other bank formats, OTPs, order emails and unsupported alerts are not
-        imported.
+        Add supported SBI card alerts from Gmail. Google grants read-only access
+        to your mailbox; Kanakku looks for eligible alerts on this phone.
       </Text>
-      <Text muted>
-        Background checks run when Android permits, rather than instantly.
-        Permission revocation, force-stop or network loss can interrupt sync.
-        Foreign-currency charges wait for a final INR amount before entering INR
-        spending.
-      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: detailsOpen }}
+        onPress={() => setDetailsOpen((open) => !open)}
+        style={{ minHeight: 44, justifyContent: "center" }}
+      >
+        <Text style={{ color: colors.accent, fontSize: 12 }}>
+          {detailsOpen ? "Hide details" : "What gets imported?"}
+        </Text>
+      </Pressable>
+      {detailsOpen ? (
+        <Text muted>
+          Supported SBI debit-card and SBI Card purchase alerts can be imported
+          without SMS. When SMS is connected, matching alerts are checked to
+          avoid duplicates. Other bank formats, OTPs and order emails are
+          ignored. Background checks run when Android permits; foreign-currency
+          charges wait for a final INR amount.
+        </Text>
+      ) : null}
       {!native && (
         <Text>
           Connect Gmail in the Android app. This browser preview cannot access

@@ -72,6 +72,7 @@ export default function Settings() {
     vaultReady: boolean;
     backing: string;
   } | null>(null);
+  const [journalDetailsOpen, setJournalDetailsOpen] = useState(false);
   const importing = ["queued", "running", "waiting"].includes(
     app.importProgress.state,
   );
@@ -759,26 +760,37 @@ export default function Settings() {
           >
             <View style={[ui.row, { gap: 8 }]}>
               <LockKeyhole size={19} color={colors.accent} />
-              <Text bold>Encrypted on this device</Text>
+              <Text bold>
+                {security?.deviceSecure && security.vaultReady
+                  ? "Protected by your phone lock"
+                  : "Set up device protection"}
+              </Text>
             </View>
             <Text muted style={{ fontSize: 12, lineHeight: 20 }}>
               {security
-                ? `Device lock: ${security.deviceSecure ? "configured" : "not configured"}. Key storage: ${security.backing}.`
-                : "Secure storage and device-key status are available in the Android app."}
+                ? security.deviceSecure && security.vaultReady
+                  ? "Your journal is encrypted and opens with your phone’s screen lock."
+                  : "Add a screen lock to protect your journal on this phone."
+                : "Open Kanakku on Android to check your device protection."}
             </Text>
-            <Text muted style={{ fontSize: 11, lineHeight: 19 }}>
-              Changing device security can make the old key unavailable. A
-              password-protected Drive backup can restore saved journal data;
-              without one, reset and re-import SMS still on this phone. Notes
-              and rules cannot be recreated from SMS.
-            </Text>
-            <Text
-              style={{ color: colors.orange, fontSize: 11, lineHeight: 18 }}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: journalDetailsOpen }}
+              onPress={() => setJournalDetailsOpen((open) => !open)}
+              style={{ minHeight: 44, justifyContent: "center" }}
             >
-              Before uninstalling a differently signed build or resetting the
-              journal, make an encrypted Drive backup here. Android cannot
-              restore local notes after app data is erased.
-            </Text>
+              <Text style={{ color: colors.accent, fontSize: 12 }}>
+                {journalDetailsOpen ? "Hide details" : "How your journal is protected"}
+              </Text>
+            </Pressable>
+            {journalDetailsOpen ? (
+              <Text muted style={{ fontSize: 11, lineHeight: 19 }}>
+                Notes and rules are stored in the encrypted journal. Before
+                changing your phone lock, resetting the journal, or reinstalling
+                a differently signed build, save a password-protected Drive
+                backup. SMS can be imported again; notes and rules cannot.
+              </Text>
+            ) : null}
             <Button
               secondary
               disabled={!native || busy}

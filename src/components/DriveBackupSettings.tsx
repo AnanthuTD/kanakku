@@ -33,6 +33,7 @@ export function DriveBackupSettings({
   const [sheet, setSheet] = useState<"backup" | "restore" | "auto" | "confirm" | null>(
     null,
   );
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -272,17 +273,34 @@ export function DriveBackupSettings({
           <Text bold>Keep a recovery copy in Google Drive</Text>
         </View>
         <Text muted style={{ fontSize: 12, lineHeight: 19 }}>
-          Your transactions, notes, bill details, categories, and merchant rules
-          are encrypted on this device before upload. Google stores only the
-          encrypted file. Manual backup does not save your password. Automatic
-          backup is optional and stores it encrypted on this phone so it can run
-          without asking each time.
+          Your journal is encrypted on this phone before it is saved to Drive.
+          Keep your password safe; you’ll need it to restore on another phone.
         </Text>
-        <Text muted style={{ fontSize: 11, lineHeight: 18 }}>
-          Restoring replaces this device’s saved journal after a preview and
-          device unlock. SMS and Gmail permissions/accounts are not included;
-          SMS can be imported again and Gmail can be reconnected.
-        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: detailsOpen }}
+          onPress={() => setDetailsOpen((open) => !open)}
+          style={{ minHeight: 44, justifyContent: "center" }}
+        >
+          <Text style={{ color: colors.accent, fontSize: 12 }}>
+            {detailsOpen ? "Hide details" : "What gets saved?"}
+          </Text>
+        </Pressable>
+        {detailsOpen ? (
+          <View style={{ gap: 8 }}>
+            <Text muted style={{ fontSize: 11, lineHeight: 18 }}>
+              Transactions, notes, bill details, categories, and merchant rules
+              are included. Google stores only the encrypted file. Manual backup
+              never saves your password; automatic backup keeps it encrypted on
+              this phone so it can run on a schedule.
+            </Text>
+            <Text muted style={{ fontSize: 11, lineHeight: 18 }}>
+              Restore previews the journal before replacing saved data. SMS and
+              Gmail permissions aren’t included; SMS can be imported again and
+              Gmail can be reconnected.
+            </Text>
+          </View>
+        ) : null}
         {message ? (
           <Text style={{ color: colors.accent, fontSize: 12 }}>{message}</Text>
         ) : null}

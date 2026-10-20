@@ -62,7 +62,11 @@ test("Drive backup clearly explains encryption and stays unavailable in web prev
     backup.getByText("Keep a recovery copy in Google Drive"),
   ).toBeVisible();
   await expect(
-    backup.getByText(/encrypted on this device before upload/),
+    backup.getByText(/journal is encrypted on this phone before it is saved to Drive/),
+  ).toBeVisible();
+  await backup.getByRole("button", { name: "What gets saved?" }).click();
+  await expect(
+    backup.getByText(/Google stores only the encrypted file/),
   ).toBeVisible();
   await expect(
     backup.getByRole("button", { name: /Back up to Google Drive/ }),
