@@ -1,6 +1,12 @@
 import { expect, it } from "vitest";
 import { MerchantRule, Transaction, netSpend, heldSpend } from "./model";
-import { applyPayeeRules, awaitingContext, isAccountPayee } from "./payees";
+import {
+  applyPayeeRules,
+  awaitingContext,
+  isAccountPayee,
+  rememberedRuleFor,
+  setRememberedRule,
+} from "./payees";
 const row: Transaction = {
   id: "a",
   amount: 1500000,
@@ -139,4 +145,32 @@ it("allows an explicit bank-scoped account-ending rule and warns by keeping it o
     { kind: "transfer", merchant: "My friend", review: false },
     { kind: "purchase", merchant: "A/c ••14697", review: true },
   ]);
+});
+
+it("keeps the remember-payee switch on for its saved rule and removes only that rule when switched off", () => {
+  const bankRule: MerchantRule = {
+    merchant: "A/c ••7788",
+    bank: "Kerala Gramin Bank",
+    category: "Friends & family",
+    kind: "transfer",
+    alias: "Anu",
+  };
+  const differentBankRule: MerchantRule = {
+    ...bankRule,
+    bank: "SBI",
+    alias: "Other account",
+  };
+  const rules = [bankRule, differentBankRule];
+
+  expect(rememberedRuleFor(row, rules)).toEqual(bankRule);
+  const updated = setRememberedRule(rules, row, {
+    ...bankRule,
+    category: "Home",
+  });
+  expect(rememberedRuleFor(row, updated)?.category).toBe("Home");
+  expect(updated).toContainEqual(differentBankRule);
+
+  const switchedOff = setRememberedRule(updated, row);
+  expect(rememberedRuleFor(row, switchedOff)).toBeUndefined();
+  expect(switchedOff).toEqual([differentBankRule]);
 });

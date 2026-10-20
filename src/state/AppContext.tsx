@@ -7,6 +7,7 @@ import {
   awaitingContext,
   isAccountPayee,
   hasSafeRule,
+  setRememberedRule,
 } from "../domain/payees";
 import { installDiagnostics, logDiagnostic } from "../native/diagnostics";
 import {
@@ -615,30 +616,19 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       );
       const rememberKind =
         patch.kind && patch.kind !== "purchase" ? patch.kind : undefined;
-      const nextRules =
-        remember &&
-        ((patch.category && patch.category !== "Uncategorized") || rememberKind)
-          ? [
-              ...s.rules.filter(
-                (r) =>
-                  !(
-                    merchantKey(r.merchant) ===
-                      merchantKey(
-                        current.originalMerchant || current.merchant,
-                      ) &&
-                    (!isAccountPayee(current) ||
-                      merchantKey(r.bank || "") === merchantKey(current.bank))
-                  ),
-              ),
-              {
-                merchant: current.originalMerchant || current.merchant,
-                ...(isAccountPayee(current) ? { bank: current.bank } : {}),
-                category: patch.category || "Uncategorized",
-                alias: patch.merchant || current.merchant,
-                ...(rememberKind ? { kind: rememberKind } : {}),
-              },
-            ]
-          : s.rules;
+      const canSaveRule =
+        (patch.category && patch.category !== "Uncategorized") || rememberKind;
+      const nextRules = remember
+        ? canSaveRule
+          ? setRememberedRule(s.rules, current, {
+              merchant: current.originalMerchant || current.merchant,
+              ...(isAccountPayee(current) ? { bank: current.bank } : {}),
+              category: patch.category || "Uncategorized",
+              alias: patch.merchant || current.merchant,
+              ...(rememberKind ? { kind: rememberKind } : {}),
+            })
+          : s.rules
+        : setRememberedRule(s.rules, current);
       // A remembered payee also settles that payee's other unconfirmed payments.
       const settled =
         nextRules === s.rules ? next : applyPayeeRules(next, nextRules);

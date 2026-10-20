@@ -1,9 +1,51 @@
-import { MerchantRule, Transaction, merchantKey } from "./model";
+import { MerchantRule, Transaction, isAccountPayee, merchantKey } from "./model";
 export { awaitingContext, isAccountPayee } from "./model";
 
 /** A masked destination suffix cannot uniquely identify a recipient. */
 export const hasSafeRule = (rule: MerchantRule) =>
   !/^a\/c\s*••\d{2,8}$/i.test(rule.merchant.trim()) || Boolean(rule.bank);
+
+/** Return the saved rule that would currently apply to this payment. */
+export function rememberedRuleFor(
+  transaction: Transaction,
+  rules: MerchantRule[],
+): MerchantRule | undefined {
+  const merchant = merchantKey(
+    transaction.originalMerchant || transaction.merchant,
+  );
+  const matching = rules.filter((rule) => merchantKey(rule.merchant) === merchant);
+  if (isAccountPayee(transaction))
+    return matching.find(
+      (rule) => merchantKey(rule.bank || "") === merchantKey(transaction.bank),
+    );
+  return (
+    matching.find(
+      (rule) => merchantKey(rule.bank || "") === merchantKey(transaction.bank),
+    ) || matching.find((rule) => !rule.bank)
+  );
+}
+
+/** Replace or remove the saved rule for this transaction's payee identity. */
+export function setRememberedRule(
+  rules: MerchantRule[],
+  transaction: Transaction,
+  replacement?: MerchantRule,
+): MerchantRule[] {
+  const merchant = merchantKey(
+    transaction.originalMerchant || transaction.merchant,
+  );
+  const accountPayee = isAccountPayee(transaction);
+  const kept = rules.filter(
+    (rule) =>
+      !(
+        merchantKey(rule.merchant) === merchant &&
+        (accountPayee
+          ? merchantKey(rule.bank || "") === merchantKey(transaction.bank)
+          : !rule.bank)
+      ),
+  );
+  return replacement ? [...kept, replacement] : kept;
+}
 
 /**
  * Applies remembered payee rules to rows the user has not confirmed: a remembered type

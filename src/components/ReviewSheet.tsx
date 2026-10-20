@@ -6,7 +6,10 @@ import {
   buildReceiptNote,
   type ReceiptDraft,
 } from "../domain/receipt";
-import { isAccountPayee } from "../domain/payees";
+import {
+  isAccountPayee,
+  rememberedRuleFor,
+} from "../domain/payees";
 import { cancelReceipt } from "../native/receipt";
 import { beginInteraction } from "../state/interactions";
 import React, {
@@ -155,7 +158,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
       setInputSeeds({ merchant: t.merchant, note: t.note, noteRevision: 0 });
       setKind(t.kind);
       setExcluded(t.excluded);
-      setRemember(false);
+      setRemember(Boolean(rememberedRuleFor(t, rules)));
       setConfirmWebSearch(false);
       setConfirmVpaSearch(false);
       setVpaApproved(false);
@@ -228,7 +231,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
           modal.current?.present();
         },
       }),
-      [transactions],
+      [transactions, rules],
     );
     useEffect(
       () => () => {
@@ -1070,7 +1073,11 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                 </View>
                 <Switch
                   accessibilityLabel="Remember merchant category"
-                  disabled={category === "Uncategorized" && kind === "purchase"}
+                  disabled={
+                    category === "Uncategorized" &&
+                    kind === "purchase" &&
+                    !remember
+                  }
                   value={remember}
                   onValueChange={setRemember}
                   trackColor={{ true: colors.accent, false: colors.line }}
