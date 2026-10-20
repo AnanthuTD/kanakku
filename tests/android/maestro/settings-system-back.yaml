@@ -1,0 +1,26 @@
+appId: app.tinkerbox.kanakku.e2e
+name: Android Back returns from a settings page to the settings menu
+---
+- launchApp:
+    clearState: true
+    permissions:
+      android.permission.READ_SMS: deny
+      android.permission.RECEIVE_SMS: deny
+      android.permission.RECORD_AUDIO: deny
+      android.permission.POST_NOTIFICATIONS: deny
+      android.permission.READ_EXTERNAL_STORAGE: deny
+      android.permission.WRITE_EXTERNAL_STORAGE: deny
+- extendedWaitUntil:
+    visible: "Room to breathe."
+    timeout: 120000
+- tapOn:
+    text: "Open settings"
+- assertVisible: "Bank alerts & import"
+- tapOn:
+    text: "Bank alerts & import"
+- assertVisible: "Connect bank SMS"
+- pressKey: BACK
+- assertVisible: "Email & backup"
+- assertVisible: "Bank alerts & import"
+- pressKey: BACK
+- assertVisible: "Room to breathe."

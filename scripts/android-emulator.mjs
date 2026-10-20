@@ -208,10 +208,11 @@ async function test() {
       "mixed-note-review",
       "review-persistence",
       "theme-persistence",
+      "settings-system-back",
     ].includes(flow)
   )
     throw new Error(
-      "--flow must name one of the four isolated Maestro smoke flows.",
+      "--flow must name one of the five isolated Maestro smoke flows.",
     );
   await start();
   const apk = join(root, "artifacts/kanakku-e2e.apk");

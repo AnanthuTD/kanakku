@@ -13,6 +13,7 @@ import {
   View,
   ScrollView,
   Pressable,
+  BackHandler,
   Switch,
   ActivityIndicator,
   TextInput,
@@ -105,6 +106,17 @@ export default function Settings() {
     section === "companion" ? "companion" :
     section === "tools" ? "tools" :
     section === "privacy" ? "privacy" : "";
+  useEffect(() => {
+    if (!selectedGroup) return;
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        router.replace("/settings");
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [selectedGroup]);
   const settingsItems = [
     { key: "bank", title: "Bank alerts & import", summary: mode === "live" ? "Connected · import more history" : "Connect alerts and choose history", icon: Smartphone, group: "Everyday" },
     { key: "companion", title: "Reminders & helper", summary: "Quiet time, reminders and floating helper", icon: MessageSquare, group: "Everyday" },
