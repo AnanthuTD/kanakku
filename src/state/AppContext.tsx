@@ -7,6 +7,7 @@ import {
   awaitingContext,
   isAccountPayee,
   hasSafeRule,
+  removePayeeRuleEffects,
   setRememberedRule,
 } from "../domain/payees";
 import { installDiagnostics, logDiagnostic } from "../native/diagnostics";
@@ -372,10 +373,15 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         .map((value) => JSON.parse(value))
         .map((t) => {
           const original = t.originalMerchant || t.merchant;
-          const rule = data.rules
-            .filter(hasSafeRule)
-            .find((r) => merchantKey(r.merchant) === merchantKey(original));
-          const c = classify(original, data.rules.filter(hasSafeRule));
+          const applicableRules = data.rules.filter(
+            (r) =>
+              hasSafeRule(r) &&
+              (!r.bank || merchantKey(r.bank) === merchantKey(t.bank)),
+          );
+          const rule = applicableRules.find(
+            (r) => merchantKey(r.merchant) === merchantKey(original),
+          );
+          const c = classify(original, applicableRules);
           return {
             ...t,
             originalMerchant: original,
@@ -698,13 +704,36 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     perform(async () => {
       const s = state.current;
       const token = generation.current;
-      const next = s.rules.filter(
-        (r) => r.merchant !== merchant || (bank && r.bank !== bank),
+      const removed = s.rules.find(
+        (r) => r.merchant === merchant && (bank ? r.bank === bank : !r.bank),
       );
-      await persist(s.transactions, next);
+      const next = s.rules.filter(
+        (r) => !(r.merchant === merchant && (bank ? r.bank === bank : !r.bank)),
+      );
+      const reverted = removed
+        ? removePayeeRuleEffects(s.transactions, removed)
+        : s.transactions;
+      const nextTransactions = applyPayeeRules(reverted, next);
+      const restoredCount = reverted.reduce(
+        (count, transaction, index) =>
+          count +
+          (transaction !== s.transactions[index] &&
+          nextTransactions[index].classification?.method === "unknown" &&
+          nextTransactions[index].review
+            ? 1
+            : 0),
+        0,
+      );
+      await persist(nextTransactions, next);
       if (token !== generation.current) return;
+      setPrevious({ transactions: s.transactions, rules: s.rules });
+      setTransactions(nextTransactions);
       setRules(next);
-      setNotice("Merchant rule removed.");
+      setNotice(
+        restoredCount
+          ? `Rule removed. ${restoredCount} payment${restoredCount === 1 ? "" : "s"} returned to review.`
+          : "Merchant rule removed.",
+      );
     });
   const useDemo = () =>
     perform(async () => {

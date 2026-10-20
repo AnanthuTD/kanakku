@@ -1110,11 +1110,13 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                   >
                     <View style={{ flex: 1 }}>
                       <Text bold style={{ fontSize: 13 }}>
-                        Remember this payee
+                        {isAccountPayee(tx)
+                          ? "Remember this account ending"
+                          : "Remember this payee"}
                       </Text>
                       <Text muted style={{ fontSize: 11 }}>
                         {isAccountPayee(tx)
-                          ? `Create a rule for ${tx.bank} + this visible account ending. Another person may share the same ending; future matching payments from this bank will use your choice.`
+                          ? `Future alerts from ${tx.bank} with this same masked ending will use your choice. Account endings can overlap; remove the rule in Settings if it matches the wrong payments.`
                           : "Use this category and type for its other payments."}
                       </Text>
                     </View>

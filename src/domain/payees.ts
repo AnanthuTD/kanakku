@@ -76,6 +76,7 @@ export function applyPayeeRules(
     if (rule.kind && rule.kind !== t.kind)
       return {
         ...t,
+        originalMerchant: t.originalMerchant || t.merchant,
         kind: rule.kind,
         review: false,
         category,
@@ -86,6 +87,7 @@ export function applyPayeeRules(
     if (!t.review || rule.category === "Uncategorized") return t;
     return {
       ...t,
+      originalMerchant: t.originalMerchant || t.merchant,
       category,
       review: false,
       merchant: rule.alias || t.merchant,
@@ -93,4 +95,42 @@ export function applyPayeeRules(
       classification: { method: "rule" as const, version: "payee-rule-v1" },
     };
   });
+}
+
+/**
+ * Removing a remembered rule should also undo its automatic changes to other
+ * rows. Keep the row the user explicitly named (classification.method=user),
+ * and return only rule-classified matches to review so they can be resolved
+ * individually.
+ */
+export function removePayeeRuleEffects(
+  rows: Transaction[],
+  rule: MerchantRule,
+): Transaction[] {
+  const merchant = merchantKey(rule.merchant);
+  let changed = false;
+  const restored = rows.map((transaction) => {
+    if (
+      transaction.classification?.method !== "rule" ||
+      (merchantKey(transaction.originalMerchant || transaction.merchant) !==
+        merchant &&
+        !(rule.alias &&
+          !transaction.originalMerchant &&
+          merchantKey(transaction.merchant) === merchantKey(rule.alias))) ||
+      (rule.bank && merchantKey(transaction.bank) !== merchantKey(rule.bank))
+    )
+      return transaction;
+
+    changed = true;
+    return {
+      ...transaction,
+      merchant: transaction.originalMerchant || transaction.merchant,
+      category: "Uncategorized" as const,
+      kind: "purchase" as const,
+      review: true,
+      reason: "Needs your context",
+      classification: { method: "unknown" as const, version: "rule-removed-v1" },
+    };
+  });
+  return changed ? restored : rows;
 }

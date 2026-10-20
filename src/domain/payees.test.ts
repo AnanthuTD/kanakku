@@ -5,6 +5,7 @@ import {
   awaitingContext,
   isAccountPayee,
   rememberedRuleFor,
+  removePayeeRuleEffects,
   setRememberedRule,
 } from "./payees";
 const row: Transaction = {
@@ -173,4 +174,46 @@ it("keeps the remember-payee switch on for its saved rule and removes only that 
   const switchedOff = setRememberedRule(updated, row);
   expect(rememberedRuleFor(row, switchedOff)).toBeUndefined();
   expect(switchedOff).toEqual([differentBankRule]);
+});
+
+it("reverts only automatically labeled payments when a remembered rule is removed", () => {
+  const rule: MerchantRule = {
+    merchant: "A/c ••7788",
+    bank: "Kerala Gramin Bank",
+    category: "Friends & family",
+    alias: "Ashwin",
+  };
+  const autoLabeled = applyPayeeRules([row], [rule])[0];
+  const explicitlyNamed = {
+    ...autoLabeled,
+    id: "user-named",
+    classification: { method: "user" as const, version: "review-v1" },
+  };
+
+  expect(removePayeeRuleEffects([autoLabeled, explicitlyNamed], rule)).toMatchObject([
+    {
+      merchant: "A/c ••7788",
+      originalMerchant: "A/c ••7788",
+      category: "Uncategorized",
+      kind: "purchase",
+      review: true,
+      classification: { method: "unknown" },
+    },
+    { merchant: "Ashwin", review: false, classification: { method: "user" } },
+  ]);
+});
+
+it("does not revert an automatic label from a different bank", () => {
+  const rule: MerchantRule = {
+    merchant: "A/c ••7788",
+    bank: "Kerala Gramin Bank",
+    category: "Friends & family",
+    alias: "Ashwin",
+  };
+  const autoLabeled = applyPayeeRules(
+    [{ ...row, bank: "SBI" }],
+    [{ ...rule, bank: "SBI" }],
+  )[0];
+
+  expect(removePayeeRuleEffects([autoLabeled], rule)[0]).toBe(autoLabeled);
 });

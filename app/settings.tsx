@@ -689,6 +689,10 @@ export default function Settings() {
             </Button>
           </View>
           <SectionTitle title="Things you’ve taught me" />
+          <Text muted style={{ fontSize: 12, lineHeight: 19, marginBottom: 8 }}>
+            Remove a rule if it matches the wrong payments. Automatic labels
+            will return to review; payments you named yourself stay unchanged.
+          </Text>
           {rules.length ? (
             rules.map((r) => (
               <View
@@ -734,7 +738,7 @@ export default function Settings() {
               muted
               style={{ fontSize: 12, lineHeight: 20, marginBottom: 20 }}
             >
-              Choose “Remember this merchant” when categorizing a payment. Your
+              Choose “Remember this payee” when categorizing a payment. Your
               rules will appear here.
             </Text>
           )}
