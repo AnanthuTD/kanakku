@@ -139,11 +139,12 @@ interface ContextValue {
   ) => Promise<boolean>;
   undo: () => Promise<void>;
   canUndo: boolean;
-  removeRule: (merchant: string) => Promise<void>;
+  removeRule: (merchant: string, bank?: string) => Promise<void>;
   editRule: (
     merchant: string,
     category: Category,
     alias?: string,
+    bank?: string,
   ) => Promise<void>;
   sounds: boolean;
   setSounds: (value: boolean) => void;
@@ -526,16 +527,22 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         patch.kind && patch.kind !== "purchase" ? patch.kind : undefined;
       const nextRules =
         remember &&
-        !isAccountPayee(current) &&
         ((patch.category && patch.category !== "Uncategorized") || rememberKind)
           ? [
               ...s.rules.filter(
                 (r) =>
-                  merchantKey(r.merchant) !==
-                  merchantKey(current.originalMerchant || current.merchant),
+                  !(
+                    merchantKey(r.merchant) ===
+                      merchantKey(
+                        current.originalMerchant || current.merchant,
+                      ) &&
+                    (!isAccountPayee(current) ||
+                      merchantKey(r.bank || "") === merchantKey(current.bank))
+                  ),
               ),
               {
                 merchant: current.originalMerchant || current.merchant,
+                ...(isAccountPayee(current) ? { bank: current.bank } : {}),
                 category: patch.category || "Uncategorized",
                 alias: patch.merchant || current.merchant,
                 ...(rememberKind ? { kind: rememberKind } : {}),
@@ -552,19 +559,25 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules(nextRules);
       setNotice(
         remember && isAccountPayee(current)
-          ? "Saved this payment only. Account endings can belong to different people, so no payee rule was created."
+          ? "Saved a rule for this account ending at this bank. Another person may share the same ending; you can remove the rule in Settings."
           : "Saved. A little clearer.",
       );
       saved = true;
     });
     return saved;
   };
-  const editRule = (merchant: string, category: Category, alias?: string) =>
+  const editRule = (
+    merchant: string,
+    category: Category,
+    alias?: string,
+    bank?: string,
+  ) =>
     perform(async () => {
       const s = state.current;
       const token = generation.current;
       const next = s.rules.map((r) =>
-        merchantKey(r.merchant) === merchantKey(merchant)
+        merchantKey(r.merchant) === merchantKey(merchant) &&
+        (!bank || merchantKey(r.bank || "") === merchantKey(bank))
           ? { ...r, category, alias: alias?.trim() || r.alias }
           : r,
       );
@@ -589,11 +602,13 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setPrevious(null);
       setNotice("Change undone.");
     });
-  const removeRule = (merchant: string) =>
+  const removeRule = (merchant: string, bank?: string) =>
     perform(async () => {
       const s = state.current;
       const token = generation.current;
-      const next = s.rules.filter((r) => r.merchant !== merchant);
+      const next = s.rules.filter(
+        (r) => r.merchant !== merchant || (bank && r.bank !== bank),
+      );
       await persist(s.transactions, next);
       if (token !== generation.current) return;
       setRules(next);

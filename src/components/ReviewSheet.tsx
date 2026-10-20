@@ -1031,16 +1031,13 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                   </Text>
                   <Text muted style={{ fontSize: 11 }}>
                     {isAccountPayee(tx)
-                      ? "A masked account ending cannot identify a unique payee. Save this payment only."
+                      ? `Create a rule for ${tx.bank} + this visible account ending. Another person may share the same ending; future matching payments from this bank will use your choice.`
                       : "Use this category and type for its other payments."}
                   </Text>
                 </View>
                 <Switch
                   accessibilityLabel="Remember merchant category"
-                  disabled={
-                    isAccountPayee(tx) ||
-                    (category === "Uncategorized" && kind === "purchase")
-                  }
+                  disabled={category === "Uncategorized" && kind === "purchase"}
                   value={remember}
                   onValueChange={setRemember}
                   trackColor={{ true: colors.accent, false: colors.line }}

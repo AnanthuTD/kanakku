@@ -117,3 +117,26 @@ it("never treats a masked account suffix as a reusable recipient identity", () =
   expect(applyPayeeRules([row, unrelated], rules)).toEqual([row, unrelated]);
   expect(heldSpend(applyPayeeRules([row, unrelated], rules))).toBe(3000000);
 });
+
+it("allows an explicit bank-scoped account-ending rule and warns by keeping it opt-in", () => {
+  const rule: MerchantRule = {
+    merchant: "A/c ••14697",
+    bank: "Kerala Gramin Bank",
+    category: "Uncategorized",
+    kind: "transfer",
+    alias: "My friend",
+  };
+  const otherEnding = {
+    ...row,
+    id: "b",
+    merchant: "A/c ••14697",
+    bank: "Kerala Gramin Bank",
+  };
+  const sameEndingDifferentIssuer = { ...otherEnding, id: "c", bank: "Axis" };
+  expect(
+    applyPayeeRules([otherEnding, sameEndingDifferentIssuer], [rule]),
+  ).toMatchObject([
+    { kind: "transfer", merchant: "My friend", review: false },
+    { kind: "purchase", merchant: "A/c ••14697", review: true },
+  ]);
+});

@@ -73,8 +73,14 @@ object SmsParser {
       ?: (if (bank == "Slice" && Regex("\\bslice credit card transaction\\b", RegexOption.IGNORE_CASE).containsMatchIn(body)) "card" else null) ?: return null
     val ending="(?=\\s+(?:on|using|via|UPI|Ref|ref|Avl|Available|from|by|Not\\s+you)\\b|[.;](?:\\s|$)|\\n|$)"
     val merchant = listOf("\\bat\\s+", "\\bVPA\\s+", "\\bto\\s+(?:VPA\\s+)?(?!a/c\\b|account\\b|card\\b|your\\b)", "\\btransaction of (?:Rs\\.?|INR|₹)\\s*[0-9,.]+\\s+on\\s+").firstNotNullOfOrNull { prefix -> Regex(prefix+"(.+?)"+ending.replace("(?=","(?=\\s+is\\s+successful\\b|"),RegexOption.IGNORE_CASE).find(body)?.groupValues?.get(1)?.trim()?.take(80)?.ifBlank{null} }
-      // Bank-to-bank UPI alerts name only the other account; its last four digits let the user recognise and remember it.
-      ?: Regex("\\b(?:credited to|debited from) a/c(?:\\s+no\\.?)?\\s*X*([0-9]{2,})", RegexOption.IGNORE_CASE).find(body)?.groupValues?.get(1)?.let { "A/c ••" + it.takeLast(4) }
+      // Preserve the complete visible suffix when the bank masks the account (up to
+      // eight digits); if it prints an unmasked number, retain only its last four.
+      // The issuer bank is stored separately and is not assumed to be the recipient bank.
+      ?: Regex("\\b(?:credited to|debited from) a/c(?:\\s+no\\.?)?\\s*(X+)?([0-9]{2,})", RegexOption.IGNORE_CASE).find(body)?.let { match ->
+        val visible = match.groupValues[2]
+        val suffix = if (match.groupValues[1].isNotEmpty()) visible.takeLast(8) else visible.takeLast(4)
+        "A/c ••$suffix"
+      }
       ?: "Unknown merchant"
     val reference = refRe.find(body)?.groupValues?.get(1)
     // No amount/time-window dedupe: two same-value payments may both be legitimate.

@@ -1,5 +1,8 @@
 # Kanakku implementation checklist
 
+- [x] **Masked destination identity:** KGB transfer parsing now preserves the full visible masked suffix (up to eight digits) instead of truncating to four; unmasked account numbers remain limited to their final four digits. A user can explicitly remember a destination ending with a bank-scoped rule, with a warning that another recipient may share the same ending. The SMS issuer bank is shown as the message's bank and is not assumed to be the receiving bank. TypeScript, payee checks, and 210 synthetic native checks pass. Release APK built and installed on the connected personal phone; real KGB message validation remains pending.
+- [ ] **Encrypted Drive backup and restore:** Add user-initiated, end-to-end encrypted backup/restore for the local journal, with integrity/version checks, restore conflict choices, and a clear preflight prompt before destructive actions that can erase local data (such as uninstalling a differently signed APK or resetting the vault). Never block normal OTA or Play Store updates that preserve app data; explain that backup is needed before a destructive reinstall. Decide and document recovery-key handling before implementation.
+
 Updated: 20 October 2026. Plan: [PLAN.md](PLAN.md).
 
 Checked boxes mean the named implementation or check is complete. Device acceptance is tracked separately; a successful APK build is not a device test.

@@ -54,6 +54,8 @@ export interface Transaction {
 }
 export interface MerchantRule {
   merchant: string;
+  /** SMS issuer bank, used to scope an explicitly remembered masked account ending. */
+  bank?: string;
   /** Remembered type for this payee, e.g. a bank account the user only sends transfers to. */
   kind?: Kind;
   category: Category;
@@ -130,7 +132,7 @@ export function classify(
 }
 /** Bank-to-bank UPI alerts name only the other account ("A/c ••1234"): a shop, a person or the user's own account. */
 export const isAccountPayee = (t: Transaction) =>
-  /^A\/c ••\d{2,4}$/.test((t.originalMerchant || t.merchant).trim());
+  /^A\/c ••\d{2,8}$/.test((t.originalMerchant || t.merchant).trim());
 /** Held out of spending until the user confirms what it was. */
 export const awaitingContext = (t: Transaction) =>
   t.kind === "purchase" &&

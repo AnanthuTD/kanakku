@@ -3,7 +3,7 @@ export { awaitingContext, isAccountPayee } from "./model";
 
 /** A masked destination suffix cannot uniquely identify a recipient. */
 export const hasSafeRule = (rule: MerchantRule) =>
-  !/^a\/c\s*••\d{2,4}$/i.test(rule.merchant.trim());
+  !/^a\/c\s*••\d{2,8}$/i.test(rule.merchant.trim()) || Boolean(rule.bank);
 
 /**
  * Applies remembered payee rules to rows the user has not confirmed: a remembered type
@@ -16,10 +16,18 @@ export function applyPayeeRules(
 ): Transaction[] {
   if (!rules.length) return rows;
   const byPayee = new Map(
-    rules.filter(hasSafeRule).map((r) => [merchantKey(r.merchant), r]),
+    rules
+      .filter(hasSafeRule)
+      .map((r) => [
+        `${merchantKey(r.bank || "")}::${merchantKey(r.merchant)}`,
+        r,
+      ]),
   );
   return rows.map((t) => {
-    const rule = byPayee.get(merchantKey(t.originalMerchant || t.merchant));
+    const rule =
+      byPayee.get(
+        `${merchantKey(t.bank)}::${merchantKey(t.originalMerchant || t.merchant)}`,
+      ) || byPayee.get(`::${merchantKey(t.originalMerchant || t.merchant)}`);
     if (!rule || t.classification?.method === "user") return t;
     const category =
       rule.category !== "Uncategorized" ? rule.category : t.category;

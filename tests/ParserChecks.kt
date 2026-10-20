@@ -77,6 +77,10 @@ fun main() {
   // Shapes seen on a real phone (digits, names and references replaced): Kerala Gramin Bank and slice.
   val kgbUpi=parse("Your a/c no. XXXX4821 is debited for Rs.250.00 on 13/10/26 10:15 AM and credited to a/c no. XXXXX7788 (UPI Ref no 612345678901)-Kerala Gramin Bank","AD-KGBANK-S")!!
   verify(kgbUpi.bank=="Kerala Gramin Bank" && kgbUpi.kind=="purchase" && kgbUpi.amount==25000L && kgbUpi.account=="4821" && kgbUpi.reference=="612345678901" && kgbUpi.merchant=="A/c ••7788" && kgbUpi.review)
+  val fiveDigitDestination = parse("Your a/c no. XXXX4821 is debited for Rs.250.00 on 13/10/26 10:15 AM and credited to a/c no. XXXXX14697 (UPI Ref no 612345678901)-Kerala Gramin Bank", "AD-KGBANK-S")!!
+  verify(fiveDigitDestination.merchant == "A/c ••14697")
+  val unmaskedDestination = parse("Your a/c no. XXXX4821 is debited for Rs.250.00 on 13/10/26 10:15 AM and credited to a/c no. 12345678914697 (UPI Ref no 612345678901)-Kerala Gramin Bank", "AD-KGBANK-S")!!
+  verify(unmaskedDestination.merchant == "A/c ••4697")
   // "credited by … and debited from" is money arriving: the first direction verb decides.
   verify(parse("Your a/c no.XXXX4821 is credited by Rs.250.00 on 13/10/26 10:15 PM and debited from a/c no.XXXX7788(UPI Ref no 612345678902)-Kerala Gramin Bank","JD-KGBANK-T")!!.kind=="income")
   verify(parse("Your A/c XXXXXXXXXX4821 debited Rs.500 for / Bal after txn Rs 1200.50 Info 0 Time 13-10-26 10:15:00 -Kerala Gramin Bank","BZ-KGBANK-S")!!.let{it.kind=="purchase" && it.amount==50000L && it.account=="4821"})

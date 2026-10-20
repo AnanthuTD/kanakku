@@ -56,6 +56,7 @@ export default function Settings() {
   );
   const [historyMonths, setHistoryMonths] = useState<number | null>(1);
   const [editingRule, setEditingRule] = useState<string | null>(null);
+  const [editingRuleBank, setEditingRuleBank] = useState<string | undefined>();
   const [ruleCategory, setRuleCategory] = useState<Category>("Food & dining");
   const [ruleAlias, setRuleAlias] = useState("");
   const [resetVisible, setResetVisible] = useState(false);
@@ -506,7 +507,7 @@ export default function Settings() {
           {rules.length ? (
             rules.map((r) => (
               <View
-                key={r.merchant}
+                key={`${r.bank || ""}:${r.merchant}`}
                 style={[
                   ui.between,
                   {
@@ -521,6 +522,7 @@ export default function Settings() {
                   accessibilityLabel={`Edit rule for ${r.merchant}`}
                   onPress={() => {
                     setEditingRule(r.merchant);
+                    setEditingRuleBank(r.bank);
                     setRuleCategory(r.category);
                     setRuleAlias(r.alias || r.merchant);
                   }}
@@ -528,13 +530,14 @@ export default function Settings() {
                 >
                   <Text bold>{r.alias || r.merchant}</Text>
                   <Text muted style={{ fontSize: 12 }}>
+                    {r.bank ? `${r.bank} · ` : ""}
                     {r.category} · tap to edit
                   </Text>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Remove rule for ${r.merchant}`}
-                  onPress={() => app.removeRule(r.merchant)}
+                  onPress={() => app.removeRule(r.merchant, r.bank)}
                   style={{ padding: 12 }}
                 >
                   <Trash2 size={18} color={colors.muted} />
@@ -661,7 +664,12 @@ export default function Settings() {
           disabled={busy}
           onPress={async () => {
             if (editingRule)
-              await app.editRule(editingRule, ruleCategory, ruleAlias);
+              await app.editRule(
+                editingRule,
+                ruleCategory,
+                ruleAlias,
+                editingRuleBank,
+              );
             setEditingRule(null);
           }}
         >
