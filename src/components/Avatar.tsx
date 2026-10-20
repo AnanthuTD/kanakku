@@ -10,6 +10,11 @@ import Animated, {
   withSpring,
   withDelay,
   useAnimatedProps,
+  interpolate,
+  FadeInDown,
+  FadeIn,
+  FadeOutUp,
+  FadeOut,
   cancelAnimation,
   runOnJS,
   Easing,
@@ -202,11 +207,22 @@ export function FloatingAvatar({
   const { colors } = useApp();
   const { width, height } = useWindowDimensions();
   const shellWidth = Math.min(width, 540);
-  // Leave room for voice, photo and dismiss controls without squeezing enlarged text.
+  // Expanded size leaves room for a short prompt and three accessible actions.
   const cardWidth = Math.min(360, shellWidth - 32);
   const insets = useSafeAreaInsets();
-  const [cardHeight, setCardHeight] = useState(95);
-  const bounds = avatarBounds(width, height, cardWidth, cardHeight, insets.top);
+  const [expanded, setExpanded] = useState(false);
+  const compactWidth = 68;
+  const compactHeight = 68;
+  const expandedHeight = 96;
+  const layoutWidth = expanded ? cardWidth : compactWidth;
+  const layoutHeight = expanded ? expandedHeight : compactHeight;
+  const bounds = avatarBounds(
+    width,
+    height,
+    layoutWidth,
+    layoutHeight,
+    insets.top,
+  );
   const { minX } = bounds;
   const suppressTapUntil = useRef(0);
   const interacting = useRef(false);
@@ -218,6 +234,14 @@ export function FloatingAvatar({
   const pointerStartY = useSharedValue(0);
   const reduced = useReducedMotion();
   const panActive = useSharedValue(false);
+  const expansion = useSharedValue(0);
+  useEffect(() => {
+    expansion.value = reduced
+      ? expanded
+        ? 1
+        : 0
+      : withSpring(expanded ? 1 : 0, { damping: 20, stiffness: 230 });
+  }, [expanded, reduced]);
   useEffect(() => {
     const bounded = clampAvatar(x.value, y.value, bounds);
     x.value = bounded.x;
@@ -235,7 +259,7 @@ export function FloatingAvatar({
     return () => {
       live = false;
     };
-  }, [shellWidth, height, cardHeight, insets.top]);
+  }, [shellWidth, height, layoutWidth, layoutHeight, insets.top]);
   const remember = (left: boolean, vertical: number) => {
     AsyncStorage.setItem(
       "kanakku-avatar-position",
@@ -313,102 +337,142 @@ export function FloatingAvatar({
   const style = useAnimatedStyle(() => ({
     transform: [{ translateX: x.value }, { translateY: y.value }],
   }));
+  const expansionStyle = useAnimatedStyle(() => ({
+    width: interpolate(expansion.value, [0, 1], [compactWidth, cardWidth]),
+    height: interpolate(
+      expansion.value,
+      [0, 1],
+      [compactHeight, expandedHeight],
+    ),
+    borderRadius: interpolate(expansion.value, [0, 1], [34, 23]),
+    padding: interpolate(expansion.value, [0, 1], [5, 9]),
+  }));
+  const toggleExpanded = () => {
+    if (performance.now() < suppressTapUntil.current) return;
+    tapFeedback();
+    setExpanded((value) => !value);
+  };
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
         testID="floating-avatar"
-        onLayout={(event) => setCardHeight(event.nativeEvent.layout.height)}
         style={[
           s.floating,
           {
             backgroundColor: colors.card,
-            width: cardWidth,
             borderColor: colors.line,
             shadowColor: colors.shadow,
           },
+          expansionStyle,
           style,
         ]}
       >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Review ${count} unclear payments`}
-          accessibilityHint="Drag to move. Long press to reset its position. Tap to answer by voice."
-          accessibilityActions={[
-            { name: "activate" },
-            { name: "resetPosition", label: "Reset companion position" },
-          ]}
-          onAccessibilityAction={(event) => {
-            if (event.nativeEvent.actionName === "resetPosition")
-              resetPosition();
-            else if (event.nativeEvent.actionName === "activate") press();
-          }}
-          onPress={press}
-          onLongPress={resetPosition}
-          style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
-        >
-          <Mascot size={57} mood="thinking" />
-          <View style={{ flex: 1, paddingLeft: 8 }}>
-            <Text bold style={{ fontSize: 12 }}>
-              A little context?
-            </Text>
-            <Text muted style={{ fontSize: 11, lineHeight: 16 }}>
-              {count} {count === 1 ? "payment needs" : "payments need"} your
-              help
-            </Text>
-          </View>
-          <View
+        {!expanded ? (
+          <Animated.View
+            entering={FadeIn.duration(130)}
+            exiting={FadeOut.duration(100)}
+            style={{ alignItems: "center", justifyContent: "center" }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Review ${count} unclear payments`}
+              accessibilityHint="Tap to expand. Drag to move. Long press to reset its position."
+              accessibilityActions={[
+                { name: "activate" },
+                { name: "resetPosition", label: "Reset companion position" },
+              ]}
+              onAccessibilityAction={(event) => {
+                if (event.nativeEvent.actionName === "resetPosition")
+                  resetPosition();
+                else if (event.nativeEvent.actionName === "activate")
+                  toggleExpanded();
+              }}
+              onPress={toggleExpanded}
+              onLongPress={resetPosition}
+              style={{
+                width: 56,
+                height: 56,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Mascot size={53} mood="thinking" />
+            </Pressable>
+          </Animated.View>
+        ) : (
+          <Animated.View
+            entering={FadeInDown.duration(180)}
+            exiting={FadeOutUp.duration(120)}
             style={{
-              backgroundColor: colors.accentSoft,
-              padding: 8,
-              borderRadius: 20,
+              flexDirection: "row",
+              alignItems: "center",
+              flex: 1,
+              gap: 7,
             }}
           >
-            <Mic size={16} color={colors.accent} />
-          </View>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Take bill photo"
-          accessibilityHint="Open the payment and photograph a bill to add its details."
-          onPress={() => {
-            if (performance.now() < suppressTapUntil.current) return;
-            tapFeedback();
-            onPhoto();
-          }}
-          style={{
-            minWidth: 48,
-            minHeight: 48,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {/* Same pill as the microphone so the two actions read as a pair. */}
-          <View
-            style={{
-              backgroundColor: colors.accentSoft,
-              padding: 8,
-              borderRadius: 20,
-            }}
-          >
-            <Camera size={16} color={colors.accent} />
-          </View>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Dismiss avatar"
-          onPress={() => {
-            if (performance.now() >= suppressTapUntil.current) onDismiss();
-          }}
-          style={{
-            alignSelf: "center",
-            minWidth: 48,
-            minHeight: 48,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <X size={13} color={colors.muted} />
-        </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Collapse companion prompt"
+              onPress={toggleExpanded}
+              style={{
+                width: 49,
+                height: 58,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Mascot size={48} mood="thinking" />
+            </Pressable>
+            <View style={{ flex: 1, minWidth: 70 }}>
+              <Text bold style={{ fontSize: 12 }}>
+                A little context?
+              </Text>
+              <Text muted style={{ fontSize: 11, lineHeight: 15 }}>
+                {count} {count === 1 ? "payment needs" : "payments need"} your
+                help
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Answer by voice"
+              onPress={press}
+              style={s.actionTarget}
+            >
+              <View
+                style={[s.actionIcon, { backgroundColor: colors.accentSoft }]}
+              >
+                <Mic size={17} color={colors.accent} />
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Take bill photo"
+              accessibilityHint="Open the payment and photograph a bill to add its details."
+              onPress={() => {
+                if (performance.now() < suppressTapUntil.current) return;
+                tapFeedback();
+                onPhoto();
+              }}
+              style={s.actionTarget}
+            >
+              <View
+                style={[s.actionIcon, { backgroundColor: colors.accentSoft }]}
+              >
+                <Camera size={17} color={colors.accent} />
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss avatar"
+              onPress={() => {
+                if (performance.now() >= suppressTapUntil.current) onDismiss();
+              }}
+              style={s.dismissTarget}
+            >
+              <X size={14} color={colors.muted} />
+            </Pressable>
+          </Animated.View>
+        )}
       </Animated.View>
     </GestureDetector>
   );
@@ -418,16 +482,31 @@ const s = StyleSheet.create({
     position: "absolute",
     bottom: 94,
     right: 18,
-    width: 292,
-    borderRadius: 23,
     borderWidth: 1,
-    padding: 9,
-    flexDirection: "row",
-    alignItems: "center",
+    overflow: "hidden",
     shadowOpacity: 0.14,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
     zIndex: 10,
+  },
+  actionTarget: {
+    width: 48,
+    height: 54,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dismissTarget: {
+    width: 28,
+    height: 54,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

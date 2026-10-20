@@ -1,5 +1,35 @@
 import { test, expect, home, savedJournal } from "./fixtures";
 
+test("the companion starts as a floating avatar and expands into message and actions", async ({
+  page,
+}) => {
+  await home(page);
+  const avatar = page.getByTestId("floating-avatar");
+  const collapsed = page.getByRole("button", {
+    name: "Review 2 unclear payments",
+    exact: true,
+  });
+  await expect(collapsed).toBeVisible();
+  await expect(
+    page.getByText("A little context?", { exact: true }),
+  ).toBeHidden();
+  const compactBox = await avatar.boundingBox();
+  expect(compactBox!.width).toBeLessThan(90);
+  await collapsed.click();
+  await expect(
+    page.getByText("A little context?", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    avatar.getByRole("button", { name: "Answer by voice", exact: true }),
+  ).toBeVisible();
+  await expect(
+    avatar.getByRole("button", { name: "Take bill photo", exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(async () => (await avatar.boundingBox())!.width)
+    .toBeGreaterThan(280);
+});
+
 test("a quick companion drag snaps using the release position when move events are sparse", async ({
   page,
 }) => {
@@ -18,7 +48,7 @@ test("a quick companion drag snaps using the release position when move events a
   await page.mouse.down();
   // Sparse moves preserve the full drag even when the recognizer activates
   // after the pointer has already left the original card bounds.
-  await page.mouse.move(handle!.x - 100, handle!.y - 160, { steps: 3 });
+  await page.mouse.move(handle!.x - 140, handle!.y - 160, { steps: 3 });
   await page.mouse.up();
   await expect
     .poll(() =>
@@ -49,7 +79,7 @@ test("dragging the companion does not open voice review and its snapped position
   expect(handle).not.toBeNull();
   await page.mouse.move(handle!.x + 30, handle!.y + 25);
   await page.mouse.down();
-  await page.mouse.move(handle!.x - 100, handle!.y - 160, { steps: 15 });
+  await page.mouse.move(handle!.x - 140, handle!.y - 160, { steps: 15 });
   await page.mouse.up();
   await expect
     .poll(() =>
@@ -115,6 +145,9 @@ test("invalid remembered placement recovers on screen and dismissal does not edi
     localStorage.getItem("kanakku-demo-v1"),
   );
   await avatar
+    .getByRole("button", { name: "Review 2 unclear payments", exact: true })
+    .click();
+  await avatar
     .getByRole("button", { name: "Dismiss avatar", exact: true })
     .click();
   await expect(avatar).toBeHidden();
@@ -130,9 +163,16 @@ test("the companion photo action opens the selected payment camera without chang
 }) => {
   await home(page);
   const before = await savedJournal(page);
+  await page
+    .getByTestId("floating-avatar")
+    .getByRole("button", { name: "Review 2 unclear payments", exact: true })
+    .click();
   const photo = page
     .getByTestId("floating-avatar")
     .getByRole("button", { name: "Take bill photo", exact: true });
+  await expect
+    .poll(async () => (await photo.boundingBox())?.width ?? 0)
+    .toBeGreaterThanOrEqual(48);
   const bounds = await photo.boundingBox();
   expect(bounds!.width).toBeGreaterThanOrEqual(48);
   expect(bounds!.height).toBeGreaterThanOrEqual(48);
@@ -151,9 +191,17 @@ test("dragging the photo action moves the companion without opening the camera",
 }) => {
   await home(page);
   const avatar = page.getByTestId("floating-avatar");
-  const photo = await avatar
-    .getByRole("button", { name: "Take bill photo", exact: true })
-    .boundingBox();
+  await avatar
+    .getByRole("button", { name: "Review 2 unclear payments", exact: true })
+    .click();
+  const photoAction = avatar.getByRole("button", {
+    name: "Take bill photo",
+    exact: true,
+  });
+  await expect
+    .poll(async () => (await photoAction.boundingBox())?.width ?? 0)
+    .toBeGreaterThanOrEqual(48);
+  const photo = await photoAction.boundingBox();
   await page.mouse.move(photo!.x + 24, photo!.y + 24);
   await page.mouse.down();
   await page.mouse.move(photo!.x - 80, photo!.y - 120, { steps: 5 });
