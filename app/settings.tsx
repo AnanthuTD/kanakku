@@ -7,7 +7,7 @@ import { isReceiptActive } from "../src/native/receipt";
 import { hasPendingInteractions } from "../src/state/interactions";
 import { MerchantLookupSettings } from "../src/components/MerchantLookupSettings";
 import { voiceLanguageLabel } from "../src/native/voiceModel";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   ScrollView,
@@ -16,7 +16,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ChevronLeft,
@@ -46,6 +46,9 @@ export default function Settings() {
   const app = useApp();
   const { colors, theme, mode, rules, busy, error, notice } = app;
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ section?: string }>();
+  const settingsScroll = useRef<ScrollView>(null);
+  const modelSectionY = useRef(0);
   const [confirmConnect, setConfirmConnect] = useState(false);
   const testBuild = native?.status().testBuild === true;
   const [voiceClips, setVoiceClips] = useState(
@@ -91,6 +94,15 @@ export default function Settings() {
       );
     }
   };
+  const scrollToModelSettings = () => {
+    if (params.section !== "models") return;
+    requestAnimationFrame(() =>
+      settingsScroll.current?.scrollTo({
+        y: modelSectionY.current,
+        animated: true,
+      }),
+    );
+  };
   return (
     <View
       testID="settings-screen"
@@ -125,6 +137,7 @@ export default function Settings() {
           </Text>
         </View>
         <ScrollView
+          ref={settingsScroll}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 60 }}
         >
@@ -161,7 +174,12 @@ export default function Settings() {
             </Text>
           ) : null}
           <GmailSettings />
-          <ModelDownloadsSettings />
+          <ModelDownloadsSettings
+            onLayout={(event) => {
+              modelSectionY.current = event.nativeEvent.layout.y;
+              scrollToModelSettings();
+            }}
+          />
           <SectionTitle title="The look & feel" />
           <View style={{ flexDirection: "row", gap: 10, marginBottom: 30 }}>
             {(

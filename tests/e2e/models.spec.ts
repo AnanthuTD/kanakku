@@ -38,3 +38,15 @@ test("optional model downloads explain size and privacy without pretending the b
   );
   expect(await savedJournal(page)).toEqual(before);
 });
+
+test("optional-model settings can be opened directly at the download controls", async ({
+  page,
+}) => {
+  await home(page);
+  await page.goto("/settings?section=models");
+  const models = page.getByTestId("optional-models");
+  await expect(models).toBeInViewport();
+  await expect(
+    models.getByText("English voice · 57.0 MiB", { exact: true }),
+  ).toBeVisible();
+});

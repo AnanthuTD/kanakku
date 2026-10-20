@@ -46,10 +46,11 @@ import {
 import { Text, Button, CategoryIcon } from "./ui";
 import { Mascot } from "./Avatar";
 import { tapFeedback, successFeedback } from "./feedback";
-import { native } from "../native/bridge";
+import { native, type ModelDownloadStatus } from "../native/bridge";
 import { listen, cancelVoice, finishVoice } from "../native/voice";
 import { voiceLanguageLabel, voiceLanguages } from "../native/voiceModel";
 import { VoicePhase } from "../native/voice.types";
+import { OptionalModelPrompt } from "./OptionalModelPrompt";
 const ReviewInput = Platform.OS === "web" ? TextInput : BottomSheetTextInput;
 export interface ReviewHandle {
   open: (
@@ -117,6 +118,8 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
     const [voicePhase, setVoicePhase] = useState<VoicePhase>("preparing");
     const voiceVersion = useRef(0);
     const [voiceError, setVoiceError] = useState("");
+    const [modelPrompt, setModelPrompt] = useState<ModelDownloadStatus["id"] | null>(null);
+    const promptedModels = useRef(new Set<ModelDownloadStatus["id"]>());
     const [kind, setKind] = useState<Kind>("purchase");
     const [excluded, setExcluded] = useState(false);
     const tx = transactions.find((t) => t.id === id);
@@ -160,6 +163,8 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
       } catch {}
       setVpaQuery(parsedVpa);
       setVoiceError("");
+      setModelPrompt(null);
+      promptedModels.current.clear();
       setListening(false);
       setSuggesting(false);
       // The native companion carries only an unsaved, exact-payment draft in memory.
@@ -346,6 +351,36 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
       const result = classify(text);
       setCategory(result.category);
     };
+    const suggestCategory = async (text: string, version: number) => {
+      if (!native) return;
+      setSuggesting(true);
+      try {
+        const result = await native.suggestCategory(text);
+        if (
+          version === suggestionVersion.current &&
+          result.similarity >= 0.3 &&
+          result.margin >= 0.055 &&
+          CATEGORIES.includes(result.category as Category)
+        )
+          setCategory(result.category as Category);
+      } catch {
+        if (
+          version !== suggestionVersion.current ||
+          promptedModels.current.has("categories")
+        )
+          return;
+        const statuses = await native.modelDownloads().catch(() => []);
+        if (
+          version === suggestionVersion.current &&
+          statuses.find((item) => item.id === "categories")?.state !== "ready"
+        ) {
+          promptedModels.current.add("categories");
+          setModelPrompt("categories");
+        }
+      } finally {
+        if (version === suggestionVersion.current) setSuggesting(false);
+      }
+    };
     useEffect(() => {
       const version = ++suggestionVersion.current;
       setSuggesting(false);
@@ -361,27 +396,27 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
         // without changing the note. Do not begin stale inference or re-open
         // its spinner after the user has already moved on.
         if (version !== suggestionVersion.current) return;
-        setSuggesting(true);
-        try {
-          const result = await native!.suggestCategory(note);
-          if (
-            version === suggestionVersion.current &&
-            result.similarity >= 0.3 &&
-            result.margin >= 0.055 &&
-            CATEGORIES.includes(result.category as Category)
-          )
-            setCategory(result.category as Category);
-        } catch {
-          /* Category buttons remain usable when inference is unavailable. */
-        } finally {
-          if (version === suggestionVersion.current) setSuggesting(false);
-        }
+        await suggestCategory(note, version);
       }, 400);
       return () => clearTimeout(timer);
     }, [note]);
     const record = async () => {
       tapFeedback();
       setVoiceError("");
+      if (native) {
+        try {
+          const status = (await native.modelDownloads()).find(
+            (item) => item.id === "voice",
+          );
+          if (status?.state !== "ready") {
+            setModelPrompt("voice");
+            return;
+          }
+        } catch {
+          setVoiceError("Could not check offline voice. Open Settings to retry.");
+          return;
+        }
+      }
       setListening(true);
       recording.current = true;
       setVoicePhase("preparing");
@@ -393,7 +428,15 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
         if (recording.current && version === voiceVersion.current)
           applyText(text, true);
       } catch (e) {
-        if (recording.current && version === voiceVersion.current)
+        if (
+          recording.current &&
+          version === voiceVersion.current &&
+          e instanceof Error &&
+          (e.message.startsWith("Download English voice") ||
+            ("code" in e && e.code === "MODEL_NOT_READY"))
+        ) {
+          setModelPrompt("voice");
+        } else if (recording.current && version === voiceVersion.current)
           setVoiceError(
             e instanceof Error
               ? e.message
@@ -445,6 +488,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
       setAutoPhoto(false);
     };
     return (
+      <>
       <BottomSheetModal
         ref={modal}
         accessible={false}
@@ -962,21 +1006,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                       isMixedCategoryText(context)
                     )
                       return;
-                    setSuggesting(true);
-                    try {
-                      const result = await native.suggestCategory(context);
-                      if (
-                        version === suggestionVersion.current &&
-                        result.similarity >= 0.3 &&
-                        result.margin >= 0.055 &&
-                        CATEGORIES.includes(result.category as Category)
-                      )
-                        setCategory(result.category as Category);
-                    } catch {
-                    } finally {
-                      if (version === suggestionVersion.current)
-                        setSuggesting(false);
-                    }
+                    await suggestCategory(context, version);
                   }}
                 >
                   Suggest category from bill and note
@@ -1167,6 +1197,18 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
           )}
         </BottomSheetScrollView>
       </BottomSheetModal>
+      <OptionalModelPrompt
+        modelId={modelPrompt}
+        onClose={() => setModelPrompt(null)}
+        onContinue={
+          modelPrompt === "voice"
+            ? () => void record()
+            : modelPrompt === "categories"
+              ? () => void suggestCategory(note, suggestionVersion.current)
+              : undefined
+        }
+      />
+      </>
     );
   },
 );

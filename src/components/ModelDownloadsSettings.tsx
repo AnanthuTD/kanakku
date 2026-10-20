@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AppState, View } from "react-native";
+import { AppState, View, type LayoutChangeEvent } from "react-native";
 import { native, type ModelDownloadStatus } from "../native/bridge";
 import catalog from "../native/modelCatalog.json";
 import { useApp } from "../state/AppContext";
@@ -9,7 +9,11 @@ import { Text, Button, SectionTitle } from "./ui";
 
 const activeStates = ["queued", "downloading", "verifying", "waiting"];
 const mib = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MiB`;
-export function ModelDownloadsSettings() {
+export function ModelDownloadsSettings({
+  onLayout,
+}: {
+  onLayout?: (event: LayoutChangeEvent) => void;
+}) {
   const { colors } = useApp();
   const [models, setModels] = useState<ModelDownloadStatus[]>([]);
   const [error, setError] = useState("");
@@ -77,7 +81,11 @@ export function ModelDownloadsSettings() {
     }
   }
   return (
-    <View testID="optional-models" style={{ marginVertical: 24, gap: 12 }}>
+    <View
+      testID="optional-models"
+      onLayout={onLayout}
+      style={{ marginVertical: 24, gap: 12 }}
+    >
       <SectionTitle title="Optional models" />
       <Text muted style={{ fontSize: 12 }}>
         Download only the features you want. SMS import, merchant rules and
