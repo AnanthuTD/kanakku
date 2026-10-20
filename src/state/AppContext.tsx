@@ -175,7 +175,7 @@ interface ContextValue {
   update: (
     id: string,
     patch: Partial<Transaction>,
-    remember?: boolean,
+    remember?: boolean | null,
   ) => Promise<boolean>;
   undo: () => Promise<void>;
   canUndo: boolean;
@@ -586,7 +586,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
   const update = async (
     id: string,
     patch: Partial<Transaction>,
-    remember = false,
+    remember?: boolean | null,
   ) => {
     let saved = false;
     await perform(async () => {
@@ -627,17 +627,20 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         patch.kind && patch.kind !== "purchase" ? patch.kind : undefined;
       const canSaveRule =
         (patch.category && patch.category !== "Uncategorized") || rememberKind;
-      const nextRules = remember
-        ? canSaveRule
-          ? setRememberedRule(s.rules, current, {
-              merchant: current.originalMerchant || current.merchant,
-              ...(isAccountPayee(current) ? { bank: current.bank } : {}),
-              category: patch.category || "Uncategorized",
-              alias: patch.merchant || current.merchant,
-              ...(rememberKind ? { kind: rememberKind } : {}),
-            })
-          : s.rules
-        : setRememberedRule(s.rules, current);
+      const nextRules =
+        remember === undefined || remember === null
+          ? s.rules
+          : remember
+            ? canSaveRule
+              ? setRememberedRule(s.rules, current, {
+                  merchant: current.originalMerchant || current.merchant,
+                  ...(isAccountPayee(current) ? { bank: current.bank } : {}),
+                  category: patch.category || "Uncategorized",
+                  alias: patch.merchant || current.merchant,
+                  ...(rememberKind ? { kind: rememberKind } : {}),
+                })
+              : s.rules
+            : setRememberedRule(s.rules, current);
       // A remembered payee also settles that payee's other unconfirmed payments.
       const settled =
         nextRules === s.rules ? next : applyPayeeRules(next, nextRules);
@@ -647,7 +650,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setTransactions(settled);
       setRules(nextRules);
       setNotice(
-        remember && isAccountPayee(current)
+        remember === true && isAccountPayee(current)
           ? "Saved a rule for this account ending at this bank. Another person may share the same ending; you can remove the rule in Settings."
           : "Saved. A little clearer.",
       );

@@ -23,7 +23,7 @@ export function TransactionRow({
     <Pressable
       testID={`transaction-${t.id}`}
       accessibilityRole="button"
-      accessibilityLabel={`${t.merchant}, ${hideAmount ? "amount hidden" : transactionMoney(t)}, ${t.kind === "lent" ? "money lent, tracked separately" : t.review ? "needs review" : t.category}`}
+      accessibilityLabel={`${t.merchant}, ${hideAmount ? "amount hidden" : transactionMoney(t)}, ${t.kind === "lent" ? "money lent, tracked separately" : t.kind === "transfer" ? "self transfer" : t.review ? "needs review" : t.category}`}
       onPress={onPress}
       style={({ pressed }) => ({
         flexDirection: "row",
@@ -37,31 +37,9 @@ export function TransactionRow({
     >
       <CategoryIcon category={t.category} />
       <View style={{ flex: 1, gap: 2 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Text bold numberOfLines={1} style={{ fontSize: 14, flexShrink: 1 }}>
-            {t.merchant}
-          </Text>
-          {t.kind === "lent" && (
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 3,
-                borderRadius: 10,
-                paddingHorizontal: 6,
-                paddingVertical: 2,
-                backgroundColor: colors.accentSoft,
-              }}
-            >
-              <HandCoins size={11} color={colors.accent} />
-              <Text bold style={{ fontSize: 9, color: colors.accent }}>
-                Lent
-              </Text>
-            </View>
-          )}
-        </View>
+        <Text bold numberOfLines={1} style={{ fontSize: 14 }}>
+          {t.merchant}
+        </Text>
         <Text muted numberOfLines={1} style={{ fontSize: 11 }}>
           {t.bank} · {t.account}
           {t.excluded ? " · Excluded" : ""}
@@ -85,33 +63,44 @@ export function TransactionRow({
             INR {money(t.inrAmount, true)}
           </Text>
         )}
-        <Text
-          style={{
-            fontSize: 10,
-            color: t.review ? colors.orange : colors.muted,
-          }}
-        >
-          {t.emailMatchCandidates?.length
-            ? "Possible alert match"
-            : needsInrSettlement(t)
-              ? "INR charge needed"
-              : t.review
-                ? "Needs context"
-                : t.kind === "card_payment"
-                  ? "Card repayment"
-                  : t.kind === "transfer"
-                    ? "Transfer"
-                    : t.kind === "income"
-                      ? "Income"
-                      : t.kind === "lent"
-                        ? "Money lent · repayment tracked separately"
+        {t.kind === "lent" ? (
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
+          >
+            <HandCoins size={11} color={colors.accent} />
+            <Text bold style={{ fontSize: 10, color: colors.accent }}>
+              Lent
+            </Text>
+          </View>
+        ) : (
+          <Text
+            style={{
+              fontSize: 10,
+              color: t.review ? colors.orange : colors.muted,
+            }}
+          >
+            {t.emailMatchCandidates?.length
+              ? "Possible alert match"
+              : needsInrSettlement(t)
+                ? "INR charge needed"
+                : t.review
+                  ? "Needs context"
+                  : t.kind === "card_payment"
+                    ? "Card repayment"
+                    : t.kind === "transfer"
+                      ? "Self transfer"
+                      : t.kind === "income"
+                        ? "Income"
                         : t.timePrecision === "day"
                           ? "Date only"
                           : new Date(t.at).toLocaleTimeString("en-IN", {
                               hour: "numeric",
                               minute: "2-digit",
                             })}
-        </Text>
+          </Text>
+        )}
       </View>
       <ChevronRight size={13} color={colors.muted} />
     </Pressable>

@@ -866,9 +866,17 @@ export default function Home() {
                     rememberActivityScroll();
                     router.push("/settings?section=bank");
                   }}
-                  style={{ minHeight: 48, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 4 }}
+                  style={{
+                    minHeight: 48,
+                    paddingHorizontal: 10,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
                 >
-                  <Text bold style={{ fontSize: 11, color: colors.accent }}>Set up alerts</Text>
+                  <Text bold style={{ fontSize: 11, color: colors.accent }}>
+                    Set up alerts
+                  </Text>
                   <ArrowUpRight color={colors.accent} size={19} />
                 </Pressable>
               )}
@@ -1236,7 +1244,7 @@ export default function Home() {
               </Pressable>
               <TrendChart transactions={monthly} month={month} />
               <Text muted style={{ fontSize: 10 }}>
-                Purchases less refunds. Transfers and card repayments are
+                Purchases less refunds. Self transfers and card repayments are
                 excluded.
               </Text>
             </View>

@@ -6,10 +6,7 @@ import {
   buildReceiptNote,
   type ReceiptDraft,
 } from "../domain/receipt";
-import {
-  isAccountPayee,
-  rememberedRuleFor,
-} from "../domain/payees";
+import { isAccountPayee, rememberedRuleFor } from "../domain/payees";
 import { cancelReceipt } from "../native/receipt";
 import { beginInteraction } from "../state/interactions";
 import React, {
@@ -80,6 +77,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
       error,
       undo,
       canUndo,
+      removeLoan,
       setNotice,
       merchantLookupHints,
       merchantLookupErrors,
@@ -123,11 +121,18 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
     const [voicePhase, setVoicePhase] = useState<VoicePhase>("preparing");
     const voiceVersion = useRef(0);
     const [voiceError, setVoiceError] = useState("");
-    const [modelPrompt, setModelPrompt] = useState<ModelDownloadStatus["id"] | null>(null);
+    const [modelPrompt, setModelPrompt] = useState<
+      ModelDownloadStatus["id"] | null
+    >(null);
     const promptedModels = useRef(new Set<ModelDownloadStatus["id"]>());
     const [kind, setKind] = useState<Kind>("purchase");
     const [excluded, setExcluded] = useState(false);
+    const [confirmUnmark, setConfirmUnmark] = useState(false);
     const tx = transactions.find((t) => t.id === id);
+    const linkedLoan =
+      tx?.kind === "lent"
+        ? loans.find((loan) => loan.transactionId === tx.id)
+        : undefined;
     const recording = useRef(false);
     const suggestionVersion = useRef(0);
     const draftVersion = useRef(0);
@@ -158,6 +163,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
       setInputSeeds({ merchant: t.merchant, note: t.note, noteRevision: 0 });
       setKind(t.kind);
       setExcluded(t.excluded);
+      setConfirmUnmark(false);
       setRemember(Boolean(rememberedRuleFor(t, rules)));
       setConfirmWebSearch(false);
       setConfirmVpaSearch(false);
@@ -418,7 +424,9 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
             return;
           }
         } catch {
-          setVoiceError("Could not check offline voice. Open Settings to retry.");
+          setVoiceError(
+            "Could not check offline voice. Open Settings to retry.",
+          );
           return;
         }
       }
@@ -494,744 +502,835 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
     };
     return (
       <>
-      <BottomSheetModal
-        ref={modal}
-        accessible={false}
-        style={{ maxWidth: 540, width: "100%", alignSelf: "center" }}
-        snapPoints={["88%"]}
-        enableDynamicSizing={false}
-        enablePanDownToClose
-        enableContentPanningGesture={Platform.OS !== "web"}
-        onChange={(index) => setSheetReady(index >= 0)}
-        onDismiss={close}
-        backgroundStyle={{
-          backgroundColor: colors.bg,
-          borderTopLeftRadius: 30,
-          borderTopRightRadius: 30,
-        }}
-        handleIndicatorStyle={{ backgroundColor: colors.line, width: 36 }}
-        backdropComponent={(props) => (
-          <BottomSheetBackdrop
-            {...props}
-            appearsOnIndex={0}
-            disappearsOnIndex={-1}
-            opacity={0.35}
-          />
-        )}
-        keyboardBehavior="interactive"
-        android_keyboardInputMode="adjustResize"
-      >
-        <BottomSheetScrollView
-          {...(Platform.OS === "web"
-            ? {
-                nativeID: "kanakku-review-dialog",
-                role: "dialog" as const,
-                "aria-modal": true,
-                accessibilityLabel: "Review payment",
-              }
-            : {})}
-          testID="review-form"
-          contentContainerStyle={{ padding: 24, paddingBottom: 60 }}
-          keyboardShouldPersistTaps="handled"
+        <BottomSheetModal
+          ref={modal}
+          accessible={false}
+          style={{ maxWidth: 540, width: "100%", alignSelf: "center" }}
+          snapPoints={["88%"]}
+          enableDynamicSizing={false}
+          enablePanDownToClose
+          enableContentPanningGesture={Platform.OS !== "web"}
+          onChange={(index) => setSheetReady(index >= 0)}
+          onDismiss={close}
+          backgroundStyle={{
+            backgroundColor: colors.bg,
+            borderTopLeftRadius: 30,
+            borderTopRightRadius: 30,
+          }}
+          handleIndicatorStyle={{ backgroundColor: colors.line, width: 36 }}
+          backdropComponent={(props) => (
+            <BottomSheetBackdrop
+              {...props}
+              appearsOnIndex={0}
+              disappearsOnIndex={-1}
+              opacity={0.35}
+            />
+          )}
+          keyboardBehavior="interactive"
+          android_keyboardInputMode="adjustResize"
         >
-          {tx && (
-            <>
-              {queueMode && (
-                <Text muted style={{ fontSize: 11, marginBottom: 12 }}>
-                  PAYMENT{" "}
-                  {Math.min(visited.current.size + 1, queue.current.length)} OF{" "}
-                  {queue.current.length} · REVIEW AT YOUR PACE
-                </Text>
-              )}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Text style={{ fontSize: 10, letterSpacing: 1.5 }} muted>
-                  {tx.review
-                    ? "A LITTLE CONTEXT GOES A LONG WAY"
-                    : "TRANSACTION DETAILS"}
-                </Text>
-                <Pressable
-                  accessibilityLabel="Close transaction"
-                  disabled={!sheetReady}
-                  accessibilityRole="button"
-                  onPress={() => modal.current?.dismiss()}
-                  style={{ padding: 12 }}
-                >
-                  <X size={20} color={colors.text} />
-                </Pressable>
-              </View>
-              <View style={{ alignItems: "center", marginBottom: 20 }}>
-                <Mascot
-                  size={90}
-                  mood={
-                    listening ? "listening" : tx.review ? "thinking" : "happy"
-                  }
-                />
-                <Text
-                  serif
-                  style={{ fontSize: 30, lineHeight: 38, marginTop: 8 }}
-                >
-                  {tx.review ? "What was this for?" : "All in the details."}
-                </Text>
-                <Text
-                  serif
-                  style={{ fontSize: 42, lineHeight: 56, marginTop: 12 }}
-                >
-                  {transactionMoney(tx, true)}
-                </Text>
-                <Text bold>{tx.merchant}</Text>
-                {isAccountPayee(tx) && (
-                  <Text
-                    muted
-                    style={{ fontSize: 12, lineHeight: 18, marginTop: 8 }}
-                  >
-                    The destination is masked, so it stays out of totals until
-                    you decide. Choose Transfer for your own account, or
-                    Purchase and a category for a real expense.
-                  </Text>
-                )}
-                <Text muted style={{ fontSize: 12, marginTop: 4 }}>
-                  {tx.bank} · {tx.account} ·{" "}
-                  {new Date(tx.at).toLocaleDateString("en-IN", {
-                    day: "numeric",
-                    month: "short",
-                  })}
-                </Text>
-              </View>
-              {tx.source === "email" && (
-                <Text muted>
-                  Source: authenticated bank email
-                  {tx.timePrecision === "day"
-                    ? " · Bank provided a date only"
-                    : ""}
-                  .
-                </Text>
-              )}
-              {!!tx.emailMatchCandidates?.length && (
-                <View style={{ gap: 10, marginVertical: 12 }}>
-                  <Text accessibilityRole="alert">
-                    This may already be recorded from SMS. It is not counted
-                    while you decide.
-                  </Text>
-                  {tx.emailMatchCandidates
-                    .map((value) => transactions.find((t) => t.id === value))
-                    .filter(Boolean)
-                    .map((candidate) => (
-                      <Button
-                        key={candidate!.id}
-                        secondary
-                        disabled={busy}
-                        onPress={async () => {
-                          const saved = await update(tx.id, {
-                            duplicateOf: candidate!.id,
-                            excluded: true,
-                            review: false,
-                            emailMatchCandidates: undefined,
-                            reason: "You linked these alerts to one payment",
-                            reconciliationDecision: "linked",
-                          });
-                          if (saved) modal.current?.dismiss();
-                        }}
-                      >
-                        Same payment as {candidate!.merchant} ·{" "}
-                        {transactionMoney(candidate!)} ·{" "}
-                        {new Date(candidate!.at).toLocaleDateString("en-IN")}
-                      </Button>
-                    ))}
-                  <Button
-                    secondary
-                    disabled={busy}
-                    onPress={() =>
-                      update(tx.id, {
-                        emailMatchCandidates: undefined,
-                        reason: "You confirmed a separate payment",
-                        reconciliationDecision: "distinct",
-                      })
-                    }
-                  >
-                    Count as a separate payment
-                  </Button>
-                </View>
-              )}
-              {tx.currency && tx.currency !== "INR" && (
-                <View style={{ gap: 10, marginVertical: 12 }}>
-                  <Text accessibilityRole="alert">
-                    The bank reported {transactionMoney(tx)}. Enter the final
-                    INR charge from your bank to include it in INR spending. No
-                    exchange rate is assumed.
-                  </Text>
-                  <ReviewInput
-                    key={`${id}-inr`}
-                    accessibilityLabel="Final INR charge"
-                    defaultValue={
-                      tx.inrAmount ? (tx.inrAmount / 100).toFixed(2) : ""
-                    }
-                    onChangeText={setSettlementText}
-                    keyboardType="decimal-pad"
-                    placeholder="Final charge in rupees"
-                    style={{
-                      color: colors.text,
-                      padding: 14,
-                      borderWidth: 1,
-                      borderColor: colors.line,
-                      borderRadius: 12,
-                    }}
-                  />
-                  {!!settlementText.trim() &&
-                    decimalToPaise(settlementText) === null && (
-                      <Text accessibilityRole="alert">
-                        Enter a valid INR amount with up to two decimals.
-                      </Text>
-                    )}
-                </View>
-              )}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  listening
-                    ? voicePhase === "listening"
-                      ? "Finish recording"
-                      : "Cancel voice"
-                    : "Explain payment by voice"
+          <BottomSheetScrollView
+            {...(Platform.OS === "web"
+              ? {
+                  nativeID: "kanakku-review-dialog",
+                  role: "dialog" as const,
+                  "aria-modal": true,
+                  accessibilityLabel: "Review payment",
                 }
-                onPress={() => {
-                  if (listening) {
-                    if (voicePhase === "listening") finishVoice();
-                    else {
-                      recording.current = false;
-                      voiceVersion.current++;
-                      cancelVoice();
-                      setListening(false);
-                    }
-                  } else record();
-                }}
-                style={{
-                  backgroundColor: colors.accent,
-                  borderRadius: 20,
-                  padding: 18,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 14,
-                }}
-              >
-                {listening ? (
-                  <Square color={colors.accentText} size={22} />
-                ) : (
-                  <Mic color={colors.accentText} size={22} />
+              : {})}
+            testID="review-form"
+            contentContainerStyle={{ padding: 24, paddingBottom: 60 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {tx && (
+              <>
+                {queueMode && (
+                  <Text muted style={{ fontSize: 11, marginBottom: 12 }}>
+                    PAYMENT{" "}
+                    {Math.min(visited.current.size + 1, queue.current.length)}{" "}
+                    OF {queue.current.length} · REVIEW AT YOUR PACE
+                  </Text>
                 )}
-                <View style={{ flex: 1 }}>
-                  <Text bold style={{ color: colors.accentText }}>
-                    {listening
-                      ? voicePhase === "preparing"
-                        ? "Preparing offline voice…"
-                        : voicePhase === "listening"
-                          ? "Listening…"
-                          : "Understanding your words…"
-                      : "Tell me in your own words"}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Text style={{ fontSize: 10, letterSpacing: 1.5 }} muted>
+                    {tx.review
+                      ? "A LITTLE CONTEXT GOES A LONG WAY"
+                      : "TRANSACTION DETAILS"}
+                  </Text>
+                  <Pressable
+                    accessibilityLabel="Close transaction"
+                    disabled={!sheetReady}
+                    accessibilityRole="button"
+                    onPress={() => modal.current?.dismiss()}
+                    style={{ padding: 12 }}
+                  >
+                    <X size={20} color={colors.text} />
+                  </Pressable>
+                </View>
+                <View style={{ alignItems: "center", marginBottom: 20 }}>
+                  <Mascot
+                    size={90}
+                    mood={
+                      listening ? "listening" : tx.review ? "thinking" : "happy"
+                    }
+                  />
+                  <Text
+                    serif
+                    style={{ fontSize: 30, lineHeight: 38, marginTop: 8 }}
+                  >
+                    {tx.review ? "What was this for?" : "All in the details."}
                   </Text>
                   <Text
-                    style={{
-                      color: colors.accentText,
-                      fontSize: 11,
-                      opacity: 0.8,
-                    }}
+                    serif
+                    style={{ fontSize: 42, lineHeight: 56, marginTop: 12 }}
                   >
-                    {listening
-                      ? voicePhase === "listening"
-                        ? "Tap to finish · up to 15 seconds"
-                        : "Tap to cancel"
-                      : `${voiceLanguageLabel} · tap to speak`}
+                    {transactionMoney(tx, true)}
+                  </Text>
+                  <Text bold>{tx.merchant}</Text>
+                  {isAccountPayee(tx) && (
+                    <Text
+                      muted
+                      style={{ fontSize: 12, lineHeight: 18, marginTop: 8 }}
+                    >
+                      The destination is masked, so it stays out of totals until
+                      you decide. Choose Self transfer for your own account, or
+                      Purchase and a category for a real expense.
+                    </Text>
+                  )}
+                  <Text muted style={{ fontSize: 12, marginTop: 4 }}>
+                    {tx.bank} · {tx.account} ·{" "}
+                    {new Date(tx.at).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                    })}
                   </Text>
                 </View>
-                {listening && <ActivityIndicator color={colors.accentText} />}
-              </Pressable>
-              <Text muted style={{ fontSize: 11, marginTop: 8 }}>
-                {voiceLanguages.length > 1
-                  ? `${voiceLanguageLabel} speech becomes an editable English note.`
-                  : `Speak in ${voiceLanguageLabel}; your words become an editable note.`}{" "}
-                Check the words and category before saving. Audio stays on this
-                device.
-              </Text>
-              {voiceError ? (
-                <Text
-                  style={{ color: colors.orange, fontSize: 12, marginTop: 12 }}
-                >
-                  {voiceError}
-                </Text>
-              ) : null}
-              <ReviewInput
-                key={`${id}-merchant-${inputSeeds.merchant}`}
-                accessibilityLabel="Merchant name"
-                defaultValue={inputSeeds.merchant}
-                onChangeText={(value) => {
-                  stopManualSearch();
-                  setConfirmWebSearch(false);
-                  setMerchantName(value);
-                }}
-                maxLength={80}
-                placeholder="Who was this payment to?"
-                placeholderTextColor={colors.muted}
-                style={{
-                  fontFamily: "DMSans",
-                  fontSize: 14,
-                  color: colors.text,
-                  backgroundColor: colors.card,
-                  borderColor: colors.line,
-                  borderWidth: 1,
-                  borderRadius: 16,
-                  minHeight: 52,
-                  padding: 16,
-                  marginTop: 16,
-                }}
-              />
-              <Text muted style={{ fontSize: 10, marginTop: 5 }}>
-                Bank merchant: {tx.originalMerchant || tx.merchant}. Naming it
-                and choosing a category are separate.
-              </Text>
-              <View style={{ gap: 10, marginTop: 16 }}>
-                {merchantLookupHints[tx.id] && (
-                  <MerchantLookupEvidence result={merchantLookupHints[tx.id]} />
-                )}
-                {!!merchantLookupErrors[tx.id] && (
-                  <Text
-                    accessibilityRole="alert"
-                    style={{ color: colors.orange, fontSize: 12 }}
-                  >
-                    {merchantLookupErrors[tx.id]}
+                {tx.source === "email" && (
+                  <Text muted>
+                    Source: authenticated bank email
+                    {tx.timePrecision === "day"
+                      ? " · Bank provided a date only"
+                      : ""}
+                    .
                   </Text>
                 )}
-                {merchantLookupPending.includes(tx.id) ? (
-                  <View style={{ gap: 8 }}>
-                    <Text muted>Looking for public business matches…</Text>
-                    <Button
-                      secondary
-                      onPress={() => {
-                        manualSearch.current = true;
-                        stopManualSearch();
-                      }}
-                    >
-                      Cancel current web search
-                    </Button>
-                  </View>
-                ) : (
-                  <View style={{ gap: 8 }}>
-                    <Button
-                      secondary
-                      onPress={() => {
-                        setConfirmVpaSearch(false);
-                        setVpaApproved(false);
-                        setConfirmWebSearch(true);
-                      }}
-                    >
-                      Look up a public business
-                    </Button>
-                    <Button
-                      secondary
-                      onPress={() => {
-                        setConfirmWebSearch(false);
-                        setVpaApproved(false);
-                        setConfirmVpaSearch(true);
-                      }}
-                    >
-                      Look up a UPI ID
-                    </Button>
-                  </View>
-                )}
-                {confirmWebSearch && (
-                  <View style={{ gap: 10 }}>
-                    <Text muted style={{ fontSize: 12 }}>
-                      Search Brave for “{merchantName}”? Check this is a public
-                      business name. Do not use a person's name or payment
-                      details. Web results will not change this payment.
+                {!!tx.emailMatchCandidates?.length && (
+                  <View style={{ gap: 10, marginVertical: 12 }}>
+                    <Text accessibilityRole="alert">
+                      This may already be recorded from SMS. It is not counted
+                      while you decide.
                     </Text>
+                    {tx.emailMatchCandidates
+                      .map((value) => transactions.find((t) => t.id === value))
+                      .filter(Boolean)
+                      .map((candidate) => (
+                        <Button
+                          key={candidate!.id}
+                          secondary
+                          disabled={busy}
+                          onPress={async () => {
+                            const saved = await update(tx.id, {
+                              duplicateOf: candidate!.id,
+                              excluded: true,
+                              review: false,
+                              emailMatchCandidates: undefined,
+                              reason: "You linked these alerts to one payment",
+                              reconciliationDecision: "linked",
+                            });
+                            if (saved) modal.current?.dismiss();
+                          }}
+                        >
+                          Same payment as {candidate!.merchant} ·{" "}
+                          {transactionMoney(candidate!)} ·{" "}
+                          {new Date(candidate!.at).toLocaleDateString("en-IN")}
+                        </Button>
+                      ))}
                     <Button
-                      disabled={!merchantName.trim()}
                       secondary
-                      onPress={() => {
-                        setConfirmWebSearch(false);
-                        manualSearch.current = true;
-                        void searchMerchant(tx.id, merchantName, true);
-                      }}
+                      disabled={busy}
+                      onPress={() =>
+                        update(tx.id, {
+                          emailMatchCandidates: undefined,
+                          reason: "You confirmed a separate payment",
+                          reconciliationDecision: "distinct",
+                        })
+                      }
                     >
-                      Search this public business
-                    </Button>
-                    <Button
-                      secondary
-                      onPress={() => setConfirmWebSearch(false)}
-                    >
-                      Cancel web search
+                      Count as a separate payment
                     </Button>
                   </View>
                 )}
-                {confirmVpaSearch && (
-                  <View style={{ gap: 10 }}>
-                    <Text bold>Find a merchant from a UPI ID</Text>
-                    <Text muted style={{ fontSize: 12 }}>
-                      Brave will receive this complete UPI ID (VPA). It may
-                      identify a person and many addresses have no public
-                      results. No SMS, amount, account, bank or note is sent.
-                      Search evidence cannot verify who received your payment.
-                      Check the sources, then edit and save the merchant
-                      yourself.
+                {tx.currency && tx.currency !== "INR" && (
+                  <View style={{ gap: 10, marginVertical: 12 }}>
+                    <Text accessibilityRole="alert">
+                      The bank reported {transactionMoney(tx)}. Enter the final
+                      INR charge from your bank to include it in INR spending.
+                      No exchange rate is assumed.
                     </Text>
                     <ReviewInput
-                      key={`${id}-vpa`}
-                      testID="vpa-query"
-                      accessibilityLabel="UPI ID to search"
-                      defaultValue={vpaQuery}
-                      onChangeText={(value) => {
-                        stopManualSearch();
-                        setVpaQuery(value);
-                        setVpaApproved(false);
-                      }}
-                      maxLength={164}
-                      placeholder="shop@bank"
-                      placeholderTextColor={colors.muted}
-                      autoCapitalize="none"
-                      autoCorrect={false}
+                      key={`${id}-inr`}
+                      accessibilityLabel="Final INR charge"
+                      defaultValue={
+                        tx.inrAmount ? (tx.inrAmount / 100).toFixed(2) : ""
+                      }
+                      onChangeText={setSettlementText}
+                      keyboardType="decimal-pad"
+                      placeholder="Final charge in rupees"
                       style={{
                         color: colors.text,
-                        backgroundColor: colors.card,
-                        minHeight: 52,
                         padding: 14,
-                        borderRadius: 12,
                         borderWidth: 1,
                         borderColor: colors.line,
+                        borderRadius: 12,
                       }}
                     />
-                    <Text muted style={{ fontSize: 12 }}>
-                      Search Brave for “{vpaQuery.trim().toLowerCase()}” only.
+                    {!!settlementText.trim() &&
+                      decimalToPaise(settlementText) === null && (
+                        <Text accessibilityRole="alert">
+                          Enter a valid INR amount with up to two decimals.
+                        </Text>
+                      )}
+                  </View>
+                )}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    listening
+                      ? voicePhase === "listening"
+                        ? "Finish recording"
+                        : "Cancel voice"
+                      : "Explain payment by voice"
+                  }
+                  onPress={() => {
+                    if (listening) {
+                      if (voicePhase === "listening") finishVoice();
+                      else {
+                        recording.current = false;
+                        voiceVersion.current++;
+                        cancelVoice();
+                        setListening(false);
+                      }
+                    } else record();
+                  }}
+                  style={{
+                    backgroundColor: colors.accent,
+                    borderRadius: 20,
+                    padding: 18,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 14,
+                  }}
+                >
+                  {listening ? (
+                    <Square color={colors.accentText} size={22} />
+                  ) : (
+                    <Mic color={colors.accentText} size={22} />
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text bold style={{ color: colors.accentText }}>
+                      {listening
+                        ? voicePhase === "preparing"
+                          ? "Preparing offline voice…"
+                          : voicePhase === "listening"
+                            ? "Listening…"
+                            : "Understanding your words…"
+                        : "Tell me in your own words"}
                     </Text>
-                    <View
+                    <Text
                       style={{
+                        color: colors.accentText,
+                        fontSize: 11,
+                        opacity: 0.8,
+                      }}
+                    >
+                      {listening
+                        ? voicePhase === "listening"
+                          ? "Tap to finish · up to 15 seconds"
+                          : "Tap to cancel"
+                        : `${voiceLanguageLabel} · tap to speak`}
+                    </Text>
+                  </View>
+                  {listening && <ActivityIndicator color={colors.accentText} />}
+                </Pressable>
+                <Text muted style={{ fontSize: 11, marginTop: 8 }}>
+                  {voiceLanguages.length > 1
+                    ? `${voiceLanguageLabel} speech becomes an editable English note.`
+                    : `Speak in ${voiceLanguageLabel}; your words become an editable note.`}{" "}
+                  Check the words and category before saving. Audio stays on
+                  this device.
+                </Text>
+                {voiceError ? (
+                  <Text
+                    style={{
+                      color: colors.orange,
+                      fontSize: 12,
+                      marginTop: 12,
+                    }}
+                  >
+                    {voiceError}
+                  </Text>
+                ) : null}
+                <ReviewInput
+                  key={`${id}-merchant-${inputSeeds.merchant}`}
+                  accessibilityLabel="Merchant name"
+                  defaultValue={inputSeeds.merchant}
+                  onChangeText={(value) => {
+                    stopManualSearch();
+                    setConfirmWebSearch(false);
+                    setMerchantName(value);
+                  }}
+                  maxLength={80}
+                  placeholder="Who was this payment to?"
+                  placeholderTextColor={colors.muted}
+                  style={{
+                    fontFamily: "DMSans",
+                    fontSize: 14,
+                    color: colors.text,
+                    backgroundColor: colors.card,
+                    borderColor: colors.line,
+                    borderWidth: 1,
+                    borderRadius: 16,
+                    minHeight: 52,
+                    padding: 16,
+                    marginTop: 16,
+                  }}
+                />
+                <Text muted style={{ fontSize: 10, marginTop: 5 }}>
+                  Bank merchant: {tx.originalMerchant || tx.merchant}. Naming it
+                  and choosing a category are separate.
+                </Text>
+                <View style={{ gap: 10, marginTop: 16 }}>
+                  {merchantLookupHints[tx.id] && (
+                    <MerchantLookupEvidence
+                      result={merchantLookupHints[tx.id]}
+                    />
+                  )}
+                  {!!merchantLookupErrors[tx.id] && (
+                    <Text
+                      accessibilityRole="alert"
+                      style={{ color: colors.orange, fontSize: 12 }}
+                    >
+                      {merchantLookupErrors[tx.id]}
+                    </Text>
+                  )}
+                  {merchantLookupPending.includes(tx.id) ? (
+                    <View style={{ gap: 8 }}>
+                      <Text muted>Looking for public business matches…</Text>
+                      <Button
+                        secondary
+                        onPress={() => {
+                          manualSearch.current = true;
+                          stopManualSearch();
+                        }}
+                      >
+                        Cancel current web search
+                      </Button>
+                    </View>
+                  ) : (
+                    <View style={{ gap: 8 }}>
+                      <Button
+                        secondary
+                        onPress={() => {
+                          setConfirmVpaSearch(false);
+                          setVpaApproved(false);
+                          setConfirmWebSearch(true);
+                        }}
+                      >
+                        Look up a public business
+                      </Button>
+                      <Button
+                        secondary
+                        onPress={() => {
+                          setConfirmWebSearch(false);
+                          setVpaApproved(false);
+                          setConfirmVpaSearch(true);
+                        }}
+                      >
+                        Look up a UPI ID
+                      </Button>
+                    </View>
+                  )}
+                  {confirmWebSearch && (
+                    <View style={{ gap: 10 }}>
+                      <Text muted style={{ fontSize: 12 }}>
+                        Search Brave for “{merchantName}”? Check this is a
+                        public business name. Do not use a person's name or
+                        payment details. Web results will not change this
+                        payment.
+                      </Text>
+                      <Button
+                        disabled={!merchantName.trim()}
+                        secondary
+                        onPress={() => {
+                          setConfirmWebSearch(false);
+                          manualSearch.current = true;
+                          void searchMerchant(tx.id, merchantName, true);
+                        }}
+                      >
+                        Search this public business
+                      </Button>
+                      <Button
+                        secondary
+                        onPress={() => setConfirmWebSearch(false)}
+                      >
+                        Cancel web search
+                      </Button>
+                    </View>
+                  )}
+                  {confirmVpaSearch && (
+                    <View style={{ gap: 10 }}>
+                      <Text bold>Find a merchant from a UPI ID</Text>
+                      <Text muted style={{ fontSize: 12 }}>
+                        Brave will receive this complete UPI ID (VPA). It may
+                        identify a person and many addresses have no public
+                        results. No SMS, amount, account, bank or note is sent.
+                        Search evidence cannot verify who received your payment.
+                        Check the sources, then edit and save the merchant
+                        yourself.
+                      </Text>
+                      <ReviewInput
+                        key={`${id}-vpa`}
+                        testID="vpa-query"
+                        accessibilityLabel="UPI ID to search"
+                        defaultValue={vpaQuery}
+                        onChangeText={(value) => {
+                          stopManualSearch();
+                          setVpaQuery(value);
+                          setVpaApproved(false);
+                        }}
+                        maxLength={164}
+                        placeholder="shop@bank"
+                        placeholderTextColor={colors.muted}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        style={{
+                          color: colors.text,
+                          backgroundColor: colors.card,
+                          minHeight: 52,
+                          padding: 14,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                        }}
+                      />
+                      <Text muted style={{ fontSize: 12 }}>
+                        Search Brave for “{vpaQuery.trim().toLowerCase()}” only.
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          gap: 12,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ flex: 1, fontSize: 12 }}>
+                          I agree to send this exact UPI ID to Brave.
+                        </Text>
+                        <Switch
+                          testID="vpa-consent"
+                          accessibilityLabel="Approve sending this UPI ID to Brave"
+                          value={vpaApproved}
+                          onValueChange={setVpaApproved}
+                          trackColor={{
+                            true: colors.accent,
+                            false: colors.line,
+                          }}
+                        />
+                      </View>
+                      <Button
+                        secondary
+                        disabled={!vpaApproved || !vpaQuery.trim()}
+                        onPress={() => {
+                          setConfirmVpaSearch(false);
+                          setVpaApproved(false);
+                          manualSearch.current = true;
+                          void searchMerchant(tx.id, vpaQuery, true, "vpa");
+                        }}
+                      >
+                        Search this UPI ID
+                      </Button>
+                      <Button
+                        secondary
+                        onPress={() => {
+                          setConfirmVpaSearch(false);
+                          setVpaApproved(false);
+                        }}
+                      >
+                        Cancel UPI ID search
+                      </Button>
+                    </View>
+                  )}
+                </View>
+                <ReviewInput
+                  key={`${id}-note-${inputSeeds.noteRevision}`}
+                  accessibilityLabel="Payment note"
+                  defaultValue={inputSeeds.note}
+                  onChangeText={applyText}
+                  placeholder="Or type what it was for…"
+                  placeholderTextColor={colors.muted}
+                  multiline
+                  style={{
+                    fontFamily: "DMSans",
+                    fontSize: 14,
+                    color: colors.text,
+                    backgroundColor: colors.card,
+                    borderColor: colors.line,
+                    borderWidth: 1,
+                    borderRadius: 16,
+                    minHeight: 62,
+                    padding: 16,
+                    marginVertical: 16,
+                  }}
+                />
+                {sheetReady && (
+                  <ReceiptEditor
+                    key={`${id}-receipt`}
+                    value={receipt}
+                    onChange={(value) => {
+                      suggestionVersion.current++;
+                      setSuggesting(false);
+                      setReceipt(value);
+                    }}
+                    onValidationChange={setReceiptValid}
+                    disabled={busy || listening}
+                    closeCamera={listening}
+                    paymentAmount={
+                      !tx.currency || tx.currency === "INR"
+                        ? tx.amount
+                        : tx.inrAmount
+                    }
+                    autoCapture={autoPhoto}
+                    onCaptureHandled={() => setAutoPhoto(false)}
+                    onUseMerchant={(value) => {
+                      const merchant = value.trim().slice(0, 80);
+                      setMerchantName(merchant);
+                      setInputSeeds((current) => ({ ...current, merchant }));
+                    }}
+                  />
+                )}
+                {receipt && (
+                  <Button
+                    secondary
+                    disabled={busy || listening || !receiptValid}
+                    style={{ marginVertical: 12 }}
+                    onPress={async () => {
+                      const context = `${note} ${buildReceiptNote(receipt)}`;
+                      const version = ++suggestionVersion.current;
+                      const local = classify(context);
+                      setCategory(local.category);
+                      if (
+                        !native ||
+                        local.confidence >= 0.8 ||
+                        isMixedCategoryText(context)
+                      )
+                        return;
+                      await suggestCategory(context, version);
+                    }}
+                  >
+                    Suggest category from bill and note
+                  </Button>
+                )}
+                <Text bold style={{ marginBottom: 12 }}>
+                  {suggesting ? "Finding a suggestion…" : "Choose a category"}
+                </Text>
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                >
+                  {categories.map((c) => (
+                    <Pressable
+                      key={c}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: category === c }}
+                      aria-pressed={category === c}
+                      onPress={() => {
+                        suggestionVersion.current++;
+                        setSuggesting(false);
+                        setCategory(c);
+                      }}
+                      style={{
+                        borderWidth: 1,
+                        borderColor:
+                          category === c ? colors.accent : colors.line,
+                        backgroundColor:
+                          category === c ? colors.accentSoft : colors.card,
+                        paddingHorizontal: 12,
+                        paddingVertical: 12,
+                        borderRadius: 14,
                         flexDirection: "row",
-                        gap: 12,
+                        gap: 6,
                         alignItems: "center",
                       }}
                     >
-                      <Text style={{ flex: 1, fontSize: 12 }}>
-                        I agree to send this exact UPI ID to Brave.
+                      {category === c && (
+                        <Check size={13} color={colors.accent} />
+                      )}
+                      <Text style={{ fontSize: 12 }}>{c}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {tx.kind !== "lent" && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginVertical: 20,
+                      gap: 12,
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text bold style={{ fontSize: 13 }}>
+                        Remember this payee
                       </Text>
-                      <Switch
-                        testID="vpa-consent"
-                        accessibilityLabel="Approve sending this UPI ID to Brave"
-                        value={vpaApproved}
-                        onValueChange={setVpaApproved}
-                        trackColor={{ true: colors.accent, false: colors.line }}
-                      />
+                      <Text muted style={{ fontSize: 11 }}>
+                        {isAccountPayee(tx)
+                          ? `Create a rule for ${tx.bank} + this visible account ending. Another person may share the same ending; future matching payments from this bank will use your choice.`
+                          : "Use this category and type for its other payments."}
+                      </Text>
                     </View>
-                    <Button
-                      secondary
-                      disabled={!vpaApproved || !vpaQuery.trim()}
-                      onPress={() => {
-                        setConfirmVpaSearch(false);
-                        setVpaApproved(false);
-                        manualSearch.current = true;
-                        void searchMerchant(tx.id, vpaQuery, true, "vpa");
-                      }}
-                    >
-                      Search this UPI ID
-                    </Button>
-                    <Button
-                      secondary
-                      onPress={() => {
-                        setConfirmVpaSearch(false);
-                        setVpaApproved(false);
-                      }}
-                    >
-                      Cancel UPI ID search
-                    </Button>
+                    <Switch
+                      accessibilityLabel="Remember merchant category"
+                      disabled={
+                        category === "Uncategorized" &&
+                        kind === "purchase" &&
+                        !remember
+                      }
+                      value={remember}
+                      onValueChange={setRemember}
+                      trackColor={{ true: colors.accent, false: colors.line }}
+                    />
                   </View>
                 )}
-              </View>
-              <ReviewInput
-                key={`${id}-note-${inputSeeds.noteRevision}`}
-                accessibilityLabel="Payment note"
-                defaultValue={inputSeeds.note}
-                onChangeText={applyText}
-                placeholder="Or type what it was for…"
-                placeholderTextColor={colors.muted}
-                multiline
-                style={{
-                  fontFamily: "DMSans",
-                  fontSize: 14,
-                  color: colors.text,
-                  backgroundColor: colors.card,
-                  borderColor: colors.line,
-                  borderWidth: 1,
-                  borderRadius: 16,
-                  minHeight: 62,
-                  padding: 16,
-                  marginVertical: 16,
-                }}
-              />
-              {sheetReady && (
-                <ReceiptEditor
-                  key={`${id}-receipt`}
-                  value={receipt}
-                  onChange={(value) => {
+                <Text bold style={{ marginBottom: 10 }}>
+                  Transaction type
+                </Text>
+                {tx.kind === "lent" ? (
+                  <Text muted style={{ fontSize: 11, lineHeight: 17 }}>
+                    This payment is tracked as money lent. Unmark it from this
+                    screen before changing its transaction type.
+                  </Text>
+                ) : (
+                  <View
+                    style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                  >
+                    {(
+                      [
+                        ["purchase", "Purchase"],
+                        ["refund", "Refund"],
+                        ["transfer", "Self transfer"],
+                        ["card_payment", "Card repayment"],
+                        ["income", "Income"],
+                        ["cash", "Cash withdrawal"],
+                      ] as [Kind, string][]
+                    ).map(([k, label]) => (
+                      <Pressable
+                        key={k}
+                        accessibilityRole="button"
+                        onPress={() => setKind(k)}
+                        style={{
+                          padding: 11,
+                          borderRadius: 12,
+                          backgroundColor:
+                            kind === k ? colors.accentSoft : colors.card,
+                          borderWidth: 1,
+                          borderColor: kind === k ? colors.accent : colors.line,
+                        }}
+                      >
+                        <Text style={{ fontSize: 11 }}>{label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+                {kind === "transfer" && tx.kind !== "lent" && (
+                  <Text
+                    muted
+                    style={{ fontSize: 11, lineHeight: 17, marginTop: 8 }}
+                  >
+                    Use Self transfer only when moving money between accounts
+                    you own.
+                  </Text>
+                )}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginVertical: 18,
+                  }}
+                >
+                  <Text>Exclude from spending</Text>
+                  <Switch
+                    accessibilityLabel="Exclude from spending"
+                    value={excluded}
+                    onValueChange={setExcluded}
+                    trackColor={{ true: colors.accent, false: colors.line }}
+                  />
+                </View>
+                <Text muted style={{ fontSize: 11, marginBottom: 18 }}>
+                  Categorization: {tx.reason}. All totals are calculated from
+                  your ledger.
+                </Text>
+                {error ? (
+                  <Text style={{ color: colors.danger, marginBottom: 12 }}>
+                    {error}
+                  </Text>
+                ) : null}
+                {notice === "Saved. A little clearer." ? (
+                  <Text style={{ color: colors.accent, marginBottom: 12 }}>
+                    ✓ Saved. You can close this or make another change.
+                  </Text>
+                ) : null}
+                <Button
+                  disabled={
+                    busy ||
+                    listening ||
+                    !sheetReady ||
+                    !receiptValid ||
+                    !!tx.emailMatchCandidates?.length ||
+                    (!!settlementText.trim() &&
+                      decimalToPaise(settlementText) === null)
+                  }
+                  onPress={async () => {
+                    // Save confirms this draft. A late suggestion must not change
+                    // the selected chip after the confirmed category is persisted.
                     suggestionVersion.current++;
                     setSuggesting(false);
-                    setReceipt(value);
-                  }}
-                  onValidationChange={setReceiptValid}
-                  disabled={busy || listening}
-                  closeCamera={listening}
-                  paymentAmount={
-                    !tx.currency || tx.currency === "INR"
-                      ? tx.amount
-                      : tx.inrAmount
-                  }
-                  autoCapture={autoPhoto}
-                  onCaptureHandled={() => setAutoPhoto(false)}
-                  onUseMerchant={(value) => {
-                    const merchant = value.trim().slice(0, 80);
-                    setMerchantName(merchant);
-                    setInputSeeds((current) => ({ ...current, merchant }));
-                  }}
-                />
-              )}
-              {receipt && (
-                <Button
-                  secondary
-                  disabled={busy || listening || !receiptValid}
-                  style={{ marginVertical: 12 }}
-                  onPress={async () => {
-                    const context = `${note} ${buildReceiptNote(receipt)}`;
-                    const version = ++suggestionVersion.current;
-                    const local = classify(context);
-                    setCategory(local.category);
-                    if (
-                      !native ||
-                      local.confidence >= 0.8 ||
-                      isMixedCategoryText(context)
-                    )
-                      return;
-                    await suggestCategory(context, version);
-                  }}
-                >
-                  Suggest category from bill and note
-                </Button>
-              )}
-              <Text bold style={{ marginBottom: 12 }}>
-                {suggesting ? "Finding a suggestion…" : "Choose a category"}
-              </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {categories.map((c) => (
-                  <Pressable
-                    key={c}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: category === c }}
-                    aria-pressed={category === c}
-                    onPress={() => {
-                      suggestionVersion.current++;
-                      setSuggesting(false);
-                      setCategory(c);
-                    }}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: category === c ? colors.accent : colors.line,
-                      backgroundColor:
-                        category === c ? colors.accentSoft : colors.card,
-                      paddingHorizontal: 12,
-                      paddingVertical: 12,
-                      borderRadius: 14,
-                      flexDirection: "row",
-                      gap: 6,
-                      alignItems: "center",
-                    }}
-                  >
-                    {category === c && (
-                      <Check size={13} color={colors.accent} />
-                    )}
-                    <Text style={{ fontSize: 12 }}>{c}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginVertical: 20,
-                  gap: 12,
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text bold style={{ fontSize: 13 }}>
-                    Remember this payee
-                  </Text>
-                  <Text muted style={{ fontSize: 11 }}>
-                    {isAccountPayee(tx)
-                      ? `Create a rule for ${tx.bank} + this visible account ending. Another person may share the same ending; future matching payments from this bank will use your choice.`
-                      : "Use this category and type for its other payments."}
-                  </Text>
-                </View>
-                <Switch
-                  accessibilityLabel="Remember merchant category"
-                  disabled={
-                    category === "Uncategorized" &&
-                    kind === "purchase" &&
-                    !remember
-                  }
-                  value={remember}
-                  onValueChange={setRemember}
-                  trackColor={{ true: colors.accent, false: colors.line }}
-                />
-              </View>
-              <Text bold style={{ marginBottom: 10 }}>
-                Transaction type
-              </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {(
-                  [
-                    ["purchase", "Purchase"],
-                    ["refund", "Refund"],
-                    ["transfer", "Transfer"],
-                    ["card_payment", "Card repayment"],
-                    ["income", "Income"],
-                    ["cash", "Cash withdrawal"],
-                  ] as [Kind, string][]
-                ).map(([k, label]) => (
-                  <Pressable
-                    key={k}
-                    accessibilityRole="button"
-                    onPress={() => setKind(k)}
-                    style={{
-                      padding: 11,
-                      borderRadius: 12,
-                      backgroundColor:
-                        kind === k ? colors.accentSoft : colors.card,
-                      borderWidth: 1,
-                      borderColor: kind === k ? colors.accent : colors.line,
-                    }}
-                  >
-                    <Text style={{ fontSize: 11 }}>{label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginVertical: 18,
-                }}
-              >
-                <Text>Exclude from spending</Text>
-                <Switch
-                  accessibilityLabel="Exclude from spending"
-                  value={excluded}
-                  onValueChange={setExcluded}
-                  trackColor={{ true: colors.accent, false: colors.line }}
-                />
-              </View>
-              <Text muted style={{ fontSize: 11, marginBottom: 18 }}>
-                Categorization: {tx.reason}. All totals are calculated from your
-                ledger.
-              </Text>
-              {error ? (
-                <Text style={{ color: colors.danger, marginBottom: 12 }}>
-                  {error}
-                </Text>
-              ) : null}
-              {notice === "Saved. A little clearer." ? (
-                <Text style={{ color: colors.accent, marginBottom: 12 }}>
-                  ✓ Saved. You can close this or make another change.
-                </Text>
-              ) : null}
-              <Button
-                disabled={
-                  busy ||
-                  listening ||
-                  !sheetReady ||
-                  !receiptValid ||
-                  !!tx.emailMatchCandidates?.length ||
-                  (!!settlementText.trim() &&
-                    decimalToPaise(settlementText) === null)
-                }
-                onPress={async () => {
-                  // Save confirms this draft. A late suggestion must not change
-                  // the selected chip after the confirmed category is persisted.
-                  suggestionVersion.current++;
-                  setSuggesting(false);
-                  const saved = await update(
-                    tx.id,
-                    {
-                      category,
-                      merchant: merchantName,
-                      note,
-                      receipt: normalizeReceipt(receipt),
-                      inrAmount:
-                        tx.currency && tx.currency !== "INR"
-                          ? (decimalToPaise(settlementText) ?? undefined)
-                          : tx.inrAmount,
-                      review:
-                        (category === "Uncategorized" && kind === "purchase") ||
-                        (!!tx.currency &&
-                          tx.currency !== "INR" &&
-                          !decimalToPaise(settlementText)),
-                      kind,
-                      excluded,
-                      reason: "Confirmed by you",
-                    },
-                    remember,
-                  );
-                  if (saved && queueMode) advance();
-                }}
-              >
-                {busy
-                  ? "Saving…"
-                  : queueMode
-                    ? "Save & next payment"
-                    : "Save category"}
-              </Button>
-              <Button
-                secondary
-                disabled={!sheetReady}
-                style={{ marginTop: 10 }}
-                onPress={queueMode ? advance : () => modal.current?.dismiss()}
-              >
-                {queueMode ? "Skip for now" : "Done"}
-              </Button>
-              {!queueMode && tx.kind !== "lent" && !loans.some((loan) => loan.transactionId === tx.id) && (
-                <Button
-                  secondary
-                  style={{ marginTop: 10 }}
-                  onPress={() => {
-                    modal.current?.dismiss();
-                    router.push(
-                      `/lending?transactionId=${encodeURIComponent(tx.id)}` as Href,
+                    const saved = await update(
+                      tx.id,
+                      {
+                        category,
+                        merchant: merchantName,
+                        note,
+                        receipt: normalizeReceipt(receipt),
+                        inrAmount:
+                          tx.currency && tx.currency !== "INR"
+                            ? (decimalToPaise(settlementText) ?? undefined)
+                            : tx.inrAmount,
+                        review:
+                          (category === "Uncategorized" &&
+                            kind === "purchase") ||
+                          (!!tx.currency &&
+                            tx.currency !== "INR" &&
+                            !decimalToPaise(settlementText)),
+                        kind,
+                        excluded,
+                        reason: "Confirmed by you",
+                      },
+                      tx.kind === "lent" ? null : remember,
                     );
+                    if (saved && queueMode) advance();
                   }}
                 >
-                  Record this payment as money lent
+                  {busy
+                    ? "Saving…"
+                    : queueMode
+                      ? "Save & next payment"
+                      : "Save category"}
                 </Button>
-              )}
-              {canUndo && (
-                <Button secondary onPress={undo} style={{ marginTop: 10 }}>
-                  Undo last change
+                <Button
+                  secondary
+                  disabled={!sheetReady}
+                  style={{ marginTop: 10 }}
+                  onPress={queueMode ? advance : () => modal.current?.dismiss()}
+                >
+                  {queueMode ? "Skip for now" : "Done"}
                 </Button>
-              )}
-            </>
-          )}
-        </BottomSheetScrollView>
-      </BottomSheetModal>
-      <OptionalModelPrompt
-        modelId={modelPrompt}
-        onClose={() => setModelPrompt(null)}
-        onContinue={
-          modelPrompt === "voice"
-            ? () => void record()
-            : modelPrompt === "categories"
-              ? () => void suggestCategory(note, suggestionVersion.current)
-              : undefined
-        }
-      />
+                {!queueMode &&
+                  tx.kind !== "lent" &&
+                  !loans.some((loan) => loan.transactionId === tx.id) && (
+                    <Button
+                      secondary
+                      style={{ marginTop: 10 }}
+                      onPress={() => {
+                        modal.current?.dismiss();
+                        router.push(
+                          `/lending?transactionId=${encodeURIComponent(tx.id)}` as Href,
+                        );
+                      }}
+                    >
+                      Record this payment as money lent
+                    </Button>
+                  )}
+                {!queueMode &&
+                  tx.kind === "lent" &&
+                  linkedLoan &&
+                  (linkedLoan.repayments.length ? (
+                    <Text muted style={{ marginTop: 10, fontSize: 11 }}>
+                      This loan has repayments, so it stays linked to preserve
+                      its history.
+                    </Text>
+                  ) : confirmUnmark ? (
+                    <View
+                      style={{
+                        marginTop: 12,
+                        padding: 14,
+                        gap: 10,
+                        borderRadius: 14,
+                        backgroundColor: colors.accentSoft,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, lineHeight: 18 }}>
+                        The payment will return to its previous type. If it was
+                        an expense, it will count in spending again.
+                      </Text>
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <Button
+                          secondary
+                          style={{ flex: 1 }}
+                          onPress={() => setConfirmUnmark(false)}
+                        >
+                          Keep loan
+                        </Button>
+                        <Button
+                          disabled={busy}
+                          style={{ flex: 1 }}
+                          onPress={async () => {
+                            const removed = await removeLoan(linkedLoan.id);
+                            if (removed) {
+                              setConfirmUnmark(false);
+                              modal.current?.dismiss();
+                            }
+                          }}
+                        >
+                          Unmark loan
+                        </Button>
+                      </View>
+                    </View>
+                  ) : (
+                    <Button
+                      secondary
+                      disabled={busy}
+                      style={{ marginTop: 10 }}
+                      onPress={() => setConfirmUnmark(true)}
+                    >
+                      Unmark as money lent
+                    </Button>
+                  ))}
+                {canUndo && (
+                  <Button secondary onPress={undo} style={{ marginTop: 10 }}>
+                    Undo last change
+                  </Button>
+                )}
+              </>
+            )}
+          </BottomSheetScrollView>
+        </BottomSheetModal>
+        <OptionalModelPrompt
+          modelId={modelPrompt}
+          onClose={() => setModelPrompt(null)}
+          onContinue={
+            modelPrompt === "voice"
+              ? () => void record()
+              : modelPrompt === "categories"
+                ? () => void suggestCategory(note, suggestionVersion.current)
+                : undefined
+          }
+        />
       </>
     );
   },

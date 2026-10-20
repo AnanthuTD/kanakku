@@ -55,4 +55,19 @@ test("marking a counted bank payment as lent immediately lowers monthly spending
   await expect(
     page.getByTestId("transaction-rahul").getByText("Lent", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByTestId("transaction-rahul").getByText("Rahul S", { exact: true }),
+  ).toBeVisible();
+
+  await page.getByTestId("transaction-rahul").click();
+  const detail = page.getByTestId("review-form");
+  await expect(detail.getByText(/tracked as money lent/)).toBeVisible();
+  await expect(
+    detail.getByRole("button", { name: "Self transfer", exact: true }),
+  ).toBeHidden();
+  await detail.getByRole("button", { name: "Unmark as money lent" }).click();
+  await expect(detail.getByText(/return to its previous type/)).toBeVisible();
+  await detail.getByRole("button", { name: "Unmark loan" }).click();
+  await page.getByRole("tab", { name: "Overview" }).click();
+  await expect(page.getByTestId("overview-total")).toHaveText("₹1,650");
 });

@@ -27,7 +27,7 @@ export interface LedgerFilter {
 export const KIND_OPTIONS: { value: Kind; label: string }[] = [
   { value: "purchase", label: "Purchases" },
   { value: "refund", label: "Refunds" },
-  { value: "transfer", label: "Transfers" },
+  { value: "transfer", label: "Self transfers" },
   { value: "card_payment", label: "Card repayments" },
   { value: "income", label: "Income" },
   { value: "cash", label: "Cash withdrawals" },
