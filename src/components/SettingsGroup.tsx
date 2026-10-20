@@ -1,7 +1,6 @@
 import React from "react";
 import { View } from "react-native";
 import { Text } from "./ui";
-import { useApp } from "../state/AppContext";
 
 export function SettingsGroup({
   title,
@@ -16,27 +15,24 @@ export function SettingsGroup({
   children: React.ReactNode;
   testID: string;
 }) {
-  const { colors } = useApp();
   return (
     <View
       style={{
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: colors.line,
-        borderRadius: 18,
-        backgroundColor: colors.card,
-        overflow: "hidden",
+        marginBottom: 22,
+        gap: 16,
       }}
       testID={testID}
     >
-      <View style={{ paddingVertical: 13, paddingHorizontal: 16 }}>
-        <View style={{ gap: 3 }}>
-          <Text bold style={{ fontSize: 14 }}>{title}</Text>
-          <Text muted style={{ fontSize: 11, lineHeight: 16 }}>{summary ?? detail}</Text>
-        </View>
+      <View style={{ gap: 4 }}>
+        <Text serif style={{ fontSize: 21, lineHeight: 28 }}>{title}</Text>
+        {summary ? (
+          <Text muted style={{ fontSize: 12, lineHeight: 18 }}>{summary}</Text>
+        ) : null}
+        {detail ? (
+          <Text muted style={{ fontSize: 12, lineHeight: 18 }}>{detail}</Text>
+        ) : null}
       </View>
-      <View style={{ paddingHorizontal: 16, paddingBottom: 16, gap: 12 }}>
-        {summary ? <Text muted style={{ fontSize: 11, lineHeight: 17 }}>{detail}</Text> : null}
+      <View style={{ gap: 16 }}>
         {children}
       </View>
     </View>

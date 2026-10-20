@@ -181,7 +181,7 @@ export default function Settings() {
           {!selectedGroup ? (
             <View testID="settings-menu" style={{ gap: 8 }}>
               {Array.from(new Set(settingsItems.map((item) => item.group))).map((group) => (
-                <View key={group} style={{ marginBottom: 12 }}>
+                <View key={group} style={{ marginBottom: 14, gap: 10 }}>
                   <Text muted bold style={{ fontSize: 11, letterSpacing: 0.7, marginHorizontal: 4, marginBottom: 6 }}>
                     {group.toUpperCase()}
                   </Text>
@@ -228,7 +228,6 @@ export default function Settings() {
             testID="settings-accounts-group"
             title="Email & backup"
             detail="Add card alerts from Gmail or save an encrypted recovery copy."
-            summary="Gmail and Google Drive"
           >
             <GmailSettings />
             <DriveBackupSettings />
