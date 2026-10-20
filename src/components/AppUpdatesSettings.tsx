@@ -112,7 +112,8 @@ export function AppUpdatesSettings({
             >
               Restart to update
             </Button>
-          ) : state.phase === "available" || state.phase === "downloading" ? null : (
+          ) : state.phase === "available" ||
+            state.phase === "downloading" ? null : (
             <Button
               disabled={["checking", "downloading", "restarting"].includes(
                 state.phase,

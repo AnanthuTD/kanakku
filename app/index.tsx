@@ -12,6 +12,7 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
+  AppState,
   Platform,
   PermissionsAndroid,
 } from "react-native";
@@ -99,6 +100,34 @@ export default function Home() {
     error,
     notice,
   } = app;
+  const unlockAttempted = useRef(false);
+  const unlockRef = useRef(app.unlock);
+  unlockRef.current = app.unlock;
+  const [appActive, setAppActive] = useState(
+    AppState.currentState === "active",
+  );
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (next) => {
+      const active = next === "active";
+      if (!active) unlockAttempted.current = false;
+      setAppActive(active);
+    });
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    if (!locked) {
+      unlockAttempted.current = false;
+      return;
+    }
+    if (!appActive) {
+      unlockAttempted.current = false;
+      return;
+    }
+    if (!loaded || busy || unlockAttempted.current) return;
+    unlockAttempted.current = true;
+    const timer = setTimeout(() => void unlockRef.current(), 250);
+    return () => clearTimeout(timer);
+  }, [appActive, busy, loaded, locked]);
   const insets = useSafeAreaInsets();
   const sheet = useRef<ReviewHandle>(null);
   const params = useLocalSearchParams<{

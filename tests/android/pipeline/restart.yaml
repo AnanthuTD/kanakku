@@ -15,9 +15,6 @@ name: Encrypted provider journal locks and survives restart
     timeout: 120000
 - assertNotVisible:
     id: "overview-total"
-- tapOn:
-    text: "Unlock Kanakku"
-    waitToSettleTimeoutMs: 1000
 - extendedWaitUntil:
     visible:
       id: ".*(pinEntry|lockPassword)"
