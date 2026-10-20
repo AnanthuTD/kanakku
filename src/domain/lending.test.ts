@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { loanOutstanding, validLoan, type LoanRecord } from "./lending";
+import {
+  loanOutstanding,
+  restoreLentTransaction,
+  validLoan,
+  type LoanRecord,
+} from "./lending";
+import type { Transaction } from "./model";
 
 const loan: LoanRecord = {
   id: "loan-1",
@@ -36,5 +42,49 @@ describe("money lent tracking", () => {
     ).toBe(false);
     expect(validLoan({ ...loan, dueDate: "tomorrow" })).toBe(false);
     expect(validLoan({ ...loan, remind: "yes" })).toBe(false);
+  });
+
+  it("restores the original payee classification when lending is undone", () => {
+    const before: Transaction = {
+      id: "sms-1",
+      amount: 50_000,
+      merchant: "A/c ••46975",
+      account: "1234",
+      bank: "Kerala Gramin Bank",
+      at: loan.lentAt,
+      category: "Uncategorized",
+      kind: "transfer",
+      review: true,
+      excluded: false,
+      note: "",
+      source: "sms",
+      reason: "Bank transfer",
+    };
+    const marked: Transaction = {
+      ...before,
+      merchant: "Maya",
+      originalMerchant: before.merchant,
+      category: "Friends & family",
+      kind: "lent",
+      review: false,
+      reason: "Money lent; repayment tracked separately",
+      classification: { method: "user", version: "lending-v1" },
+    };
+    const linkedLoan: LoanRecord = {
+      ...loan,
+      repayments: [],
+      previousTransaction: {
+        merchant: before.merchant,
+        category: before.category,
+        kind: before.kind,
+        review: before.review,
+        reason: before.reason,
+      },
+    };
+    const restored = restoreLentTransaction(marked, linkedLoan);
+    expect(restored.merchant).toBe(before.merchant);
+    expect(restored.kind).toBe("transfer");
+    expect(restored.category).toBe("Uncategorized");
+    expect(restored.review).toBe(true);
   });
 });

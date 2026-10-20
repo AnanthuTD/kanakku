@@ -23,7 +23,11 @@ import {
   ledgerMetadata,
 } from "../data/metadata";
 import { cancelVoice } from "../native/voice";
-import { LoanRecord, loanOutstanding } from "../domain/lending";
+import {
+  LoanRecord,
+  loanOutstanding,
+  restoreLentTransaction,
+} from "../domain/lending";
 import { makeJournalBackup } from "../domain/backup";
 import { validDay } from "../domain/ledger";
 import React, {
@@ -45,6 +49,8 @@ import {
   classify,
   merchantKey,
   mergeTransactions,
+  money,
+  spendOf,
 } from "../domain/model";
 import { sampleTransactions } from "../data/sample";
 import {
@@ -127,6 +133,7 @@ interface ContextValue {
       remind?: boolean;
     },
   ) => Promise<boolean>;
+  removeLoan: (loanId: string) => Promise<boolean>;
   recordLoanRepayment: (
     loanId: string,
     amount: number,
@@ -812,6 +819,9 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     const id =
       globalThis.crypto?.randomUUID?.() ||
       `loan-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const existing = state.current.transactions.find(
+      (t) => t.id === input.transactionId,
+    );
     const loan: LoanRecord = {
       id,
       person,
@@ -822,13 +832,26 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       repayments: [],
       remind: Boolean(input.remind && input.dueDate),
       ...(input.transactionId ? { transactionId: input.transactionId } : {}),
+      ...(existing
+        ? {
+            previousTransaction: {
+              merchant: existing.merchant,
+              category: existing.category,
+              kind: existing.kind,
+              review: existing.review,
+              reason: existing.reason,
+              ...(existing.classification
+                ? { classification: existing.classification }
+                : {}),
+            },
+          }
+        : {}),
     };
-    const existing = state.current.transactions.find(
-      (t) => t.id === input.transactionId,
-    );
     if (
       input.transactionId &&
-      state.current.loans.some((loan) => loan.transactionId === input.transactionId)
+      state.current.loans.some(
+        (loan) => loan.transactionId === input.transactionId,
+      )
     ) {
       setError("This bank payment is already linked to a loan.");
       return false;
@@ -845,6 +868,8 @@ export function AppProvider({ children }: React.PropsWithChildren) {
             ? {
                 ...transaction,
                 merchant: person,
+                originalMerchant:
+                  transaction.originalMerchant || transaction.merchant,
                 category: "Friends & family",
                 kind: "lent" as const,
                 review: false,
@@ -857,6 +882,12 @@ export function AppProvider({ children }: React.PropsWithChildren) {
             : transaction,
         )
       : state.current.transactions;
+    const spendReduction = existing ? spendOf(existing) : 0;
+    const spendImpact = spendReduction > 0
+      ? `${money(spendReduction)} removed from monthly spending.`
+      : existing
+        ? "This payment was already excluded from spending, so the total stays the same."
+        : "";
     const nextLoans = [...state.current.loans, loan];
     try {
       await persist(
@@ -886,24 +917,76 @@ export function AppProvider({ children }: React.PropsWithChildren) {
               Math.max(dueAt, Date.now() + 60_000),
             );
             setNotice(
-              `Added money lent to ${person}; reminder set for ${loan.dueDate}.`,
+              `Added money lent to ${person}; reminder set for ${loan.dueDate}.${spendImpact ? ` ${spendImpact}` : ""}`,
             );
           } else {
             setNotice(
-              `Added money lent to ${person}. Turn on notifications to get a return-date reminder.`,
+              `Added money lent to ${person}. Turn on notifications to get a return-date reminder.${spendImpact ? ` ${spendImpact}` : ""}`,
             );
           }
         } catch {
           setNotice(
-            `Added money lent to ${person}. The return date is saved, but Android could not schedule a notification.`,
+            `Added money lent to ${person}. The return date is saved, but Android could not schedule a notification.${spendImpact ? ` ${spendImpact}` : ""}`,
           );
         }
       } else {
-        setNotice(`Added money lent to ${person}.`);
+        setNotice(
+          `Added money lent to ${person}.${spendImpact ? ` ${spendImpact}` : ""}`,
+        );
       }
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save this loan.");
+      return false;
+    }
+  };
+  const removeLoan: ContextValue["removeLoan"] = async (loanId) => {
+    const loan = state.current.loans.find((item) => item.id === loanId);
+    if (!loan) {
+      setError("This lending record is no longer available.");
+      return false;
+    }
+    if (loan.repayments.length) {
+      setError(
+        "This lending record has repayments. Keep it so the return history and balance stay accurate.",
+      );
+      return false;
+    }
+    const transaction = loan.transactionId
+      ? state.current.transactions.find(
+          (item) => item.id === loan.transactionId,
+        )
+      : undefined;
+    const nextTransactions = transaction
+      ? state.current.transactions.map((item) =>
+          item.id !== transaction.id
+            ? item
+            : restoreLentTransaction(item, loan),
+        )
+      : state.current.transactions;
+    const nextLoans = state.current.loans.filter((item) => item.id !== loanId);
+    try {
+      await persist(
+        nextTransactions,
+        state.current.rules,
+        undefined,
+        undefined,
+        nextLoans,
+      );
+      if (transaction) setTransactions(nextTransactions);
+      setLoans(nextLoans);
+      await native?.cancelLendingReminder(loanId).catch(() => {});
+      setError("");
+      setNotice(
+        transaction
+          ? "Removed from money lent. The payment is back to its previous classification."
+          : "Lending record removed.",
+      );
+      return true;
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Could not remove this record.",
+      );
       return false;
     }
   };
@@ -1257,11 +1340,17 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       await closeLive();
       await openLive(key);
       await replaceLive(backup.transactions, backup.rules, backup.metadata);
-      await native.saveAutoBackupSnapshot(
-        JSON.stringify(
-          makeJournalBackup(backup.transactions, backup.rules, backup.metadata),
-        ),
-      ).catch(() => {});
+      await native
+        .saveAutoBackupSnapshot(
+          JSON.stringify(
+            makeJournalBackup(
+              backup.transactions,
+              backup.rules,
+              backup.metadata,
+            ),
+          ),
+        )
+        .catch(() => {});
       await native.saveRules(
         backup.rules
           .filter(hasSafeRule)
@@ -1423,6 +1512,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         addCategory,
         loans,
         addLoan,
+        removeLoan,
         recordLoanRepayment,
         recurringDecisions,
         setRecurringDecision,
