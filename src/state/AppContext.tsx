@@ -24,6 +24,7 @@ import {
 } from "../data/metadata";
 import { cancelVoice } from "../native/voice";
 import { LoanRecord, loanOutstanding } from "../domain/lending";
+import { makeJournalBackup } from "../domain/backup";
 import { validDay } from "../domain/ledger";
 import React, {
   createContext,
@@ -337,6 +338,18 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         setTimeout(() => requestRefresh.current(), 150);
     }
   };
+  const saveJournalAndSnapshot = async (
+    transactions: Transaction[],
+    rules: MerchantRule[],
+    metadata: LedgerMetadata,
+  ) => {
+    await saveLive(transactions, rules, metadata);
+    await native
+      ?.saveAutoBackupSnapshot(
+        JSON.stringify(makeJournalBackup(transactions, rules, metadata)),
+      )
+      .catch(() => {});
+  };
   const flush = async (data: {
     transactions: Transaction[];
     rules: MerchantRule[];
@@ -383,7 +396,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           ),
         ),
       );
-      await saveLive(transactions, data.rules, data.metadata);
+      await saveJournalAndSnapshot(transactions, data.rules, data.metadata);
       await native.acknowledge(incoming.map((t) => t.id));
     }
     // Voice answers given to the floating companion while Kanakku was closed.
@@ -397,7 +410,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       );
       if (applied.done.length) {
         transactions = applied.transactions;
-        await saveLive(transactions, data.rules, data.metadata);
+        await saveJournalAndSnapshot(transactions, data.rules, data.metadata);
         await native.acknowledgeAnswers(applied.done);
       }
     }
@@ -413,7 +426,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       });
     if (linked !== transactions) {
       transactions = linked;
-      await saveLive(transactions, data.rules, data.metadata);
+      await saveJournalAndSnapshot(transactions, data.rules, data.metadata);
     }
     if (transactions === data.transactions) return data;
     return { ...data, transactions };
@@ -526,11 +539,14 @@ export function AppProvider({ children }: React.PropsWithChildren) {
   ) => {
     if (state.current.mode === "live") {
       if (state.current.locked) throw new Error("Unlock Kanakku first");
-      await saveLive(next, nextRules, {
+      const metadata = {
         recurringDecisions: decisions,
         customCategories: categories,
         loans: nextLoans,
-      });
+      };
+      // Refresh only an explicitly enabled, device-encrypted backup snapshot.
+      // The scheduled worker never opens the biometric-protected SQLCipher DB.
+      await saveJournalAndSnapshot(next, nextRules, metadata);
       await native?.saveRules(
         nextRules
           .filter(hasSafeRule)
@@ -1241,6 +1257,11 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       await closeLive();
       await openLive(key);
       await replaceLive(backup.transactions, backup.rules, backup.metadata);
+      await native.saveAutoBackupSnapshot(
+        JSON.stringify(
+          makeJournalBackup(backup.transactions, backup.rules, backup.metadata),
+        ),
+      ).catch(() => {});
       await native.saveRules(
         backup.rules
           .filter(hasSafeRule)

@@ -135,6 +135,7 @@ class Vault(private val context: Context) {
     return mapOf("deviceSecure" to secure,"vaultReady" to ready(),"backing" to backing)
   }
   fun reset()=synchronized(lifecycleGuard) {
+    DriveAutoBackupStore.disable(context)
     prefs.edit().putBoolean("capture",false).putLong("vaultEpoch",prefs.getLong("vaultEpoch",0)+1).commit()
     synchronized(inboxGuard) {
       // Expo SQLite's default directory is filesDir/SQLite; React Native closes it before this reset.

@@ -96,6 +96,44 @@ interface KanakkuNative {
     payload: string,
     password: string,
   ): Promise<{ fileName: string; modifiedTime: string }>;
+  configureAutoBackup(
+    payload: string,
+    password: string,
+    intervalDays: number,
+  ): Promise<{ fileName: string; modifiedTime: string; enabled: boolean; intervalDays: number }>;
+  autoBackupStatus(): Promise<{
+    enabled: boolean;
+    intervalDays: number;
+    lastBackupAt: number;
+    snapshotAt: number;
+    state: "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
+    error: string;
+  }>;
+  saveAutoBackupSnapshot(payload: string): Promise<boolean>;
+  runAutoBackupNow(payload: string): Promise<{
+    enabled: boolean;
+    intervalDays: number;
+    lastBackupAt: number;
+    snapshotAt: number;
+    state: "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
+    error: string;
+  }>;
+  setAutoBackupInterval(intervalDays: number): Promise<{
+    enabled: boolean;
+    intervalDays: number;
+    lastBackupAt: number;
+    snapshotAt: number;
+    state: "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
+    error: string;
+  }>;
+  disableAutoBackup(): Promise<{
+    enabled: boolean;
+    intervalDays: number;
+    lastBackupAt: number;
+    snapshotAt: number;
+    state: "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
+    error: string;
+  }>;
   /** Downloads and decrypts the latest Kanakku Drive backup. */
   restoreFromDrive(password: string): Promise<string>;
   gmailStatus(): Promise<GmailStatus>;

@@ -36,7 +36,6 @@ import {
 } from "lucide-react-native";
 import { useApp } from "../src/state/AppContext";
 import { Text, Button, SectionTitle, styles as ui } from "../src/components/ui";
-import { Mascot } from "../src/components/Avatar";
 import { native } from "../src/native/bridge";
 import { ThemeMode, Category } from "../src/domain/model";
 import { Sheet } from "../src/components/Sheet";
@@ -44,6 +43,7 @@ import { Option } from "../src/components/LedgerFilters";
 import { ReviewPreferences } from "../src/components/ReviewPreferences";
 import { ImportPeriodPicker } from "../src/components/ImportPeriodPicker";
 import { ImportBanner } from "../src/components/ImportProgress";
+import { SettingsGroup } from "../src/components/SettingsGroup";
 export default function Settings() {
   const app = useApp();
   const { colors, theme, mode, rules, busy, error, notice } = app;
@@ -77,6 +77,9 @@ export default function Settings() {
     app.importProgress.state,
   );
   const [status, setStatus] = useState(native?.status());
+  const [expandedSettings, setExpandedSettings] = useState("bank");
+  const toggleSettings = (key: string) =>
+    setExpandedSettings((current) => (current === key ? "" : key));
   const [capture, setCapture] = useState(status?.capture || false);
   useEffect(() => {
     setStatus(native?.status());
@@ -110,6 +113,17 @@ export default function Settings() {
       }),
     );
   };
+  useEffect(() => {
+    const key = params.section;
+    if (!key) return;
+    const group =
+      key === "backup" ? "accounts" :
+      key === "models" ? "models" :
+      key === "bank" ? "bank" :
+      key === "appearance" ? "appearance" :
+      key === "privacy" ? "privacy" : "";
+    setExpandedSettings(group);
+  }, [params.section]);
   return (
     <View
       testID="settings-screen"
@@ -140,7 +154,7 @@ export default function Settings() {
             <ChevronLeft size={24} color={colors.text} />
           </Pressable>
           <Text serif style={{ fontSize: 26, lineHeight: 34 }}>
-            Make it yours.
+            Settings
           </Text>
         </View>
         <ScrollView
@@ -150,15 +164,6 @@ export default function Settings() {
         >
           <View style={{ marginBottom: mode === "live" ? 16 : 0 }}>
             <ImportBanner />
-          </View>
-          <View style={{ alignItems: "center", marginBottom: 28 }}>
-            <Mascot size={95} />
-            <Text serif style={{ fontSize: 23, lineHeight: 32, marginTop: 8 }}>
-              A quieter way to keep track.
-            </Text>
-            <Text muted style={{ fontSize: 12, marginTop: 6 }}>
-              Private by design. Personal by nature.
-            </Text>
           </View>
           {error ? (
             <Pressable
@@ -180,20 +185,43 @@ export default function Settings() {
               {notice}
             </Text>
           ) : null}
-          <GmailSettings />
-          <DriveBackupSettings
-            onLayout={(event) => {
-              backupSectionY.current = event.nativeEvent.layout.y;
-              scrollToModelSettings();
-            }}
-          />
-          <ModelDownloadsSettings
-            onLayout={(event) => {
-              modelSectionY.current = event.nativeEvent.layout.y;
-              scrollToModelSettings();
-            }}
-          />
-          <SectionTitle title="The look & feel" />
+          <SettingsGroup
+            testID="settings-accounts-group"
+            title="Email & backup"
+            detail="Add card alerts from Gmail or save an encrypted recovery copy."
+            summary="Gmail and Google Drive"
+            expanded={expandedSettings === "accounts"}
+            onPress={() => toggleSettings("accounts")}
+          >
+            <GmailSettings />
+            <DriveBackupSettings
+              onLayout={(event) => {
+                backupSectionY.current = event.nativeEvent.layout.y;
+                scrollToModelSettings();
+              }}
+            />
+          </SettingsGroup>
+          <SettingsGroup
+            testID="settings-models-group"
+            title="Voice & suggestions"
+            detail="Add voice notes or smarter category suggestions when you need them."
+            expanded={expandedSettings === "models"}
+            onPress={() => toggleSettings("models")}
+          >
+            <ModelDownloadsSettings
+              onLayout={(event) => {
+                modelSectionY.current = event.nativeEvent.layout.y;
+                scrollToModelSettings();
+              }}
+            />
+          </SettingsGroup>
+          <SettingsGroup
+            testID="settings-appearance-group"
+            title="Appearance"
+            detail="Choose a theme that feels comfortable."
+            expanded={expandedSettings === "appearance"}
+            onPress={() => toggleSettings("appearance")}
+          >
           <View style={{ flexDirection: "row", gap: 10, marginBottom: 30 }}>
             {(
               [
@@ -226,7 +254,15 @@ export default function Settings() {
               </Pressable>
             ))}
           </View>
-          <SectionTitle title="Your bank alerts" />
+          </SettingsGroup>
+          <SettingsGroup
+            testID="settings-bank-group"
+            title="Bank alerts & import"
+            detail="Connect bank alerts, choose how much history to bring in, and see import progress."
+            summary={mode === "live" ? "Connected on this device" : "Not connected yet"}
+            expanded={expandedSettings === "bank"}
+            onPress={() => toggleSettings("bank")}
+          >
           <View
             style={[
               ui.card,
@@ -339,8 +375,16 @@ export default function Settings() {
               </>
             )}
           </View>
+          </SettingsGroup>
+          <SettingsGroup
+            testID="settings-companion-group"
+            title="Reminders & helper"
+            detail="Choose when Kanakku reminds you and how the floating helper appears."
+            expanded={expandedSettings === "companion"}
+            onPress={() => toggleSettings("companion")}
+          >
           <ReviewPreferences />
-          <SectionTitle title="Your little companion" />
+          <SectionTitle title="Floating helper" />
           <View
             style={[
               ui.card,
@@ -408,6 +452,14 @@ export default function Settings() {
           >
             Subscriptions & recurring payments
           </Button>
+          </SettingsGroup>
+          <SettingsGroup
+            testID="settings-tools-group"
+            title="Categories & extra tools"
+            detail="Personalize categories, improve merchant names, and manage optional tools."
+            expanded={expandedSettings === "tools"}
+            onPress={() => toggleSettings("tools")}
+          >
           <MerchantLookupSettings
             onPreferencesChanged={app.refreshMerchantLookup}
           />
@@ -421,7 +473,7 @@ export default function Settings() {
               }
             />
           </View>
-          <SectionTitle title="Voice & categorization" />
+          <SectionTitle title="Voice notes and category suggestions" />
           <View
             style={[
               ui.card,
@@ -647,6 +699,14 @@ export default function Settings() {
               rules will appear here.
             </Text>
           )}
+          </SettingsGroup>
+          <SettingsGroup
+            testID="settings-privacy-group"
+            title="Privacy & device"
+            detail="Review device protection, app updates and journal reset options."
+            expanded={expandedSettings === "privacy"}
+            onPress={() => toggleSettings("privacy")}
+          >
           <SectionTitle title="Your device journal" />
           <View
             style={[
@@ -692,6 +752,7 @@ export default function Settings() {
               Reset device journal
             </Button>
           </View>
+          </SettingsGroup>
           {mode === "live" && (!native || native.status().testBuild) && (
             <Button secondary style={{ marginTop: 20 }} onPress={app.useDemo}>
               Return to sample data

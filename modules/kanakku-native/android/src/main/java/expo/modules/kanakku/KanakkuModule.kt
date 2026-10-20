@@ -108,6 +108,17 @@ class KanakkuModule : Module() {
       else if(!Vault(context).ready())promise.reject("DRIVE_VAULT","Unlock your journal before backing it up.",null)
       else DriveBackupAuthorization.begin(activity,context,"backup",payload,password,promise)
     }.runOnQueue(Queues.MAIN)
+    AsyncFunction("configureAutoBackup") { payload:String, password:String, intervalDays:Int, promise:Promise ->
+      val activity=appContext.currentActivity
+      if(!foreground||activity==null)promise.reject("DRIVE_FOREGROUND","Open Kanakku to set up automatic backups.",null)
+      else if(!Vault(context).ready())promise.reject("DRIVE_VAULT","Unlock your journal before setting up automatic backups.",null)
+      else DriveBackupAuthorization.beginAuto(activity,context,payload,password,intervalDays,promise)
+    }.runOnQueue(Queues.MAIN)
+    AsyncFunction("autoBackupStatus") { DriveAutoBackupStore.status(context) }
+    AsyncFunction("saveAutoBackupSnapshot") { payload:String -> DriveAutoBackupStore.saveSnapshot(context,payload); true }
+    AsyncFunction("runAutoBackupNow") { payload:String -> DriveAutoBackupStore.runNow(context,payload); DriveAutoBackupStore.status(context) }
+    AsyncFunction("setAutoBackupInterval") { intervalDays:Int -> DriveAutoBackupStore.setInterval(context,intervalDays); DriveAutoBackupStore.status(context) }
+    AsyncFunction("disableAutoBackup") { DriveAutoBackupStore.disable(context); DriveAutoBackupStore.status(context) }
     AsyncFunction("restoreFromDrive") { password:String, promise:Promise ->
       val activity=appContext.currentActivity
       if(!foreground||activity==null)promise.reject("DRIVE_FOREGROUND","Open Kanakku to restore your journal.",null)

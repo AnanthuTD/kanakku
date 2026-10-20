@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Pressable,
   TextInput,
   View,
   type LayoutChangeEvent,
@@ -29,7 +30,7 @@ export function DriveBackupSettings({
   const importing = ["queued", "running", "waiting"].includes(
     app.importProgress.state,
   );
-  const [sheet, setSheet] = useState<"backup" | "restore" | "confirm" | null>(
+  const [sheet, setSheet] = useState<"backup" | "restore" | "auto" | "confirm" | null>(
     null,
   );
   const [password, setPassword] = useState("");
@@ -39,8 +40,36 @@ export function DriveBackupSettings({
   const [message, setMessage] = useState("");
   const [failure, setFailure] = useState("");
   const [restore, setRestore] = useState<JournalBackup | null>(null);
+  const [autoSchedule, setAutoSchedule] = useState<{
+    enabled: boolean;
+    intervalDays: number;
+    lastBackupAt: number;
+    snapshotAt: number;
+    state: string;
+    error: string;
+  }>({
+    enabled: false,
+    intervalDays: 7,
+    lastBackupAt: 0,
+    snapshotAt: 0,
+    state: "off",
+    error: "",
+  });
 
-  const begin = (action: "backup" | "restore") => {
+  const refreshAutoSchedule = () =>
+    native?.autoBackupStatus().then(setAutoSchedule).catch(() => {});
+  useEffect(() => {
+    refreshAutoSchedule();
+  }, [app.mode, app.locked]);
+  useEffect(() => {
+    if (!autoSchedule?.enabled) return;
+    const timer = setInterval(() => {
+      native?.autoBackupStatus().then(setAutoSchedule).catch(() => {});
+    }, 15_000);
+    return () => clearInterval(timer);
+  }, [autoSchedule?.enabled]);
+
+  const begin = (action: "backup" | "restore" | "auto") => {
     setFailure("");
     setPassword("");
     setPasswordConfirm("");
@@ -83,6 +112,91 @@ export function DriveBackupSettings({
           ? error.message
           : "Could not back up your journal.",
       );
+    } finally {
+      setBusy(false);
+    }
+  };
+  const enableAutoBackup = async () => {
+    if (password.length < MIN_PASSWORD) {
+      setFailure(`Use at least ${MIN_PASSWORD} characters for the backup password.`);
+      return;
+    }
+    if (password !== passwordConfirm) {
+      setFailure("The passwords do not match.");
+      return;
+    }
+    if (!native) return;
+    setBusy(true);
+    setFailure("");
+    try {
+      const snapshot = makeJournalBackup(app.transactions, app.rules, {
+        recurringDecisions: app.recurringDecisions,
+        customCategories: app.customCategories,
+        loans: app.loans,
+      });
+      const result = await native.configureAutoBackup(
+        JSON.stringify(snapshot), password, autoSchedule?.intervalDays ?? 7,
+      );
+      const date = result.modifiedTime
+        ? new Date(result.modifiedTime).toLocaleString()
+        : "now";
+      setMessage(`Automatic backup is on · first encrypted copy saved ${date}`);
+      setAutoSchedule(await native.autoBackupStatus());
+      setSheet(null);
+      setPassword("");
+      setPasswordConfirm("");
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "Could not enable automatic backup.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const changeAutoInterval = async (days: number) => {
+    if (!native || busy) return;
+    setBusy(true);
+    try {
+      setAutoSchedule(await native.setAutoBackupInterval(days));
+      setMessage(`Automatic backup frequency changed to ${days === 1 ? "daily" : days === 7 ? "weekly" : "monthly"}.`);
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "Could not change the backup schedule.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const turnOffAutoBackup = async () => {
+    if (!native || busy) return;
+    setBusy(true);
+    try {
+      setAutoSchedule(await native.disableAutoBackup());
+      setMessage("Automatic backups are off. Your saved Drive copy is still there.");
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "Could not turn off automatic backups.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const runAutomaticBackupNow = async () => {
+    if (!native || busy) return;
+    setBusy(true);
+    setFailure("");
+    try {
+      const snapshot = makeJournalBackup(app.transactions, app.rules, {
+        recurringDecisions: app.recurringDecisions,
+        customCategories: app.customCategories,
+        loans: app.loans,
+      });
+      const status = await native.runAutoBackupNow(JSON.stringify(snapshot));
+      setAutoSchedule(status);
+      setMessage("Backup queued. It will upload when your phone is online and ready.");
+      // Refresh while WorkManager attempts the queued upload.
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        const latest = await native.autoBackupStatus();
+        setAutoSchedule(latest);
+        if (["connected", "error", "reconnect"].includes(latest.state)) break;
+      }
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "Could not queue a backup.");
     } finally {
       setBusy(false);
     }
@@ -160,8 +274,9 @@ export function DriveBackupSettings({
         <Text muted style={{ fontSize: 12, lineHeight: 19 }}>
           Your transactions, notes, bill details, categories, and merchant rules
           are encrypted on this device before upload. Google stores only the
-          encrypted file. Use a password you can keep safe; Kanakku cannot
-          recover it.
+          encrypted file. Manual backup does not save your password. Automatic
+          backup is optional and stores it encrypted on this phone so it can run
+          without asking each time.
         </Text>
         <Text muted style={{ fontSize: 11, lineHeight: 18 }}>
           Restoring replaces this device’s saved journal after a preview and
@@ -171,6 +286,65 @@ export function DriveBackupSettings({
         {message ? (
           <Text style={{ color: colors.accent, fontSize: 12 }}>{message}</Text>
         ) : null}
+        {autoSchedule?.enabled ? (
+          <View style={{ borderTopWidth: 1, borderColor: colors.line, paddingTop: 12, gap: 8 }}>
+            <Text bold>Automatic backup is on</Text>
+            <Text muted style={{ fontSize: 12, lineHeight: 18 }}>
+              {autoSchedule.lastBackupAt
+                ? `Last saved ${new Date(autoSchedule.lastBackupAt).toLocaleString()}`
+                : "Your first automatic backup is being prepared."}
+              {autoSchedule.state === "uploading"
+                ? " A backup is uploading now."
+                : autoSchedule.state === "waiting"
+                  ? " The next copy will upload when your phone is online and ready."
+                : autoSchedule.state === "reconnect" || autoSchedule.state === "error"
+                ? ` ${autoSchedule.error || "Open Kanakku to reconnect Google Drive."}`
+                : ""}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {([1, 7, 30] as const).map((days) => (
+                <Pressable
+                  key={days}
+                  accessibilityRole="radio"
+                  accessibilityLabel={days === 1 ? "Daily backup" : days === 7 ? "Weekly backup" : "Monthly backup"}
+                  accessibilityState={{ checked: autoSchedule.intervalDays === days, disabled: busy }}
+                  disabled={busy}
+                  onPress={() => void changeAutoInterval(days)}
+                  style={{ flex: 1, minHeight: 46, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: autoSchedule.intervalDays === days ? colors.accent : colors.line, borderRadius: 12, backgroundColor: autoSchedule.intervalDays === days ? colors.accentSoft : colors.card }}
+                >
+                  <Text bold={autoSchedule.intervalDays === days} style={{ fontSize: 12 }}>
+                    {days === 1 ? "Daily" : days === 7 ? "Weekly" : "Monthly"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {autoSchedule.state === "reconnect" ? (
+              <Button secondary disabled={!available || busy} onPress={() => begin("auto")}>
+                Reconnect Google Drive
+              </Button>
+            ) : null}
+            <Button secondary disabled={busy} onPress={() => void turnOffAutoBackup()}>
+              Turn off automatic backup
+            </Button>
+          </View>
+        ) : (
+          <View style={{ borderTopWidth: 1, borderColor: colors.line, paddingTop: 12, gap: 8 }}>
+            <Text bold>Back up automatically</Text>
+            <Text muted style={{ fontSize: 12, lineHeight: 18 }}>
+              Choose daily, weekly, or monthly. Kanakku will use a password protected by Android Keystore on this phone, so it won’t ask each time.
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {([1, 7, 30] as const).map((days) => (
+                <Pressable key={days} accessibilityRole="radio" accessibilityLabel={days === 1 ? "Daily backup" : days === 7 ? "Weekly backup" : "Monthly backup"} accessibilityState={{ checked: autoSchedule?.intervalDays === days }} onPress={() => setAutoSchedule((current) => ({ enabled: false, intervalDays: days, lastBackupAt: current?.lastBackupAt ?? 0, snapshotAt: 0, state: "off", error: "" }))} style={{ flex: 1, minHeight: 46, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: autoSchedule?.intervalDays === days ? colors.accent : colors.line, borderRadius: 12, backgroundColor: autoSchedule?.intervalDays === days ? colors.accentSoft : colors.card }}>
+                  <Text bold={autoSchedule?.intervalDays === days} style={{ fontSize: 12 }}>{days === 1 ? "Daily" : days === 7 ? "Weekly" : "Monthly"}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Button secondary disabled={!available || app.busy || busy} onPress={() => begin("auto")}>
+              Set up automatic backup
+            </Button>
+          </View>
+        )}
         {!available ? (
           <Text muted style={{ fontSize: 12 }}>
             Unlock your personal journal to back up or restore it.
@@ -183,9 +357,9 @@ export function DriveBackupSettings({
         ) : null}
         <Button
           disabled={!available || app.busy || busy}
-          onPress={() => begin("backup")}
+          onPress={() => autoSchedule?.enabled ? void runAutomaticBackupNow() : begin("backup")}
         >
-          Back up to Google Drive
+          {autoSchedule?.enabled ? "Back up now" : "Back up to Google Drive"}
         </Button>
         <Button
           secondary
@@ -195,6 +369,25 @@ export function DriveBackupSettings({
           Restore from Google Drive
         </Button>
       </View>
+
+      <Sheet
+        visible={sheet === "auto"}
+        onClose={() => !busy && setSheet(null)}
+        title="Set up automatic backup"
+        testID="drive-auto-backup-password"
+      >
+        <Text>
+          Kanakku will save an encrypted copy {autoSchedule?.intervalDays === 1 ? "every day" : autoSchedule?.intervalDays === 30 ? "every month" : "every week"}. To run without asking you each time, the backup password is stored encrypted on this phone using Android Keystore. It is never uploaded. You’ll still need this password to restore on a different phone.
+        </Text>
+        <TextInput accessibilityLabel="Backup password" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} style={{ padding: 15, borderWidth: 1, borderColor: colors.line, borderRadius: 13, color: colors.text, backgroundColor: colors.card }} />
+        <TextInput accessibilityLabel="Confirm backup password" value={passwordConfirm} onChangeText={setPasswordConfirm} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} style={{ padding: 15, borderWidth: 1, borderColor: colors.line, borderRadius: 13, color: colors.text, backgroundColor: colors.card }} />
+        {busy ? <ActivityIndicator color={colors.accent} /> : null}
+        {failure ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{failure}</Text> : null}
+        <Button disabled={busy} onPress={() => void enableAutoBackup()}>
+          Save encrypted copy and turn on
+        </Button>
+        <Button secondary disabled={busy} onPress={() => setSheet(null)}>Cancel</Button>
+      </Sheet>
 
       <Sheet
         visible={sheet === "backup"}

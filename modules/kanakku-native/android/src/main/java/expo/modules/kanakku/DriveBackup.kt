@@ -148,11 +148,31 @@ internal object DriveBackupApi {
 /** Additional Drive authorization is requested only when the user starts backup or restore. */
 internal object DriveBackupAuthorization {
   const val REQUEST = 42314
+  const val AUTO_REQUEST = 42315
   private data class Pending(val context: Context, val operation: String, val payload: String?, val password: String, val promise: Promise)
+  private data class AutoPending(val context: Context, val payload: String, val password: String, val days: Int, val promise: Promise)
   @Volatile private var pending: Pending? = null
+  @Volatile private var autoPending: AutoPending? = null
   private val worker = Executors.newSingleThreadExecutor()
+  fun beginAuto(activity: Activity, context: Context, payload: String, password: String, days: Int, promise: Promise) {
+    if (pending != null || autoPending != null) { promise.reject("DRIVE_BUSY", "Finish the current Google Drive action first.", null); return }
+    if (password.length < 12) { promise.reject("DRIVE_PASSWORD", "Use a backup password with at least 12 characters.", null); return }
+    if (days !in setOf(1, 7, 30)) { promise.reject("DRIVE_INTERVAL", "Choose daily, weekly or monthly backups.", null); return }
+    if (payload.length > 24 * 1024 * 1024) { promise.reject("DRIVE_SIZE", "This journal is too large for Drive backup.", null); return }
+    val attempt = AutoPending(context.applicationContext, payload, password, days, promise)
+    autoPending = attempt
+    val request = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(DriveBackupApi.SCOPE)))
+      .setOptOutIncludingGrantedScopes(true).setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT).build()
+    Identity.getAuthorizationClient(activity).authorize(request).addOnSuccessListener { result ->
+      if (autoPending !== attempt) return@addOnSuccessListener
+      try {
+        if (result.hasResolution()) activity.startIntentSenderForResult(requireNotNull(result.pendingIntent).intentSender, AUTO_REQUEST, null, 0, 0, 0)
+        else finishAuto(attempt, result)
+      } catch (_: Exception) { failAuto(attempt, "Google Drive authorization could not start. Try again.") }
+    }.addOnFailureListener { failAuto(attempt, "Google Drive authorization failed. Check your connection and try again.") }
+  }
   fun begin(activity: Activity, context: Context, operation: String, payload: String?, password: String, promise: Promise) {
-    if (pending != null) { promise.reject("DRIVE_BUSY", "Finish the current Google Drive action first.", null); return }
+    if (pending != null || autoPending != null) { promise.reject("DRIVE_BUSY", "Finish the current Google Drive action first.", null); return }
     if (operation !in setOf("backup", "restore")) { promise.reject("DRIVE_ACTION", "Unknown backup action.", null); return }
     if (password.length < 12) { promise.reject("DRIVE_PASSWORD", "Use a backup password with at least 12 characters.", null); return }
     val attempt = Pending(context.applicationContext, operation, payload, password, promise)
@@ -168,6 +188,13 @@ internal object DriveBackupAuthorization {
     }.addOnFailureListener { fail(attempt, "Google Drive authorization failed. Check your connection and try again.") }
   }
   fun result(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
+    if (requestCode == AUTO_REQUEST) {
+      val attempt = autoPending ?: return
+      if (resultCode != Activity.RESULT_OK || data == null) { failAuto(attempt, "Google Drive access was cancelled. Automatic backup was not enabled."); return }
+      try { finishAuto(attempt, Identity.getAuthorizationClient(activity).getAuthorizationResultFromIntent(data)) }
+      catch (_: Exception) { failAuto(attempt, "Google Drive authorization did not finish. Try again.") }
+      return
+    }
     if (requestCode != REQUEST) return
     val attempt = pending ?: return
     if (resultCode != Activity.RESULT_OK || data == null) {
@@ -178,6 +205,30 @@ internal object DriveBackupAuthorization {
     }
     try { finish(attempt, Identity.getAuthorizationClient(activity).getAuthorizationResultFromIntent(data)) }
     catch (_: Exception) { fail(attempt, "Google Drive authorization did not finish. Try again.") }
+  }
+  private fun finishAuto(attempt: AutoPending, result: AuthorizationResult) {
+    val token = result.accessToken
+    val account = runCatching { result.toGoogleSignInAccount()?.email }.getOrNull()
+    if (result.hasResolution() || token.isNullOrBlank() || DriveBackupApi.SCOPE !in result.grantedScopes || account.isNullOrBlank()) {
+      failAuto(attempt, "Google Drive permission or account details were unavailable. Automatic backup was not enabled."); return
+    }
+    worker.execute {
+      try {
+        val encrypted = BackupCrypto.encrypt(attempt.payload, attempt.password)
+        val uploaded = DriveBackupApi.upload(token, encrypted)
+        DriveAutoBackupStore.enable(attempt.context, attempt.payload, attempt.password, account, attempt.days)
+        attempt.promise.resolve(mapOf("fileName" to uploaded["fileName"], "modifiedTime" to uploaded["modifiedTime"], "enabled" to true, "intervalDays" to attempt.days))
+        autoPending = null
+      } catch (error: Exception) {
+        attempt.promise.reject("DRIVE_AUTO_BACKUP", error.message ?: "Automatic backup could not be enabled.", null)
+        autoPending = null
+      }
+    }
+  }
+  private fun failAuto(attempt: AutoPending, message: String) {
+    if (autoPending !== attempt) return
+    autoPending = null
+    attempt.promise.reject("DRIVE_AUTO_AUTH", message, null)
   }
   private fun finish(attempt: Pending, result: AuthorizationResult) {
     val token = result.accessToken

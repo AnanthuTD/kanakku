@@ -650,7 +650,7 @@ export default function Home() {
                     ? "Captured from supported bank alerts"
                     : sampleData
                       ? "A preview with sample transactions"
-                      : "Connect bank SMS in Settings to begin"}
+                      : "Connect bank alerts to start your journal"}
                 </Text>
               </View>
               {held > 0 && (
@@ -820,8 +820,8 @@ export default function Home() {
                 ))
               ) : (
                 <Empty
-                  title="A fresh page."
-                  detail="Transactions will appear here when your bank sends an eligible SMS."
+                  title="Nothing to show for this month"
+                  detail="Categories appear here as eligible transactions are added."
                 />
               )}
             </View>
@@ -861,13 +861,14 @@ export default function Home() {
               {mode === "demo" && (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Connect bank SMS"
+                  accessibilityLabel="Set up bank alerts"
                   onPress={() => {
                     rememberActivityScroll();
-                    router.push("/settings");
+                    router.push("/settings?section=bank");
                   }}
-                  style={{ padding: 10 }}
+                  style={{ minHeight: 48, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 4 }}
                 >
+                  <Text bold style={{ fontSize: 11, color: colors.accent }}>Set up alerts</Text>
                   <ArrowUpRight color={colors.accent} size={19} />
                 </Pressable>
               )}

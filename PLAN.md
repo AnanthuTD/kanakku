@@ -1,7 +1,7 @@
 # Kanakku — product, experience, and build plan
 
 Status: implementation in progress; bill capture and OTA source added. Combined-build and physical-device acceptance are tracked in the checklist.
-Updated: 19 October 2026. Live implementation status is maintained in [CHECKLIST.md](CHECKLIST.md); exact artifact/revision evidence belongs in [the build manifest](artifacts/build-manifest.json).
+Updated: 20 October 2026. Live implementation status is maintained in [CHECKLIST.md](CHECKLIST.md); exact artifact/revision evidence belongs in [the build manifest](artifacts/build-manifest.json).
 Source: [Spend Aggregator — Project Spec](https://docs.google.com/document/d/14-naGduZZfzcmomNR4rfdh-PeIU-UJ-f/edit).
 
 ## Encrypted backup and restore (planned before destructive migration)
@@ -37,6 +37,8 @@ Selected direction: warm editorial design, with ivory backgrounds, ink text, dee
 - Motion explains changes: short sheet transitions, restrained chart transitions, subtle confirmation haptics. Respect reduced-motion settings.
 - Make information readable with large system text, TalkBack, adequate contrast, and at least 48 dp touch targets. Color never carries meaning alone.
 - Use Indian number grouping and INR formatting throughout. Store money as integer paise.
+
+The broader first-run and Settings simplification is specified in [the UX rework plan](docs/UX-REWORK-PLAN.md). That plan keeps permission explanations adjacent to consent, moves optional setup to the moment of need, and makes Settings a short index of clear groups rather than a technical catalogue.
 
 ## Brand and launch
 
