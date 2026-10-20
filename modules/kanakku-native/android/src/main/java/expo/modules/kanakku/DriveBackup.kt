@@ -14,6 +14,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.MediaType
+import okio.BufferedSink
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.net.URLEncoder
@@ -82,9 +84,27 @@ internal object DriveBackupApi {
     .readTimeout(40, TimeUnit.SECONDS)
     .build()
 
-  private fun request(token: String, path: String, method: String = "GET", body: ByteArray? = null, contentType: String? = null): ByteArray {
+  private fun request(token: String, path: String, method: String = "GET", body: ByteArray? = null, contentType: String? = null, uploadProgress: ((Long, Long) -> Unit)? = null, downloadProgress: ((Long, Long) -> Unit)? = null): ByteArray {
     val url = if (path.startsWith("https://")) path else "https://www.googleapis.com/drive/v3/$path"
-    val requestBody = body?.toRequestBody((contentType ?: "application/json").toMediaType())
+    val mediaType = (contentType ?: "application/json").toMediaType()
+    val requestBody = body?.let { bytes ->
+      if (uploadProgress == null) bytes.toRequestBody(mediaType)
+      else object : okhttp3.RequestBody() {
+        override fun contentType(): MediaType = mediaType
+        override fun contentLength(): Long = bytes.size.toLong()
+        override fun writeTo(sink: BufferedSink) {
+          val total = bytes.size.toLong()
+          var sent = 0L
+          uploadProgress(0, total)
+          while (sent < total) {
+            val count = minOf(64 * 1024L, total - sent).toInt()
+            sink.write(bytes, sent.toInt(), count)
+            sent += count
+            uploadProgress(sent, total)
+          }
+        }
+      }
+    }
     val request = Request.Builder().url(url)
       .header("Authorization", "Bearer $token")
       .header("Accept", "application/json")
@@ -111,6 +131,7 @@ internal object DriveBackupApi {
           if (count < 0) break
           require(bytes.size() + count <= maxResponse) { "The Drive backup is too large to restore on this device." }
           bytes.write(buffer, 0, count)
+          downloadProgress?.invoke(bytes.size().toLong(), response.body?.contentLength() ?: -1L)
         }
         bytes.toByteArray()
       }
@@ -122,26 +143,26 @@ internal object DriveBackupApi {
     val files = JSONObject(request(token, path).toString(Charsets.UTF_8)).optJSONArray("files")
     return files?.optJSONObject(0)?.optString("id")?.takeIf { it.isNotBlank() }
   }
-  fun upload(token: String, encrypted: String): Map<String, Any> {
+  fun upload(token: String, encrypted: String, progress: ((Long, Long) -> Unit)? = null): Map<String, Any> {
     val bytes = encrypted.toByteArray(Charsets.UTF_8)
     require(bytes.size <= maxResponse) { "This encrypted backup is too large for this device." }
     val existing = find(token)
     val result = if (existing != null) {
-      JSONObject(request(token, "https://www.googleapis.com/upload/drive/v3/files/$existing?uploadType=media", "PATCH", bytes, mime).toString(Charsets.UTF_8))
+      JSONObject(request(token, "https://www.googleapis.com/upload/drive/v3/files/$existing?uploadType=media", "PATCH", bytes, mime, uploadProgress = progress).toString(Charsets.UTF_8))
     } else {
       val boundary = "kanakku-${System.nanoTime()}"
       val metadata = JSONObject().put("name", fileName).put("mimeType", mime)
       val head = "--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$metadata\r\n--$boundary\r\nContent-Type: $mime\r\n\r\n".toByteArray(Charsets.UTF_8)
       val tail = "\r\n--$boundary--".toByteArray(Charsets.UTF_8)
       val payload = ByteArray(head.size + bytes.size + tail.size).also { head.copyInto(it);bytes.copyInto(it, head.size);tail.copyInto(it, head.size + bytes.size) }
-      JSONObject(request(token, "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime", "POST", payload, "multipart/related; boundary=$boundary").toString(Charsets.UTF_8))
+      JSONObject(request(token, "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime", "POST", payload, "multipart/related; boundary=$boundary", uploadProgress = progress).toString(Charsets.UTF_8))
     }
     return mapOf("fileName" to result.optString("name", fileName), "modifiedTime" to result.optString("modifiedTime", ""))
   }
-  fun download(token: String): String {
+  fun download(token: String, progress: ((Long, Long) -> Unit)? = null): String {
     val id = find(token) ?: throw IllegalStateException("No Kanakku backup was found in this Google account.")
     val encoded = URLEncoder.encode(id, "UTF-8")
-    return String(request(token, "https://www.googleapis.com/drive/v3/files/$encoded?alt=media"), Charsets.UTF_8)
+    return String(request(token, "https://www.googleapis.com/drive/v3/files/$encoded?alt=media", downloadProgress = progress), Charsets.UTF_8)
   }
   fun accountEmail(token: String): String {
     // AuthorizationResult.toGoogleSignInAccount() is deprecated and may not
@@ -168,6 +189,7 @@ internal object DriveBackupAuthorization {
     if (days !in setOf(1, 7, 30)) { promise.reject("DRIVE_INTERVAL", "Choose daily, weekly or monthly backups.", null); return }
     if (payload.length > 24 * 1024 * 1024) { promise.reject("DRIVE_SIZE", "This journal is too large for Drive backup.", null); return }
     val attempt = AutoPending(context.applicationContext, payload, password, days, promise)
+    KanakkuModule.notifyBackupProgress("backup", "authorizing")
     autoPending = attempt
     // The email scope lets us persist which selected Google account the periodic worker must use.
     // The backup payload remains encrypted locally and is sent only to Drive.
@@ -188,6 +210,7 @@ internal object DriveBackupAuthorization {
     if (password.length < 12) { promise.reject("DRIVE_PASSWORD", "Use a backup password with at least 12 characters.", null); return }
     val attempt = Pending(context.applicationContext, operation, payload, password, promise)
     pending = attempt
+    KanakkuModule.notifyBackupProgress(operation, "authorizing")
     val request = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(DriveBackupApi.SCOPE)))
       .setOptOutIncludingGrantedScopes(true).setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT).build()
     Identity.getAuthorizationClient(activity).authorize(request).addOnSuccessListener { result ->
@@ -229,8 +252,12 @@ internal object DriveBackupAuthorization {
     worker.execute {
       try {
         val account = DriveBackupApi.accountEmail(token)
+        KanakkuModule.notifyBackupProgress("backup", "encrypting")
         val encrypted = BackupCrypto.encrypt(attempt.payload, attempt.password)
-        val uploaded = DriveBackupApi.upload(token, encrypted)
+        KanakkuModule.notifyBackupProgress("backup", "uploading")
+        val uploaded = DriveBackupApi.upload(token, encrypted) { transferred, total ->
+          KanakkuModule.notifyBackupProgress("backup", "uploading", transferred, total)
+        }
         DriveAutoBackupStore.enable(attempt.context, attempt.payload, attempt.password, account, attempt.days)
         attempt.promise.resolve(mapOf("fileName" to uploaded["fileName"], "modifiedTime" to uploaded["modifiedTime"], "enabled" to true, "intervalDays" to attempt.days))
         autoPending = null
@@ -253,9 +280,19 @@ internal object DriveBackupAuthorization {
     worker.execute {
       try {
         val value = if (attempt.operation == "backup") {
-          DriveBackupApi.upload(token, BackupCrypto.encrypt(requireNotNull(attempt.payload), attempt.password))
+          KanakkuModule.notifyBackupProgress("backup", "encrypting")
+          val encrypted = BackupCrypto.encrypt(requireNotNull(attempt.payload), attempt.password)
+          KanakkuModule.notifyBackupProgress("backup", "uploading")
+          DriveBackupApi.upload(token, encrypted) { transferred, total ->
+            KanakkuModule.notifyBackupProgress("backup", "uploading", transferred, total)
+          }
         } else {
-          BackupCrypto.decrypt(DriveBackupApi.download(token), attempt.password)
+          KanakkuModule.notifyBackupProgress("restore", "downloading")
+          val encrypted = DriveBackupApi.download(token) { transferred, total ->
+            KanakkuModule.notifyBackupProgress("restore", "downloading", transferred, total)
+          }
+          KanakkuModule.notifyBackupProgress("restore", "decrypting")
+          BackupCrypto.decrypt(encrypted, attempt.password)
         }
         attempt.promise.resolve(value)
         pending = null

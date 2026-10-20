@@ -148,7 +148,9 @@ internal object DriveAutoBackupStore {
       val current = read(c)
       if (!current.optBoolean("enabled", false)) return ListenableWorker.Result.success()
       val encrypted = BackupCrypto.encrypt(current.getString("snapshot"), current.getString("password"))
-      DriveBackupApi.upload(auth.accessToken!!, encrypted)
+      DriveBackupApi.upload(auth.accessToken!!, encrypted) { transferred, total ->
+        KanakkuModule.notifyBackupProgress("backup", "uploading", transferred, total)
+      }
       if (!alive()) {
         synchronized(lock) {
           val latest = read(c)

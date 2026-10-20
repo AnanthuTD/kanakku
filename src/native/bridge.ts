@@ -90,6 +90,18 @@ export interface ModelDownloadStatus {
   downloaded: number;
   total: number;
 }
+export interface DriveBackupProgress {
+  operation: "backup" | "restore";
+  phase:
+    | "authorizing"
+    | "encrypting"
+    | "uploading"
+    | "downloading"
+    | "decrypting"
+    | "applying";
+  transferred: number;
+  total: number;
+}
 interface KanakkuNative {
   /** Uploads a passphrase-encrypted journal archive to this user's Drive. */
   backupToDrive(
@@ -100,13 +112,19 @@ interface KanakkuNative {
     payload: string,
     password: string,
     intervalDays: number,
-  ): Promise<{ fileName: string; modifiedTime: string; enabled: boolean; intervalDays: number }>;
+  ): Promise<{
+    fileName: string;
+    modifiedTime: string;
+    enabled: boolean;
+    intervalDays: number;
+  }>;
   autoBackupStatus(): Promise<{
     enabled: boolean;
     intervalDays: number;
     lastBackupAt: number;
     snapshotAt: number;
-    state: "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
+    state:
+      "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
     error: string;
   }>;
   saveAutoBackupSnapshot(payload: string): Promise<boolean>;
@@ -115,7 +133,8 @@ interface KanakkuNative {
     intervalDays: number;
     lastBackupAt: number;
     snapshotAt: number;
-    state: "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
+    state:
+      "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
     error: string;
   }>;
   setAutoBackupInterval(intervalDays: number): Promise<{
@@ -123,7 +142,8 @@ interface KanakkuNative {
     intervalDays: number;
     lastBackupAt: number;
     snapshotAt: number;
-    state: "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
+    state:
+      "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
     error: string;
   }>;
   disableAutoBackup(): Promise<{
@@ -131,7 +151,8 @@ interface KanakkuNative {
     intervalDays: number;
     lastBackupAt: number;
     snapshotAt: number;
-    state: "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
+    state:
+      "off" | "waiting" | "uploading" | "connected" | "reconnect" | "error";
     error: string;
   }>;
   /** Downloads and decrypts the latest Kanakku Drive backup. */
@@ -236,7 +257,10 @@ interface KanakkuNative {
   tapSound(): Promise<void>;
   listen(): Promise<string>;
   cancelListening(): Promise<void>;
-  addListener(name: string, listener: () => void): { remove(): void };
+  addListener(
+    name: string,
+    listener: (event?: any) => void,
+  ): { remove(): void };
 }
 export const native =
   Platform.OS === "android"

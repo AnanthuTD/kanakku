@@ -30,7 +30,7 @@ class KanakkuModule : Module() {
   @Volatile private var receiptGeneration=0L
   override fun definition() = ModuleDefinition {
     Name("KanakkuNative")
-    Events("onTransaction", "onImportProgress")
+    Events("onTransaction", "onImportProgress", "onDriveBackupProgress")
     OnCreate { instance=WeakReference(this@KanakkuModule); appContext.reactContext?.let { Diagnostics.install(it); Diagnostics.log("info","app","start",mapOf("voiceSupported" to WhisperEngine.supported)) } }
     OnActivityEntersForeground {
       foreground=true
@@ -250,5 +250,8 @@ class KanakkuModule : Module() {
     private var instance:WeakReference<KanakkuModule>?=null
     fun notifyArrival() { instance?.get()?.sendEvent("onTransaction",emptyMap<String,Any>()) }
     fun notifyImport() { instance?.get()?.sendEvent("onImportProgress",emptyMap<String,Any>()) }
+    fun notifyBackupProgress(operation:String,phase:String,transferred:Long=0,total:Long=0) {
+      instance?.get()?.sendEvent("onDriveBackupProgress",mapOf("operation" to operation,"phase" to phase,"transferred" to transferred,"total" to total))
+    }
   }
 }

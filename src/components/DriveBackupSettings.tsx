@@ -12,12 +12,56 @@ import {
   parseJournalBackup,
   type JournalBackup,
 } from "../domain/backup";
-import { native } from "../native/bridge";
+import { native, type DriveBackupProgress } from "../native/bridge";
 import { useApp } from "../state/AppContext";
 import { Button, SectionTitle, Text, styles as ui } from "./ui";
 import { Sheet } from "./Sheet";
+import { driveBackupProgressPercent } from "../domain/driveBackupProgress";
 
 const MIN_PASSWORD = 12;
+
+function BackupProgressView({ progress, operation, colors }: {
+  progress: DriveBackupProgress | null;
+  operation: "backup" | "restore";
+  colors: ReturnType<typeof useApp>["colors"];
+}) {
+  const current = progress?.operation === operation ? progress : null;
+  const phase = current?.phase ?? "authorizing";
+  const labels: Record<DriveBackupProgress["phase"], string> = {
+    authorizing: "Connecting securely to Google Drive…",
+    encrypting: "Encrypting your journal on this phone…",
+    uploading: "Uploading the encrypted backup…",
+    downloading: "Downloading the encrypted backup…",
+    decrypting: "Checking the backup and password…",
+    applying: "Saving the restored journal on this phone…",
+  };
+  const hasTotal =
+    (phase === "uploading" || phase === "downloading") &&
+    (current?.total ?? 0) > 0;
+  const percent = driveBackupProgressPercent(current, operation);
+  const transferredMiB = ((current?.transferred ?? 0) / (1024 * 1024)).toFixed(1);
+  const totalMiB = ((current?.total ?? 0) / (1024 * 1024)).toFixed(1);
+  return (
+    <View style={{ gap: 8, paddingVertical: 4 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        {!hasTotal ? <ActivityIndicator size="small" color={colors.accent} /> : null}
+        <Text accessibilityLiveRegion="polite" style={{ flex: 1, fontSize: 12 }}>
+          {labels[phase]}
+        </Text>
+        {hasTotal ? <Text muted style={{ fontSize: 11 }}>{percent}%</Text> : null}
+      </View>
+      <View
+        accessibilityRole="progressbar"
+        accessibilityLabel={operation === "backup" ? "Backup progress" : "Restore progress"}
+        accessibilityValue={{ min: 0, max: 100, now: percent }}
+        style={{ height: 6, overflow: "hidden", borderRadius: 4, backgroundColor: colors.line }}
+      >
+        <View style={{ width: `${percent}%`, height: 6, borderRadius: 4, backgroundColor: colors.accent }} />
+      </View>
+      {hasTotal ? <Text muted style={{ fontSize: 10 }}>{transferredMiB} of {totalMiB} MB</Text> : null}
+    </View>
+  );
+}
 
 export function DriveBackupSettings({
   onLayout,
@@ -40,6 +84,7 @@ export function DriveBackupSettings({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [failure, setFailure] = useState("");
+  const [transferProgress, setTransferProgress] = useState<DriveBackupProgress | null>(null);
   const [restore, setRestore] = useState<JournalBackup | null>(null);
   const [autoSchedule, setAutoSchedule] = useState<{
     enabled: boolean;
@@ -63,6 +108,19 @@ export function DriveBackupSettings({
     refreshAutoSchedule();
   }, [app.mode, app.locked]);
   useEffect(() => {
+    const subscription = native?.addListener("onDriveBackupProgress", (event) => {
+      if (event && (event.operation === "backup" || event.operation === "restore") && typeof event.phase === "string") {
+        setTransferProgress({
+          operation: event.operation,
+          phase: event.phase,
+          transferred: Number(event.transferred) || 0,
+          total: Number(event.total) || 0,
+        });
+      }
+    });
+    return () => subscription?.remove();
+  }, []);
+  useEffect(() => {
     if (!autoSchedule?.enabled) return;
     const timer = setInterval(() => {
       native?.autoBackupStatus().then(setAutoSchedule).catch(() => {});
@@ -72,6 +130,7 @@ export function DriveBackupSettings({
 
   const begin = (action: "backup" | "restore" | "auto") => {
     setFailure("");
+    setTransferProgress(null);
     setPassword("");
     setPasswordConfirm("");
     setSheet(action);
@@ -115,6 +174,7 @@ export function DriveBackupSettings({
       );
     } finally {
       setBusy(false);
+      setTransferProgress(null);
     }
   };
   const enableAutoBackup = async () => {
@@ -150,6 +210,7 @@ export function DriveBackupSettings({
       setFailure(error instanceof Error ? error.message : "Could not enable automatic backup.");
     } finally {
       setBusy(false);
+      setTransferProgress(null);
     }
   };
   const changeAutoInterval = async (days: number) => {
@@ -180,6 +241,7 @@ export function DriveBackupSettings({
     if (!native || busy) return;
     setBusy(true);
     setFailure("");
+    setTransferProgress(null);
     try {
       const snapshot = makeJournalBackup(app.transactions, app.rules, {
         recurringDecisions: app.recurringDecisions,
@@ -200,6 +262,7 @@ export function DriveBackupSettings({
       setFailure(error instanceof Error ? error.message : "Could not queue a backup.");
     } finally {
       setBusy(false);
+      setTransferProgress(null);
     }
   };
   const getRestore = async () => {
@@ -212,6 +275,7 @@ export function DriveBackupSettings({
     if (!native) return;
     setBusy(true);
     setFailure("");
+    setTransferProgress(null);
     try {
       const raw = await native.restoreFromDrive(password);
       const backup = parseJournalBackup(JSON.parse(raw));
@@ -226,12 +290,14 @@ export function DriveBackupSettings({
       );
     } finally {
       setBusy(false);
+      setTransferProgress(null);
     }
   };
   const doRestore = async () => {
     if (!restore || confirmation !== "RESTORE") return;
     setBusy(true);
     setFailure("");
+    setTransferProgress({ operation: "restore", phase: "applying", transferred: 0, total: 0 });
     try {
       const ok = await app.restoreBackup(restore);
       if (!ok) {
@@ -247,6 +313,7 @@ export function DriveBackupSettings({
       setConfirmation("");
     } finally {
       setBusy(false);
+      setTransferProgress(null);
     }
   };
 
@@ -303,6 +370,9 @@ export function DriveBackupSettings({
         ) : null}
         {message ? (
           <Text style={{ color: colors.accent, fontSize: 12 }}>{message}</Text>
+        ) : null}
+        {busy && transferProgress?.operation === "backup" ? (
+          <BackupProgressView progress={transferProgress} operation="backup" colors={colors} />
         ) : null}
         {autoSchedule?.enabled ? (
           <View style={{ borderTopWidth: 1, borderColor: colors.line, paddingTop: 12, gap: 8 }}>
@@ -402,7 +472,7 @@ export function DriveBackupSettings({
         </Text>
         <TextInput accessibilityLabel="Backup password" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} style={{ padding: 15, borderWidth: 1, borderColor: colors.line, borderRadius: 13, color: colors.text, backgroundColor: colors.card }} />
         <TextInput accessibilityLabel="Confirm backup password" value={passwordConfirm} onChangeText={setPasswordConfirm} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} style={{ padding: 15, borderWidth: 1, borderColor: colors.line, borderRadius: 13, color: colors.text, backgroundColor: colors.card }} />
-        {busy ? <ActivityIndicator color={colors.accent} /> : null}
+        {busy ? <BackupProgressView progress={transferProgress} operation="backup" colors={colors} /> : null}
         {failure ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{failure}</Text> : null}
         <Button disabled={busy} onPress={() => void enableAutoBackup()}>
           Save encrypted copy and turn on
@@ -460,7 +530,7 @@ export function DriveBackupSettings({
           replaces the previous copy, so keep the password you used; restore
           downloads the latest copy.
         </Text>
-        {busy ? <ActivityIndicator color={colors.accent} /> : null}
+        {busy ? <BackupProgressView progress={transferProgress} operation="backup" colors={colors} /> : null}
         {failure ? (
           <Text accessibilityRole="alert" style={{ color: colors.danger }}>
             {failure}
@@ -502,7 +572,7 @@ export function DriveBackupSettings({
             backgroundColor: colors.card,
           }}
         />
-        {busy ? <ActivityIndicator color={colors.accent} /> : null}
+        {busy ? <BackupProgressView progress={transferProgress} operation="restore" colors={colors} /> : null}
         {failure ? (
           <Text accessibilityRole="alert" style={{ color: colors.danger }}>
             {failure}
@@ -558,7 +628,7 @@ export function DriveBackupSettings({
             {failure}
           </Text>
         ) : null}
-        {busy ? <ActivityIndicator color={colors.accent} /> : null}
+        {busy ? <BackupProgressView progress={transferProgress} operation="restore" colors={colors} /> : null}
         <Button
           disabled={busy || confirmation !== "RESTORE" || importing}
           onPress={() => void doRestore()}
