@@ -40,6 +40,35 @@ export function loanOutstanding(loan: LoanRecord): number {
   );
 }
 
+/** A persisted loan link is authoritative even if a re-import restored an old SMS classification. */
+export function applyLinkedLoans(
+  transactions: Transaction[],
+  loans: LoanRecord[],
+): Transaction[] {
+  const linked = new Map(
+    loans
+      .filter((loan) => loan.transactionId)
+      .map((loan) => [loan.transactionId!, loan.person] as const),
+  );
+  let changed = false;
+  const normalized = transactions.map((transaction) => {
+    const person = linked.get(transaction.id);
+    if (!person || transaction.kind === "lent") return transaction;
+    changed = true;
+    return {
+      ...transaction,
+      merchant: person,
+      originalMerchant: transaction.originalMerchant || transaction.merchant,
+      category: "Friends & family" as const,
+      kind: "lent" as const,
+      review: false,
+      reason: "Money lent; repayment tracked separately",
+      classification: { method: "user" as const, version: "lending-v1" },
+    };
+  });
+  return changed ? normalized : transactions;
+}
+
 export function restoreLentTransaction(
   transaction: Transaction,
   loan: LoanRecord,

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Pressable } from "react-native";
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight, HandCoins } from "lucide-react-native";
 import {
   Transaction,
   money,
@@ -23,7 +23,7 @@ export function TransactionRow({
     <Pressable
       testID={`transaction-${t.id}`}
       accessibilityRole="button"
-      accessibilityLabel={`${t.merchant}, ${hideAmount ? "amount hidden" : transactionMoney(t)}, ${t.review ? "needs review" : t.category}`}
+      accessibilityLabel={`${t.merchant}, ${hideAmount ? "amount hidden" : transactionMoney(t)}, ${t.kind === "lent" ? "money lent, tracked separately" : t.review ? "needs review" : t.category}`}
       onPress={onPress}
       style={({ pressed }) => ({
         flexDirection: "row",
@@ -37,9 +37,31 @@ export function TransactionRow({
     >
       <CategoryIcon category={t.category} />
       <View style={{ flex: 1, gap: 2 }}>
-        <Text bold numberOfLines={1} style={{ fontSize: 14 }}>
-          {t.merchant}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Text bold numberOfLines={1} style={{ fontSize: 14, flexShrink: 1 }}>
+            {t.merchant}
+          </Text>
+          {t.kind === "lent" && (
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 3,
+                borderRadius: 10,
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+                backgroundColor: colors.accentSoft,
+              }}
+            >
+              <HandCoins size={11} color={colors.accent} />
+              <Text bold style={{ fontSize: 9, color: colors.accent }}>
+                Lent
+              </Text>
+            </View>
+          )}
+        </View>
         <Text muted numberOfLines={1} style={{ fontSize: 11 }}>
           {t.bank} · {t.account}
           {t.excluded ? " · Excluded" : ""}

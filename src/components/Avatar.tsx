@@ -214,6 +214,8 @@ export function FloatingAvatar({
   const compactWidth = 68;
   const compactHeight = 68;
   const expandedHeight = 96;
+  const compactMinX = Math.min(0, compactWidth + 36 - shellWidth);
+  const expandedMinX = Math.min(0, cardWidth + 36 - shellWidth);
   const layoutWidth = expanded ? cardWidth : compactWidth;
   const layoutHeight = expanded ? expandedHeight : compactHeight;
   const bounds = avatarBounds(
@@ -224,16 +226,20 @@ export function FloatingAvatar({
     insets.top,
   );
   const { minX } = bounds;
+  const boundsRef = useRef(bounds);
+  boundsRef.current = bounds;
   const suppressTapUntil = useRef(0);
   const interacting = useRef(false);
   const x = useSharedValue(0);
   const y = useSharedValue(0);
+  const pinnedLeft = useSharedValue(false);
   const startX = useSharedValue(0);
   const startY = useSharedValue(0);
   const pointerStartX = useSharedValue(0);
   const pointerStartY = useSharedValue(0);
   const reduced = useReducedMotion();
   const panActive = useSharedValue(false);
+  const snapping = useSharedValue(false);
   const expansion = useSharedValue(0);
   useEffect(() => {
     expansion.value = reduced
@@ -243,15 +249,13 @@ export function FloatingAvatar({
       : withSpring(expanded ? 1 : 0, { damping: 20, stiffness: 230 });
   }, [expanded, reduced]);
   useEffect(() => {
-    const bounded = clampAvatar(x.value, y.value, bounds);
-    x.value = bounded.x;
-    y.value = bounded.y;
     let live = true;
     AsyncStorage.getItem("kanakku-avatar-position")
       .then((raw) => {
         if (!raw || !live) return;
         if (interacting.current) return;
-        const position = restoreAvatarPosition(raw, bounds);
+        const position = restoreAvatarPosition(raw, boundsRef.current);
+        pinnedLeft.value = position.x < 0;
         x.value = position.x;
         y.value = position.y;
       })
@@ -259,7 +263,15 @@ export function FloatingAvatar({
     return () => {
       live = false;
     };
-  }, [shellWidth, height, layoutWidth, layoutHeight, insets.top]);
+  }, []);
+  useEffect(() => {
+    // The container is anchored to the right edge. Keep the chosen edge pinned
+    // when its width changes; clamping the old X offset made a left-docked card
+    // jump toward the middle as it collapsed into the compact icon.
+    const bounded = clampAvatar(x.value, y.value, bounds);
+    x.value = pinnedLeft.value ? bounds.minX : 0;
+    y.value = bounded.y;
+  }, [bounds.minX, bounds.minY]);
   const remember = (left: boolean, vertical: number) => {
     AsyncStorage.setItem(
       "kanakku-avatar-position",
@@ -272,6 +284,8 @@ export function FloatingAvatar({
   };
   const resetPosition = () => {
     suppressTap();
+    pinnedLeft.value = false;
+    snapping.value = false;
     x.value = 0;
     y.value = 0;
     remember(false, 0);
@@ -323,11 +337,19 @@ export function FloatingAvatar({
       );
       const left = position.x < minX / 2;
       y.value = position.y;
-      x.value = reduced
-        ? left
-          ? minX
-          : 0
-        : withSpring(left ? minX : 0, { damping: 18 });
+      const targetX = left ? minX : 0;
+      if (reduced) {
+        pinnedLeft.value = left;
+        x.value = targetX;
+      } else {
+        snapping.value = true;
+        x.value = withSpring(targetX, { damping: 18 }, (finished) => {
+          if (finished) {
+            pinnedLeft.value = left;
+            snapping.value = false;
+          }
+        });
+      }
       runOnJS(remember)(left, position.y);
     })
     .onFinalize(() => {
@@ -335,7 +357,21 @@ export function FloatingAvatar({
       panActive.value = false;
     });
   const style = useAnimatedStyle(() => ({
-    transform: [{ translateX: x.value }, { translateY: y.value }],
+    transform: [
+      {
+        translateX:
+          panActive.value || snapping.value
+            ? x.value
+            : pinnedLeft.value
+              ? interpolate(
+                  expansion.value,
+                  [0, 1],
+                  [compactMinX, expandedMinX],
+                )
+              : 0,
+      },
+      { translateY: y.value },
+    ],
   }));
   const expansionStyle = useAnimatedStyle(() => ({
     width: interpolate(expansion.value, [0, 1], [compactWidth, cardWidth]),

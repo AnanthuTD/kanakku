@@ -30,6 +30,55 @@ test("the companion starts as a floating avatar and expands into message and act
     .toBeGreaterThan(280);
 });
 
+test("the companion stays docked to the same edge while expanding and collapsing", async ({
+  page,
+}) => {
+  await home(page);
+  const avatar = page.getByTestId("floating-avatar");
+  const collapsed = avatar.getByRole("button", {
+    name: "Review 2 unclear payments",
+    exact: true,
+  });
+  const handle = await collapsed.boundingBox();
+  expect(handle).not.toBeNull();
+  await page.mouse.move(handle!.x + 30, handle!.y + 25);
+  await page.mouse.down();
+  await page.mouse.move(24, handle!.y + 25, { steps: 12 });
+  await page.mouse.up();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem("kanakku-avatar-position") ?? "null"),
+      ),
+    )
+    .toMatchObject({ edge: "left" });
+
+  const compact = await avatar.boundingBox();
+  expect(compact).not.toBeNull();
+  expect(compact!.x).toBeLessThan(40);
+  await page.waitForTimeout(350); // A drag intentionally suppresses taps briefly.
+  await collapsed.click();
+  await expect(
+    page.getByText("A little context?", { exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(async () => (await avatar.boundingBox())!.width)
+    .toBeGreaterThan(280);
+  const expanded = await avatar.boundingBox();
+  expect(expanded!.x).toBeCloseTo(compact!.x, 0);
+
+  await avatar
+    .getByRole("button", { name: "Collapse companion prompt", exact: true })
+    .click();
+  await expect(
+    page.getByText("A little context?", { exact: true }),
+  ).toBeHidden();
+  await expect
+    .poll(async () => (await avatar.boundingBox())!.width)
+    .toBeLessThan(90);
+  expect((await avatar.boundingBox())!.x).toBeCloseTo(compact!.x, 0);
+});
+
 test("a quick companion drag snaps using the release position when move events are sparse", async ({
   page,
 }) => {
@@ -201,6 +250,8 @@ test("dragging the photo action moves the companion without opening the camera",
   await expect
     .poll(async () => (await photoAction.boundingBox())?.width ?? 0)
     .toBeGreaterThanOrEqual(48);
+  // Let the expand spring finish before measuring the nested action's hit box.
+  await page.waitForTimeout(250);
   const photo = await photoAction.boundingBox();
   await page.mouse.move(photo!.x + 24, photo!.y + 24);
   await page.mouse.down();

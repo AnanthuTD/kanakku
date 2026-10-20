@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyLinkedLoans,
   loanOutstanding,
   restoreLentTransaction,
   validLoan,
   type LoanRecord,
 } from "./lending";
 import type { Transaction } from "./model";
+import { netSpend } from "./model";
 
 const loan: LoanRecord = {
   id: "loan-1",
@@ -22,6 +24,63 @@ const loan: LoanRecord = {
 };
 
 describe("money lent tracking", () => {
+  it("keeps linked loan transactions excluded if a refresh restores their old classification", () => {
+    const stalePurchase: Transaction = {
+      id: "sms-1",
+      amount: 50_000,
+      merchant: "A/c ••46975",
+      account: "1234",
+      bank: "Kerala Gramin Bank",
+      at: loan.lentAt,
+      category: "Uncategorized",
+      kind: "purchase",
+      review: true,
+      excluded: false,
+      note: "",
+      source: "sms",
+      reason: "Bank transfer",
+    };
+    const restored = applyLinkedLoans([stalePurchase], [loan]);
+    expect(restored[0]).toMatchObject({
+      merchant: "Maya",
+      originalMerchant: "A/c ••46975",
+      category: "Friends & family",
+      kind: "lent",
+      review: false,
+    });
+  });
+
+  it("reconciles both linked loan rows and removes their purchase amounts from spending", () => {
+    const first: Transaction = {
+      id: "sms-1",
+      amount: 50_000,
+      merchant: "A/c ••46975",
+      account: "1234",
+      bank: "Kerala Gramin Bank",
+      at: loan.lentAt,
+      category: "Uncategorized",
+      kind: "purchase",
+      review: true,
+      excluded: false,
+      note: "",
+      source: "sms",
+      reason: "Bank transfer",
+    };
+    const second = { ...first, id: "sms-2", amount: 80_000 };
+    const secondLoan = {
+      ...loan,
+      id: "loan-2",
+      person: "Arun",
+      transactionId: "sms-2",
+    };
+    const repaired = applyLinkedLoans([first, second], [loan, secondLoan]);
+    expect(repaired.map((transaction) => transaction.kind)).toEqual([
+      "lent",
+      "lent",
+    ]);
+    expect(netSpend(repaired)).toBe(0);
+  });
+
   it("subtracts partial repayments from the open balance", () => {
     expect(loanOutstanding(loan)).toBe(40_000);
     expect(

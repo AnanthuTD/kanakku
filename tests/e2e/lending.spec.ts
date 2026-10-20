@@ -10,8 +10,10 @@ test("money lent stays outside spending and partial repayments persist", async (
   await page.getByRole("textbox", { name: "Person who owes you" }).fill("Maya");
   await page.getByRole("textbox", { name: "Amount lent" }).fill("500");
   await page
-    .getByRole("textbox", { name: "Expected return date" })
-    .fill("2026-11-01");
+    .getByRole("button", { name: "Choose expected return date" })
+    .click();
+  await page.getByRole("button", { name: "Next month" }).click();
+  await page.getByRole("button", { name: "Sunday, 1 November 2026" }).click();
   await page.getByRole("button", { name: "Add to money lent" }).click();
   const repayment = page.getByRole("textbox", {
     name: "Repayment amount for Maya",
@@ -29,4 +31,28 @@ test("money lent stays outside spending and partial repayments persist", async (
   await page.goto("/");
   await home(page);
   await expect(page.getByTestId("overview-total")).toHaveText("₹1,650");
+});
+
+test("marking a counted bank payment as lent immediately lowers monthly spending", async ({
+  page,
+}) => {
+  await home(page);
+  await expect(page.getByTestId("overview-total")).toHaveText("₹1,650");
+
+  await page.goto("/lending?transactionId=rahul");
+  await expect(
+    page.getByRole("textbox", { name: "Person who owes you" }),
+  ).toHaveValue("Rahul S");
+  await expect(page.getByRole("textbox", { name: "Amount lent" })).toHaveValue(
+    "150.00",
+  );
+  await page.getByRole("button", { name: "Save as money lent" }).click();
+
+  await page.goto("/");
+  await home(page);
+  await expect(page.getByTestId("overview-total")).toHaveText("₹1,500");
+  await page.getByRole("tab", { name: "Activity" }).click();
+  await expect(
+    page.getByTestId("transaction-rahul").getByText("Lent", { exact: true }),
+  ).toBeVisible();
 });

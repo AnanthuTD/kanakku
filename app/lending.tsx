@@ -204,6 +204,15 @@ export default function LendingScreen() {
             }
           />
         </View>
+        {!linkedTransaction ? (
+          <Text
+            muted
+            style={{ fontSize: 11, lineHeight: 17, marginBottom: 14 }}
+          >
+            To remove a payment from monthly spending, open that payment in
+            Activity and choose “Record this payment as money lent”.
+          </Text>
+        ) : null}
         {linkedTransaction && (
           <Text
             muted
@@ -386,6 +395,11 @@ export default function LendingScreen() {
                       ? "Returned in full"
                       : `${loan.repayments.length} repayment${loan.repayments.length === 1 ? "" : "s"} recorded`}
                     {loan.remind && outstanding > 0 ? " · reminder set" : ""}
+                  </Text>
+                  <Text muted style={{ fontSize: 10, marginBottom: 10 }}>
+                    {loan.transactionId
+                      ? "Bank payment linked · tracked separately from spending"
+                      : "Manual record · monthly spending is unchanged"}
                   </Text>
                   {outstanding > 0 ? (
                     <View style={{ flexDirection: "row", gap: 8 }}>

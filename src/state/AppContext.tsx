@@ -26,6 +26,7 @@ import {
 import { cancelVoice } from "../native/voice";
 import {
   LoanRecord,
+  applyLinkedLoans,
   loanOutstanding,
   restoreLentTransaction,
 } from "../domain/lending";
@@ -434,6 +435,14 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       });
     if (linked !== transactions) {
       transactions = linked;
+      await saveJournalAndSnapshot(transactions, data.rules, data.metadata);
+    }
+    const linkedLoans = applyLinkedLoans(
+      transactions,
+      data.metadata.loans ?? [],
+    );
+    if (linkedLoans !== transactions) {
+      transactions = linkedLoans;
       await saveJournalAndSnapshot(transactions, data.rules, data.metadata);
     }
     if (transactions === data.transactions) return data;
@@ -873,11 +882,12 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         )
       : state.current.transactions;
     const spendReduction = existing ? spendOf(existing) : 0;
-    const spendImpact = spendReduction > 0
-      ? `${money(spendReduction)} removed from monthly spending.`
-      : existing
-        ? "This payment was already excluded from spending, so the total stays the same."
-        : "";
+    const spendImpact =
+      spendReduction > 0
+        ? `${money(spendReduction)} removed from monthly spending.`
+        : existing
+          ? "This payment was already excluded from spending, so the total stays the same."
+          : "";
     const nextLoans = [...state.current.loans, loan];
     try {
       await persist(
