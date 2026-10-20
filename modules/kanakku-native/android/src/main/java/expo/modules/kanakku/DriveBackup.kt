@@ -161,8 +161,11 @@ internal object DriveBackupAuthorization {
     if (payload.length > 24 * 1024 * 1024) { promise.reject("DRIVE_SIZE", "This journal is too large for Drive backup.", null); return }
     val attempt = AutoPending(context.applicationContext, payload, password, days, promise)
     autoPending = attempt
-    val request = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(DriveBackupApi.SCOPE)))
-      .setOptOutIncludingGrantedScopes(true).setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT).build()
+    // The email scope lets us persist which selected Google account the periodic worker must use.
+    // The backup payload remains encrypted locally and is sent only to Drive.
+    val request = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(DriveBackupApi.SCOPE), Scope("email")))
+      // Keep drive.file in the returned grant set even if manual backup granted it earlier.
+      .setOptOutIncludingGrantedScopes(false).setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT).build()
     Identity.getAuthorizationClient(activity).authorize(request).addOnSuccessListener { result ->
       if (autoPending !== attempt) return@addOnSuccessListener
       try {
@@ -209,9 +212,10 @@ internal object DriveBackupAuthorization {
   private fun finishAuto(attempt: AutoPending, result: AuthorizationResult) {
     val token = result.accessToken
     val account = runCatching { result.toGoogleSignInAccount()?.email }.getOrNull()
-    if (result.hasResolution() || token.isNullOrBlank() || DriveBackupApi.SCOPE !in result.grantedScopes || account.isNullOrBlank()) {
-      failAuto(attempt, "Google Drive permission or account details were unavailable. Automatic backup was not enabled."); return
-    }
+    if (result.hasResolution()) { failAuto(attempt, "Google Drive still needs approval. Try setting up automatic backup again."); return }
+    if (token.isNullOrBlank()) { failAuto(attempt, "Google did not return Drive access. Check your connection and try again."); return }
+    if (DriveBackupApi.SCOPE !in result.grantedScopes) { failAuto(attempt, "Drive access was not granted. Try again and allow Kanakku to save its backup file."); return }
+    if (account.isNullOrBlank()) { failAuto(attempt, "Kanakku could not identify the Google account you selected. Try again and allow account email access."); return }
     worker.execute {
       try {
         val encrypted = BackupCrypto.encrypt(attempt.payload, attempt.password)
