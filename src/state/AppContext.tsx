@@ -43,7 +43,7 @@ import {
   mergeTransactions,
 } from "../domain/model";
 import { sampleTransactions } from "../data/sample";
-import { closeLive, openLive, readLive, saveLive } from "../data/repository";
+import { closeLive, openLive, readLive, replaceLive, saveLive } from "../data/repository";
 import {
   native,
   requestSms,
@@ -125,6 +125,7 @@ interface ContextValue {
   setError: (s: string) => void;
   connect: (months?: number | null) => Promise<void>;
   connectEmail: (months: number) => Promise<GmailStatus | undefined>;
+  restoreBackup: (backup: { transactions: Transaction[]; rules: MerchantRule[]; metadata: LedgerMetadata }) => Promise<boolean>;
   unlock: () => Promise<void>;
   importHistory: (months: number) => Promise<void>;
   importProgress: ImportProgress;
@@ -934,6 +935,37 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     });
     return reset;
   };
+  const restoreBackup = async (backup: {
+    transactions: Transaction[];
+    rules: MerchantRule[];
+    metadata: LedgerMetadata;
+  }) => {
+    let restored = false;
+    await perform(async () => {
+      if (!native || state.current.mode !== "live" || state.current.locked)
+        throw new Error("Unlock your journal before restoring a backup.");
+      if (["queued", "running", "waiting"].includes(importProgress.state))
+        throw new Error("Pause SMS history import before restoring a backup.");
+      // The user confirms replacement in the restore sheet first, then verifies
+      // the action with the device credential before the SQLCipher transaction.
+      const key = await native.unlock();
+      generation.current++;
+      cancelVoice();
+      await closeLive();
+      await openLive(key);
+      await replaceLive(backup.transactions, backup.rules, backup.metadata);
+      await native.saveRules(
+        backup.rules.filter(hasSafeRule).map(({ merchant, category }) => ({ merchant, category })),
+      );
+      setTransactions(backup.transactions);
+      setRules(backup.rules);
+      setRecurringDecisions(ledgerMetadata(backup.metadata).recurringDecisions);
+      setPrevious(null);
+      setNotice("Backup restored. Your journal now matches the selected Drive backup.");
+      restored = true;
+    });
+    return restored;
+  };
   useEffect(() => {
     if (mode === "live" && !locked)
       native
@@ -1062,6 +1094,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         setError,
         connect,
         connectEmail,
+        restoreBackup,
         unlock,
         importHistory,
         importProgress,

@@ -122,6 +122,46 @@ export const saveLive = (
     savedMetadata = nextMetadata;
     cache = { transactions, rules, metadata: cleanMetadata };
   });
+export const replaceLive = (
+  transactions: Transaction[],
+  rules: MerchantRule[],
+  metadata: LedgerMetadata,
+) =>
+  serial(async () => {
+    if (!db) throw new Error("Unlock Kanakku first");
+    const handle = db;
+    const cleanMetadata = ledgerMetadata(metadata);
+    await handle.execAsync("BEGIN IMMEDIATE;");
+    try {
+      await handle.execAsync("DELETE FROM transactions; DELETE FROM rules;");
+      for (const transaction of transactions)
+        await handle.runAsync(
+          "INSERT INTO transactions (id,value) VALUES (?,?)",
+          transaction.id,
+          JSON.stringify(transaction),
+        );
+      for (const rule of rules)
+        await handle.runAsync(
+          "INSERT INTO rules (merchant,value) VALUES (?,?)",
+          rule.merchant,
+          JSON.stringify(rule),
+        );
+      await handle.runAsync(
+        "INSERT OR REPLACE INTO ledger_meta (key,value) VALUES ('preferences',?)",
+        JSON.stringify(cleanMetadata),
+      );
+      await handle.execAsync("COMMIT;");
+    } catch (error) {
+      await handle.execAsync("ROLLBACK;");
+      throw error;
+    }
+    savedValues = new Map(
+      transactions.map((transaction) => [transaction.id, JSON.stringify(transaction)]),
+    );
+    savedRules = JSON.stringify(rules);
+    savedMetadata = JSON.stringify(cleanMetadata);
+    cache = { transactions, rules, metadata: cleanMetadata };
+  });
 export const closeLive = () =>
   serial(async () => {
     const handle = db;

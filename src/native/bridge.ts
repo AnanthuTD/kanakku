@@ -91,6 +91,10 @@ export interface ModelDownloadStatus {
   total: number;
 }
 interface KanakkuNative {
+  /** Uploads a passphrase-encrypted journal archive to this user's Drive. */
+  backupToDrive(payload: string, password: string): Promise<{ fileName: string; modifiedTime: string }>;
+  /** Downloads and decrypts the latest Kanakku Drive backup. */
+  restoreFromDrive(password: string): Promise<string>;
   gmailStatus(): Promise<GmailStatus>;
   connectGmail(months: number): Promise<GmailStatus>;
   syncGmail(): Promise<GmailStatus>;

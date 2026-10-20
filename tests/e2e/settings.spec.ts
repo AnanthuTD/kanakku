@@ -36,6 +36,26 @@ test("settings opened directly can return to the overview after reload", async (
   await expect(page.getByTestId("overview-total")).toHaveText("₹1,650");
 });
 
+test("Drive backup clearly explains encryption and stays unavailable in web preview", async ({
+  page,
+}) => {
+  await page.goto("/settings?section=backup");
+  const backup = page.getByTestId("drive-backup");
+  await expect(backup).toBeInViewport();
+  await expect(
+    backup.getByText("Keep a recovery copy in Google Drive"),
+  ).toBeVisible();
+  await expect(
+    backup.getByText(/encrypted on this device before upload/),
+  ).toBeVisible();
+  await expect(
+    backup.getByRole("button", { name: /Back up to Google Drive/ }),
+  ).toBeDisabled();
+  await expect(
+    backup.getByRole("button", { name: /Restore from Google Drive/ }),
+  ).toBeDisabled();
+});
+
 test("quiet hours and reminder time validate, persist and can be disabled", async ({
   page,
 }) => {

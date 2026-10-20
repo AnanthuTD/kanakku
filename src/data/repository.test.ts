@@ -47,7 +47,7 @@ vi.mock("expo-sqlite", async () => {
     deleteDatabaseAsync: async () => rmSync(fixture.file, { force: true }),
   };
 });
-import { openLive, closeLive, readLive, saveLive } from "./repository.native";
+import { openLive, closeLive, readLive, replaceLive, saveLive } from "./repository.native";
 let folder = "";
 beforeEach(() => {
   folder = mkdtempSync(join(tmpdir(), "kanakku-storage-test-"));
@@ -95,6 +95,39 @@ describe("SQLite ledger persistence and migrations (not cryptographic validation
       transactions: [transaction],
       rules: [{ merchant: "Rahul", category: "Transport" }],
       metadata: { recurringDecisions: {} },
+    });
+  });
+  it("restores an exact journal snapshot and rolls back replacement on failure", async () => {
+    await openLive("a".repeat(64));
+    await readLive();
+    await saveLive([transaction], [{ merchant: "Rahul", category: "Transport" }]);
+    await replaceLive(
+      [{ ...transaction, id: "restored", note: "Restored note" }],
+      [{ merchant: "Cafe", category: "Food & dining" }],
+      { recurringDecisions: { "Cafe:monthly": "confirmed" } },
+    );
+    expect(await readLive()).toEqual({
+      transactions: [{ ...transaction, id: "restored", note: "Restored note" }],
+      rules: [{ merchant: "Cafe", category: "Food & dining" }],
+      metadata: { recurringDecisions: { "Cafe:monthly": "confirmed" } },
+    });
+
+    fixture.writes = 0;
+    fixture.fail = true;
+    await expect(
+      replaceLive(
+        [transaction, { ...transaction, id: "second" }],
+        [],
+        { recurringDecisions: {} },
+      ),
+    ).rejects.toThrow("interrupted write");
+    fixture.fail = false;
+    await closeLive();
+    await openLive("a".repeat(64));
+    expect(await readLive()).toEqual({
+      transactions: [{ ...transaction, id: "restored", note: "Restored note" }],
+      rules: [{ merchant: "Cafe", category: "Food & dining" }],
+      metadata: { recurringDecisions: { "Cafe:monthly": "confirmed" } },
     });
   });
   it("round-trips receipt edits, removal and restored snapshots without changing the payment", async () => {

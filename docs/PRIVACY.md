@@ -4,7 +4,7 @@ Last updated 20 October 2026. Applies to the Kanakku Android app (`app.tinkerbox
 
 ## Your journal stays on your phone
 
-Kanakku turns supported bank SMS alerts into a local spend journal. You do not create a Kanakku account. Your SMS, recorded speech and bill images are processed on the phone, and your saved journal is encrypted there. Optional Gmail checks, merchant searches, app updates and model downloads use external services. The bill-recognition SDK also collects technical metrics, as explained below.
+Kanakku turns supported bank SMS alerts into a local spend journal. You do not create a Kanakku account. Your SMS, recorded speech and bill images are processed on the phone, and your saved journal is encrypted there. If you choose, you can manually upload a separate, end-to-end encrypted journal backup to your Google Drive and restore it later. Optional Gmail checks, merchant searches, app updates and model downloads use external services. The bill-recognition SDK also collects technical metrics, as explained below.
 
 ## What the app processes and keeps
 
@@ -14,6 +14,12 @@ Kanakku turns supported bank SMS alerts into a local spend journal. You do not c
 - **Your edits:** saved notes, categories, merchant names, receipt details, personal rules and recurring-payment decisions remain on the phone.
 
 The journal uses SQLCipher. Android Keystore and your device authentication protect its keys. Alerts received while locked are sealed in an encrypted inbox until unlock. Hardware protection varies by device. Android backup of the app's data is disabled.
+
+## Optional encrypted Google Drive backup
+
+In Settings, you can manually back up or restore the saved journal. Kanakku asks for Google Drive access only when you start one of these actions, using the narrow `drive.file` permission to create and update its own visible backup file; it cannot browse your other Drive files. The app encrypts transactions, notes, structured bill details, merchant rules and recurring decisions on the phone using a password you choose before uploading. Google Drive receives the encrypted backup file and normal connection metadata, not the password or readable journal contents. Kanakku does not keep the backup password or operate a backup server.
+
+Keep the password somewhere safe outside Kanakku. It cannot be recovered if forgotten. Restoring requires decrypting and previewing the backup, typing RESTORE, and authenticating with the device; it replaces the current saved journal rather than merging it. SMS/Gmail permissions and account connections, import checkpoints, unprocessed alerts, and temporary bill photos are not included. You can delete the backup file from Drive; removing local data does not remove the Drive copy. The Drive API is an external service; see [Google's privacy policy](https://policies.google.com/privacy).
 
 Android screenshots and screen recordings are allowed while Kanakku is open, including when the journal is unlocked. Captured images may show balances, merchants, amounts and account hints; protect or delete any captures you make.
 
@@ -41,7 +47,7 @@ Network requests to Brave, Expo, Hugging Face and Google expose the connection's
 
 Settings → Check for updates contacts Expo's update service; downloading a compatible update also requests its assets. Requests contain technical update information such as the project, platform/runtime, update/channel information and a randomly generated installation identifier, along with normal network metadata. Expo's update SDK can include update/startup error information when recovering from a failed launch. Saved journal entries, SMS, notes, bill photos and speech are not added to these requests by Kanakku.
 
-See [Expo's privacy explanation](https://expo.dev/privacy-explained) and [privacy policy](https://expo.dev/privacy) for its handling of service data. Expo is an external update host, even though the journal itself has no cloud sync.
+See [Expo's privacy explanation](https://expo.dev/privacy-explained) and [privacy policy](https://expo.dev/privacy) for its handling of service data. Expo is an external update host; the optional encrypted Drive backup is a separate user-initiated feature.
 
 ## Optional model downloads
 
@@ -73,7 +79,7 @@ You can deny optional permissions and continue with typing and manual categoriza
 
 ## Your control and deletion
 
-Settings lets you reset the local journal, clear diagnostics, disable merchant lookup, remove its saved API key, and remove optional models. Uninstalling or clearing app data deletes the app's local data. There is no cloud restoration of your journal.
+Settings lets you reset the local journal, clear diagnostics, disable merchant lookup, remove its saved API key, remove optional models, and manage the encrypted Drive backup. Uninstalling or clearing app data deletes the app's local data; a Drive backup remains until you delete it from Drive. A reset or reinstall does not automatically restore a backup.
 
 Removing local data does not delete logs already held by Brave, Expo, Hugging Face or Google. Their policies govern service retention and deletion rights; contact the relevant provider or us for help identifying the applicable request. No Kanakku account exists to delete.
 

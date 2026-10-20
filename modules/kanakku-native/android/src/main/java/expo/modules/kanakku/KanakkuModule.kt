@@ -96,7 +96,22 @@ class KanakkuModule : Module() {
       val clips=if(test&&context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).getBoolean("debugVoiceClips",false)) context.getExternalFilesDir("voice-debug") else null
       pcmRecorder.start(promise,test,clips)
     }.runOnQueue(Queues.MAIN)
-    OnActivityResult { activity,result -> GmailAuthorization.result(activity,result.requestCode,result.resultCode,result.data) }
+    OnActivityResult { activity,result ->
+      GmailAuthorization.result(activity,result.requestCode,result.resultCode,result.data)
+      DriveBackupAuthorization.result(activity,result.requestCode,result.resultCode,result.data)
+    }
+    AsyncFunction("backupToDrive") { payload:String, password:String, promise:Promise ->
+      val activity=appContext.currentActivity
+      if(!foreground||activity==null)promise.reject("DRIVE_FOREGROUND","Open Kanakku to back up your journal.",null)
+      else if(!Vault(context).ready())promise.reject("DRIVE_VAULT","Unlock your journal before backing it up.",null)
+      else DriveBackupAuthorization.begin(activity,context,"backup",payload,password,promise)
+    }.runOnQueue(Queues.MAIN)
+    AsyncFunction("restoreFromDrive") { password:String, promise:Promise ->
+      val activity=appContext.currentActivity
+      if(!foreground||activity==null)promise.reject("DRIVE_FOREGROUND","Open Kanakku to restore your journal.",null)
+      else if(!Vault(context).ready())promise.reject("DRIVE_VAULT","Unlock your journal before restoring a backup.",null)
+      else DriveBackupAuthorization.begin(activity,context,"restore",null,password,promise)
+    }.runOnQueue(Queues.MAIN)
     AsyncFunction("gmailStatus") { GmailSync.status(context) }
     AsyncFunction("inspectGmailAlerts") { GmailSync.inspectRecent(context) }
     AsyncFunction("connectGmail") { months:Int,promise:Promise ->

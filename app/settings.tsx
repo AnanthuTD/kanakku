@@ -1,4 +1,5 @@
 import { GmailSettings } from "../src/components/GmailSettings";
+import { DriveBackupSettings } from "../src/components/DriveBackupSettings";
 import { ModelDownloadsSettings } from "../src/components/ModelDownloadsSettings";
 import Constants from "expo-constants";
 import { AppUpdatesSettings } from "../src/components/AppUpdatesSettings";
@@ -49,6 +50,7 @@ export default function Settings() {
   const params = useLocalSearchParams<{ section?: string }>();
   const settingsScroll = useRef<ScrollView>(null);
   const modelSectionY = useRef(0);
+  const backupSectionY = useRef(0);
   const [confirmConnect, setConfirmConnect] = useState(false);
   const testBuild = native?.status().testBuild === true;
   const [voiceClips, setVoiceClips] = useState(
@@ -95,10 +97,10 @@ export default function Settings() {
     }
   };
   const scrollToModelSettings = () => {
-    if (params.section !== "models") return;
+    if (params.section !== "models" && params.section !== "backup") return;
     requestAnimationFrame(() =>
       settingsScroll.current?.scrollTo({
-        y: modelSectionY.current,
+        y: params.section === "backup" ? backupSectionY.current : modelSectionY.current,
         animated: true,
       }),
     );
@@ -174,6 +176,12 @@ export default function Settings() {
             </Text>
           ) : null}
           <GmailSettings />
+          <DriveBackupSettings
+            onLayout={(event) => {
+              backupSectionY.current = event.nativeEvent.layout.y;
+              scrollToModelSettings();
+            }}
+          />
           <ModelDownloadsSettings
             onLayout={(event) => {
               modelSectionY.current = event.nativeEvent.layout.y;
@@ -598,6 +606,9 @@ export default function Settings() {
               this phone to start again; personal notes and rules cannot be
               recovered.
             </Text>
+            <Text style={{ color: colors.orange, fontSize: 11, lineHeight: 18 }}>
+              Before uninstalling a differently signed build or resetting the journal, make an encrypted Drive backup here. Android cannot restore local notes after app data is erased.
+            </Text>
             <Button
               secondary
               disabled={!native || busy}
@@ -705,6 +716,9 @@ export default function Settings() {
           stops capture and reminders. Your phone's SMS will remain, so you can
           connect and import them again.
         </Text>
+        <Button secondary onPress={() => { setResetVisible(false); router.push("/settings?section=backup"); }}>
+          Back up my journal first
+        </Button>
         <Text bold>Type RESET to confirm.</Text>
         <TextInput
           accessibilityLabel="Confirm journal reset"

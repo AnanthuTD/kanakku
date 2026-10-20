@@ -19,6 +19,13 @@ export async function saveLive(
 ): Promise<void> {
   throw new Error("Android build required");
 }
+export async function replaceLive(
+  _transactions: Transaction[],
+  _rules: MerchantRule[],
+  _metadata?: LedgerMetadata,
+): Promise<void> {
+  throw new Error("Android build required");
+}
 export async function closeLive(): Promise<void> {}
 export async function deleteLive(): Promise<void> {
   throw new Error("Android build required");
