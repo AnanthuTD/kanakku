@@ -262,7 +262,6 @@ export function DriveBackupSettings({
       setFailure(error instanceof Error ? error.message : "Could not queue a backup.");
     } finally {
       setBusy(false);
-      setTransferProgress(null);
     }
   };
   const getRestore = async () => {
@@ -371,7 +370,8 @@ export function DriveBackupSettings({
         {message ? (
           <Text style={{ color: colors.accent, fontSize: 12 }}>{message}</Text>
         ) : null}
-        {busy && transferProgress?.operation === "backup" ? (
+        {transferProgress?.operation === "backup" &&
+        (busy || autoSchedule.state === "uploading") ? (
           <BackupProgressView progress={transferProgress} operation="backup" colors={colors} />
         ) : null}
         {autoSchedule?.enabled ? (
