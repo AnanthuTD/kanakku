@@ -358,3 +358,5 @@ Updated after each completed step (14 October 2026).
 - [x] Build and verify closed-test beta.6 AAB (versionCode 7), including SMS permission-before-history import fix.
 - [ ] Upload beta.6 to the existing closed-test track and roll it out after Play review. The internal-test v6 draft is separate and remains unpublished; configure the separate Play app-signing SHA-1 so Play-installed builds can use OAuth.
 - [ ] Validate background/revocation behavior and configure the Android OAuth client with the Play app-signing SHA-1; complete Google restricted-scope verification before broad distribution.
+- [x] Preserve the existing Play signing OAuth client and create a separate `Kanakku local debug APK` Android OAuth client for `app.tinkerbox.kanakku` signed with local debug SHA-1 `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`; Google Cloud confirmed creation. No app-side client ID change is required for Android package/signature matching.
+- [ ] After OAuth propagation, retry Gmail connection on the local debug APK and verify consent plus mailbox sync. Google notes propagation can take 5 minutes to a few hours.
