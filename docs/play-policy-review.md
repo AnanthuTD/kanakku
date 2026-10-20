@@ -8,6 +8,7 @@ Review of repository behavior and official guidance; no Console form, release, u
 - `modules/kanakku-native/android/build.gradle` bundles `com.google.mlkit:text-recognition:16.0.1`. Its merged manifest contains ML Kit initialization and Google data-transport components. Bundled OCR is not proof of zero telemetry.
 - Installed `expo-updates` `FileDownloader.kt` sends `EAS-Client-ID` on update/asset requests and can send a previous startup failure in `Expo-Fatal-Error`. These are source observations, not a network-capture result. No separate Expo Observe integration was found in the inspected dependency/config files.
 - SMS parsing, speech decoding and OCR inputs/results remain on device; confirmed journal/receipt fields persist in SQLCipher. The camera creates a temporary cache photo before normal cleanup. Local diagnostics are not automatically uploaded by Kanakku.
+- Optional Gmail uses the restricted `gmail.readonly` scope. Gmail message metadata/body are fetched from Google after explicit Google authorization, filtered and parsed on-device, and only structured transaction records are kept in the local encrypted journal; Kanakku has no Gmail backend and does not forward email content. Under Play's collection definition, data used only on-device and not sent off-device does not need a “collected” declaration. Keep mailbox-wide access and local handling described in the privacy policy and in-app disclosure. Public Google OAuth restricted-scope verification remains a separate release gate.
 
 ## Data safety: changes and decisions
 
