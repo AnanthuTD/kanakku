@@ -45,6 +45,18 @@ describe("encrypted Drive journal archive data", () => {
     });
   });
 
+  it("keeps user-created categories and allows them on transactions and rules", () => {
+    const backup = makeJournalBackup(
+      [{ ...payment, category: "Family" }],
+      [{ merchant: "Maya", category: "Family" }],
+      { recurringDecisions: {}, customCategories: ["Family"] },
+    );
+    const restored = parseJournalBackup(JSON.parse(JSON.stringify(backup)));
+    expect(restored.transactions[0].category).toBe("Family");
+    expect(restored.rules[0].category).toBe("Family");
+    expect(restored.metadata.customCategories).toEqual(["Family"]);
+  });
+
   it("rejects unsupported formats, malformed values, and unknown transaction kinds", () => {
     expect(() => parseJournalBackup({ format: "other", version: 1 })).toThrow(
       /not supported/,

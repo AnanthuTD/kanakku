@@ -8,9 +8,11 @@ export const CATEGORIES = [
   "Entertainment",
   "Health",
   "Home",
+  "Friends & family",
   "Uncategorized",
 ] as const;
-export type Category = (typeof CATEGORIES)[number];
+/** Built-ins plus labels created by the user in their own journal. */
+export type Category = (typeof CATEGORIES)[number] | (string & {});
 export type Kind =
   "purchase" | "income" | "refund" | "transfer" | "card_payment" | "cash";
 export type ThemeMode = "system" | "light" | "dark";
@@ -161,10 +163,17 @@ export function inMonth(transactions: Transaction[], month: string) {
   return transactions.filter((t) => monthKey(t.at) === month);
 }
 export function categoryTotals(transactions: Transaction[]) {
-  return CATEGORIES.map((category) => ({
-    category,
-    amount: netSpend(transactions.filter((t) => t.category === category)),
-  }))
+  const categories = [
+    ...new Set([
+      ...CATEGORIES,
+      ...transactions.map((transaction) => transaction.category),
+    ]),
+  ];
+  return categories
+    .map((category) => ({
+      category,
+      amount: netSpend(transactions.filter((t) => t.category === category)),
+    }))
     .filter((c) => c.amount !== 0)
     .sort((a, b) => b.amount - a.amount);
 }

@@ -63,6 +63,7 @@ export function DriveBackupSettings({
     try {
       const snapshot = makeJournalBackup(app.transactions, app.rules, {
         recurringDecisions: app.recurringDecisions,
+        customCategories: app.customCategories,
       });
       const result = await native.backupToDrive(
         JSON.stringify(snapshot),

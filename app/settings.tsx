@@ -32,12 +32,13 @@ import {
   LockKeyhole,
   MessageSquare,
   Leaf,
+  Plus,
 } from "lucide-react-native";
 import { useApp } from "../src/state/AppContext";
 import { Text, Button, SectionTitle, styles as ui } from "../src/components/ui";
 import { Mascot } from "../src/components/Avatar";
 import { native } from "../src/native/bridge";
-import { ThemeMode, Category, CATEGORIES } from "../src/domain/model";
+import { ThemeMode, Category } from "../src/domain/model";
 import { Sheet } from "../src/components/Sheet";
 import { Option } from "../src/components/LedgerFilters";
 import { ReviewPreferences } from "../src/components/ReviewPreferences";
@@ -64,6 +65,7 @@ export default function Settings() {
   const [editingRuleBank, setEditingRuleBank] = useState<string | undefined>();
   const [ruleCategory, setRuleCategory] = useState<Category>("Food & dining");
   const [ruleAlias, setRuleAlias] = useState("");
+  const [newCategory, setNewCategory] = useState("");
   const [resetVisible, setResetVisible] = useState(false);
   const [resetText, setResetText] = useState("");
   const [security, setSecurity] = useState<{
@@ -100,7 +102,10 @@ export default function Settings() {
     if (params.section !== "models" && params.section !== "backup") return;
     requestAnimationFrame(() =>
       settingsScroll.current?.scrollTo({
-        y: params.section === "backup" ? backupSectionY.current : modelSectionY.current,
+        y:
+          params.section === "backup"
+            ? backupSectionY.current
+            : modelSectionY.current,
         animated: true,
       }),
     );
@@ -529,6 +534,69 @@ export default function Settings() {
               every suggestion is editable.
             </Text>
           </View>
+          <SectionTitle title="Your categories" />
+          <Text
+            muted
+            style={{ fontSize: 12, lineHeight: 19, marginBottom: 12 }}
+          >
+            Friends &amp; family is ready to use. Add categories that make your
+            spending easier to understand; they’re included in your encrypted
+            Drive backup.
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            {app.categories.map((category) => (
+              <View
+                key={category}
+                style={{
+                  minHeight: 40,
+                  justifyContent: "center",
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                  backgroundColor: colors.card,
+                }}
+              >
+                <Text style={{ fontSize: 12 }}>{category}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={{ flexDirection: "row", gap: 10, marginBottom: 28 }}>
+            <TextInput
+              accessibilityLabel="New category name"
+              value={newCategory}
+              onChangeText={setNewCategory}
+              maxLength={32}
+              placeholder="e.g. Pets or Travel"
+              placeholderTextColor={colors.muted}
+              style={{
+                flex: 1,
+                minHeight: 50,
+                paddingHorizontal: 14,
+                borderWidth: 1,
+                borderColor: colors.line,
+                borderRadius: 14,
+                color: colors.text,
+                backgroundColor: colors.card,
+                fontFamily: "DMSans",
+              }}
+            />
+            <Button
+              disabled={busy || !newCategory.trim()}
+              onPress={async () => {
+                if (await app.addCategory(newCategory)) setNewCategory("");
+              }}
+            >
+              Add
+            </Button>
+          </View>
           <SectionTitle title="Things you’ve taught me" />
           {rules.length ? (
             rules.map((r) => (
@@ -601,13 +669,17 @@ export default function Settings() {
                 : "Secure storage and device-key status are available in the Android app."}
             </Text>
             <Text muted style={{ fontSize: 11, lineHeight: 19 }}>
-              Changing device security can make the old key unavailable. There
-              is no cloud recovery. Reset the journal and re-import SMS still on
-              this phone to start again; personal notes and rules cannot be
-              recovered.
+              Changing device security can make the old key unavailable. A
+              password-protected Drive backup can restore saved journal data;
+              without one, reset and re-import SMS still on this phone. Notes
+              and rules cannot be recreated from SMS.
             </Text>
-            <Text style={{ color: colors.orange, fontSize: 11, lineHeight: 18 }}>
-              Before uninstalling a differently signed build or resetting the journal, make an encrypted Drive backup here. Android cannot restore local notes after app data is erased.
+            <Text
+              style={{ color: colors.orange, fontSize: 11, lineHeight: 18 }}
+            >
+              Before uninstalling a differently signed build or resetting the
+              journal, make an encrypted Drive backup here. Android cannot
+              restore local notes after app data is erased.
             </Text>
             <Button
               secondary
@@ -680,14 +752,16 @@ export default function Settings() {
           }}
         />
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {CATEGORIES.filter((c) => c !== "Uncategorized").map((c) => (
-            <Option
-              key={c}
-              label={c}
-              selected={ruleCategory === c}
-              onPress={() => setRuleCategory(c)}
-            />
-          ))}
+          {app.categories
+            .filter((c) => c !== "Uncategorized")
+            .map((c) => (
+              <Option
+                key={c}
+                label={c}
+                selected={ruleCategory === c}
+                onPress={() => setRuleCategory(c)}
+              />
+            ))}
         </View>
         <Button
           disabled={busy}
@@ -716,7 +790,13 @@ export default function Settings() {
           stops capture and reminders. Your phone's SMS will remain, so you can
           connect and import them again.
         </Text>
-        <Button secondary onPress={() => { setResetVisible(false); router.push("/settings?section=backup"); }}>
+        <Button
+          secondary
+          onPress={() => {
+            setResetVisible(false);
+            router.push("/settings?section=backup");
+          }}
+        >
           Back up my journal first
         </Button>
         <Text bold>Type RESET to confirm.</Text>

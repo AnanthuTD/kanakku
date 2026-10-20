@@ -77,7 +77,6 @@ import {
   Transaction,
   Category,
   Kind,
-  CATEGORIES,
   monthKey,
   inMonth,
   netSpend,
@@ -998,14 +997,16 @@ export default function Home() {
                   onPress={() => setAwaitingContextOnly(false)}
                 />
               )}
-              {CATEGORIES.filter((c) => c !== "Uncategorized").map((c) => (
-                <Chip
-                  key={c}
-                  label={c}
-                  active={category === c}
-                  onPress={() => setCategory(category === c ? null : c)}
-                />
-              ))}
+              {app.categories
+                .filter((c) => c !== "Uncategorized")
+                .map((c) => (
+                  <Chip
+                    key={c}
+                    label={c}
+                    active={category === c}
+                    onPress={() => setCategory(category === c ? null : c)}
+                  />
+                ))}
             </ScrollView>
             {(account || day || kind || merchant) && (
               <Pressable

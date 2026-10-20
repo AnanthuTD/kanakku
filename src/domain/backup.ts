@@ -47,7 +47,8 @@ const safeReceipt = (value: unknown): value is ReceiptDraft => {
     return false;
   if (
     receipt.date !== undefined &&
-    (!text(receipt.date, 10) || !/^\d{4}-\d{2}-\d{2}$/.test(String(receipt.date)))
+    (!text(receipt.date, 10) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(String(receipt.date)))
   )
     return false;
   for (const key of [
@@ -108,6 +109,11 @@ export function parseJournalBackup(value: unknown): JournalBackup {
     !text(input.createdAt, 64)
   )
     throw new Error("This Kanakku backup format is not supported.");
+  const metadata = ledgerMetadata(input.metadata);
+  const allowedCategories = new Set([
+    ...CATEGORIES,
+    ...(metadata.customCategories ?? []),
+  ]);
   if (!Array.isArray(input.transactions) || input.transactions.length > 200_000)
     throw new Error("This backup has an invalid transaction list.");
   const transactionIds = new Set<string>();
@@ -124,7 +130,7 @@ export function parseJournalBackup(value: unknown): JournalBackup {
       !text(t.account) ||
       !text(t.bank) ||
       !text(t.at, 80) ||
-      !CATEGORIES.includes(t.category as Category) ||
+      !allowedCategories.has(String(t.category)) ||
       !kinds.has(String(t.kind)) ||
       typeof t.review !== "boolean" ||
       typeof t.excluded !== "boolean" ||
@@ -163,7 +169,7 @@ export function parseJournalBackup(value: unknown): JournalBackup {
     if (
       !text(r.merchant, 256) ||
       !r.merchant ||
-      !CATEGORIES.includes(r.category as Category) ||
+      !allowedCategories.has(String(r.category)) ||
       (r.bank !== undefined && !text(r.bank, 256)) ||
       (r.alias !== undefined && !text(r.alias, 256)) ||
       (r.kind !== undefined && !kinds.has(String(r.kind)))
@@ -179,6 +185,6 @@ export function parseJournalBackup(value: unknown): JournalBackup {
     createdAt: input.createdAt as string,
     transactions,
     rules,
-    metadata: ledgerMetadata(input.metadata),
+    metadata,
   };
 }

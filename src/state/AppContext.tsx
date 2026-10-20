@@ -34,6 +34,7 @@ import React, {
 import { AppState, useColorScheme, PermissionsAndroid } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  CATEGORIES,
   Category,
   MerchantRule,
   ThemeMode,
@@ -43,7 +44,13 @@ import {
   mergeTransactions,
 } from "../domain/model";
 import { sampleTransactions } from "../data/sample";
-import { closeLive, openLive, readLive, replaceLive, saveLive } from "../data/repository";
+import {
+  closeLive,
+  openLive,
+  readLive,
+  replaceLive,
+  saveLive,
+} from "../data/repository";
 import {
   native,
   requestSms,
@@ -106,6 +113,9 @@ interface ContextValue {
   cancelMerchantSearch: () => Promise<void>;
   refreshMerchantLookup: () => Promise<void>;
   rules: MerchantRule[];
+  categories: Category[];
+  customCategories: string[];
+  addCategory: (label: string) => Promise<boolean>;
   recurringDecisions: Record<string, RecurringDecision>;
   setRecurringDecision: (
     key: string,
@@ -125,7 +135,11 @@ interface ContextValue {
   setError: (s: string) => void;
   connect: (months?: number | null) => Promise<void>;
   connectEmail: (months: number) => Promise<GmailStatus | undefined>;
-  restoreBackup: (backup: { transactions: Transaction[]; rules: MerchantRule[]; metadata: LedgerMetadata }) => Promise<boolean>;
+  restoreBackup: (backup: {
+    transactions: Transaction[];
+    rules: MerchantRule[];
+    metadata: LedgerMetadata;
+  }) => Promise<boolean>;
   unlock: () => Promise<void>;
   importHistory: (months: number) => Promise<void>;
   importProgress: ImportProgress;
@@ -183,6 +197,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
   const [recurringDecisions, setRecurringDecisions] = useState<
     Record<string, RecurringDecision>
   >({});
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [theme, setThemeState] = useState<ThemeMode>("system");
   const system = useColorScheme();
   const dark = theme === "dark" || (theme === "system" && system === "dark");
@@ -209,10 +224,18 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     transactions,
     rules,
     recurringDecisions,
+    customCategories,
     mode,
     locked,
   });
-  state.current = { transactions, rules, recurringDecisions, mode, locked };
+  state.current = {
+    transactions,
+    rules,
+    recurringDecisions,
+    customCategories,
+    mode,
+    locked,
+  };
   const generation = useRef(0);
   const task = useRef(false);
   const refreshPending = useRef(false);
@@ -239,6 +262,9 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         setRules(data?.rules || []);
         setRecurringDecisions(
           ledgerMetadata(data?.metadata).recurringDecisions,
+        );
+        setCustomCategories(
+          ledgerMetadata(data?.metadata).customCategories ?? [],
         );
       }
       setSounds(native?.status().sounds ?? true);
@@ -344,7 +370,12 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     // Voice answers given to the floating companion while Kanakku was closed.
     const answers = parseAnswers(await native.pendingAnswers());
     if (answers.length) {
-      const applied = applyAnswers(transactions, answers);
+      const applied = applyAnswers(
+        transactions,
+        answers,
+        Date.now(),
+        data.metadata.customCategories,
+      );
       if (applied.done.length) {
         transactions = applied.transactions;
         await saveLive(transactions, data.rules, data.metadata);
@@ -385,6 +416,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setTransactions(data.transactions);
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
+      setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
       setLocked(false);
       setMode("live");
       await AsyncStorage.setItem(MODE, "live");
@@ -410,6 +442,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setTransactions(data.transactions);
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
+      setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
       setMode("live");
       setLocked(false);
       setPrevious(null);
@@ -434,6 +467,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setTransactions(data.transactions);
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
+      setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
       setMode("live");
       setLocked(false);
       setPrevious(null);
@@ -465,10 +499,14 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     next: Transaction[],
     nextRules: MerchantRule[],
     decisions = state.current.recurringDecisions,
+    categories = state.current.customCategories,
   ) => {
     if (state.current.mode === "live") {
       if (state.current.locked) throw new Error("Unlock Kanakku first");
-      await saveLive(next, nextRules, { recurringDecisions: decisions });
+      await saveLive(next, nextRules, {
+        recurringDecisions: decisions,
+        customCategories: categories,
+      });
       await native?.saveRules(
         nextRules
           .filter(hasSafeRule)
@@ -480,7 +518,10 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         JSON.stringify({
           transactions: next,
           rules: nextRules,
-          metadata: { recurringDecisions: decisions },
+          metadata: {
+            recurringDecisions: decisions,
+            customCategories: categories,
+          },
         }),
       );
   };
@@ -633,6 +674,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setTransactions(data.transactions);
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
+      setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
       setPrevious(null);
       await AsyncStorage.setItem(MODE, "demo");
     });
@@ -667,6 +709,48 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     if (failure) throw failure;
     if (!saved)
       throw new Error("The journal is busy or was locked. Please try again.");
+  };
+  const addCategory = async (label: string) => {
+    const normalized = label.trim().replace(/\s+/g, " ");
+    if (!normalized || normalized.length > 32) {
+      setError("Category names must contain 1–32 characters.");
+      return false;
+    }
+    if (normalized.toLocaleLowerCase() === "uncategorized") {
+      setError("Uncategorized is reserved for payments that need context.");
+      return false;
+    }
+    if (
+      [...CATEGORIES, ...state.current.customCategories].some(
+        (category) =>
+          category.toLocaleLowerCase() === normalized.toLocaleLowerCase(),
+      )
+    ) {
+      setError("That category already exists.");
+      return false;
+    }
+    if (state.current.customCategories.length >= 40) {
+      setError("You can create up to 40 custom categories.");
+      return false;
+    }
+    const next = [...state.current.customCategories, normalized];
+    try {
+      await persist(
+        state.current.transactions,
+        state.current.rules,
+        state.current.recurringDecisions,
+        next,
+      );
+      setCustomCategories(next);
+      setError("");
+      setNotice(
+        `Added “${normalized}”. You can choose it when editing a payment.`,
+      );
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save the category.");
+      return false;
+    }
   };
   const refreshMerchantLookup = async () => {
     lookupEpoch.current++;
@@ -916,6 +1000,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setTransactions([]);
       setRules([]);
       setRecurringDecisions({});
+      setCustomCategories([]);
       setPrevious(null);
       await closeLive();
       await native.resetVault(confirmation);
@@ -926,6 +1011,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setSampleData(!realBuild);
       setRules([]);
       setRecurringDecisions({});
+      setCustomCategories([]);
       setImportProgress(emptyImport);
       setOverlayState(false);
       setNotice(
@@ -955,13 +1041,20 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       await openLive(key);
       await replaceLive(backup.transactions, backup.rules, backup.metadata);
       await native.saveRules(
-        backup.rules.filter(hasSafeRule).map(({ merchant, category }) => ({ merchant, category })),
+        backup.rules
+          .filter(hasSafeRule)
+          .map(({ merchant, category }) => ({ merchant, category })),
       );
       setTransactions(backup.transactions);
       setRules(backup.rules);
       setRecurringDecisions(ledgerMetadata(backup.metadata).recurringDecisions);
+      setCustomCategories(
+        ledgerMetadata(backup.metadata).customCategories ?? [],
+      );
       setPrevious(null);
-      setNotice("Backup restored. Your journal now matches the selected Drive backup.");
+      setNotice(
+        "Backup restored. Your journal now matches the selected Drive backup.",
+      );
       restored = true;
     });
     return restored;
@@ -989,6 +1082,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         setTransactions([]);
         setRules([]);
         setRecurringDecisions({});
+        setCustomCategories([]);
         setPrevious(null);
         closeLive().catch(() => {});
         cancelVoice();
@@ -1013,6 +1107,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           setTransactions([]);
           setRules([]);
           setRecurringDecisions({});
+          setCustomCategories([]);
           setPrevious(null);
           await closeLive();
         }
@@ -1080,6 +1175,16 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         cancelMerchantSearch,
         refreshMerchantLookup,
         rules,
+        categories: [
+          ...new Set([
+            ...CATEGORIES,
+            ...customCategories,
+            ...transactions.map((transaction) => transaction.category),
+            ...rules.map((rule) => rule.category),
+          ]),
+        ],
+        customCategories,
+        addCategory,
         recurringDecisions,
         setRecurringDecision,
         theme,

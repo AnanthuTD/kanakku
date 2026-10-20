@@ -47,7 +47,13 @@ vi.mock("expo-sqlite", async () => {
     deleteDatabaseAsync: async () => rmSync(fixture.file, { force: true }),
   };
 });
-import { openLive, closeLive, readLive, replaceLive, saveLive } from "./repository.native";
+import {
+  openLive,
+  closeLive,
+  readLive,
+  replaceLive,
+  saveLive,
+} from "./repository.native";
 let folder = "";
 beforeEach(() => {
   folder = mkdtempSync(join(tmpdir(), "kanakku-storage-test-"));
@@ -94,13 +100,16 @@ describe("SQLite ledger persistence and migrations (not cryptographic validation
     expect(await readLive()).toEqual({
       transactions: [transaction],
       rules: [{ merchant: "Rahul", category: "Transport" }],
-      metadata: { recurringDecisions: {} },
+      metadata: { recurringDecisions: {}, customCategories: [] },
     });
   });
   it("restores an exact journal snapshot and rolls back replacement on failure", async () => {
     await openLive("a".repeat(64));
     await readLive();
-    await saveLive([transaction], [{ merchant: "Rahul", category: "Transport" }]);
+    await saveLive(
+      [transaction],
+      [{ merchant: "Rahul", category: "Transport" }],
+    );
     await replaceLive(
       [{ ...transaction, id: "restored", note: "Restored note" }],
       [{ merchant: "Cafe", category: "Food & dining" }],
@@ -109,17 +118,18 @@ describe("SQLite ledger persistence and migrations (not cryptographic validation
     expect(await readLive()).toEqual({
       transactions: [{ ...transaction, id: "restored", note: "Restored note" }],
       rules: [{ merchant: "Cafe", category: "Food & dining" }],
-      metadata: { recurringDecisions: { "Cafe:monthly": "confirmed" } },
+      metadata: {
+        recurringDecisions: { "Cafe:monthly": "confirmed" },
+        customCategories: [],
+      },
     });
 
     fixture.writes = 0;
     fixture.fail = true;
     await expect(
-      replaceLive(
-        [transaction, { ...transaction, id: "second" }],
-        [],
-        { recurringDecisions: {} },
-      ),
+      replaceLive([transaction, { ...transaction, id: "second" }], [], {
+        recurringDecisions: {},
+      }),
     ).rejects.toThrow("interrupted write");
     fixture.fail = false;
     await closeLive();
@@ -127,7 +137,10 @@ describe("SQLite ledger persistence and migrations (not cryptographic validation
     expect(await readLive()).toEqual({
       transactions: [{ ...transaction, id: "restored", note: "Restored note" }],
       rules: [{ merchant: "Cafe", category: "Food & dining" }],
-      metadata: { recurringDecisions: { "Cafe:monthly": "confirmed" } },
+      metadata: {
+        recurringDecisions: { "Cafe:monthly": "confirmed" },
+        customCategories: [],
+      },
     });
   });
   it("round-trips receipt edits, removal and restored snapshots without changing the payment", async () => {
@@ -224,6 +237,17 @@ describe("SQLite ledger persistence and migrations (not cryptographic validation
       "recurring-fixture": "confirmed",
     });
     expect((await readLive()).transactions[0].note).toBe("edited");
+  });
+  it("persists custom category labels inside the encrypted journal metadata", async () => {
+    await openLive("a".repeat(64));
+    await readLive();
+    await saveLive([transaction], [], {
+      recurringDecisions: {},
+      customCategories: ["Friends"],
+    });
+    await closeLive();
+    await openLive("a".repeat(64));
+    expect((await readLive()).metadata.customCategories).toEqual(["Friends"]);
   });
   it("rolls back an interrupted write rather than committing a partial journal", async () => {
     await openLive("a".repeat(64));

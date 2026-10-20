@@ -1,6 +1,6 @@
 # Encrypted Google Drive backup
 
-Kanakku's Drive backup is manual and user initiated. It serializes the saved journal (transactions, notes, structured bill details, merchant rules and recurring decisions), encrypts it on Android, then creates or updates one visible file named `Kanakku encrypted backup.kbk` in the user's Drive. Each backup replaces the previous copy; restore always downloads that latest file. The app requests only `https://www.googleapis.com/auth/drive.file`, separately from Gmail, when the user selects Backup or Restore. It can access the app-created backup, not browse the user's other Drive files.
+Kanakku's Drive backup is manual and user initiated. It serializes the saved journal (transactions, notes, structured bill details, built-in and custom category labels, merchant rules and recurring decisions), encrypts it on Android, then creates or updates one visible file named `Kanakku encrypted backup.kbk` in the user's Drive. Each backup replaces the previous copy; restore always downloads that latest file. The app requests only `https://www.googleapis.com/auth/drive.file`, separately from Gmail, when the user selects Backup or Restore. It can access the app-created backup, not browse the user's other Drive files.
 
 ## Encryption and recovery
 

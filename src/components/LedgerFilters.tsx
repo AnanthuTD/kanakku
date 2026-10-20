@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Pressable, TextInput } from "react-native";
 import { useApp } from "../state/AppContext";
-import { Kind, Category, CATEGORIES } from "../domain/model";
+import { Kind, Category } from "../domain/model";
 import {
   DateRange,
   LedgerFilter,
@@ -57,7 +57,7 @@ export function LedgerFilters({
   month: string;
   onApply: (filter: LedgerFilter) => void;
 }) {
-  const { colors, transactions } = useApp();
+  const { colors, transactions, categories } = useApp();
   const [draft, setDraft] = useState(value);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -219,7 +219,7 @@ export function LedgerFilters({
           selected={!draft.category}
           onPress={() => setDraft({ ...draft, category: null })}
         />
-        {CATEGORIES.map((c) => (
+        {categories.map((c) => (
           <Option
             key={c}
             label={c}

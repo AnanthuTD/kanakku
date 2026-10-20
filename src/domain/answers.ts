@@ -40,6 +40,7 @@ export function applyAnswers(
   transactions: Transaction[],
   answers: CompanionAnswer[],
   now = Date.now(),
+  customCategories: string[] = [],
 ): { transactions: Transaction[]; done: string[] } {
   const byId = new Map(answers.map((a) => [a.id, a]));
   const done: string[] = [];
@@ -47,9 +48,9 @@ export function applyAnswers(
     const answer = byId.get(t.id);
     if (!answer) return t;
     done.push(t.id);
-    const category = (CATEGORIES as readonly string[]).includes(
-      answer.category ?? "",
-    )
+    const category = (
+      [...CATEGORIES, ...customCategories] as readonly string[]
+    ).includes(answer.category ?? "")
       ? (answer.category as Category)
       : undefined;
     return {

@@ -1,12 +1,31 @@
 export type RecurringDecision = "confirmed" | "ignored";
 export interface LedgerMetadata {
   recurringDecisions: Record<string, RecurringDecision>;
+  customCategories?: string[];
 }
 export function ledgerMetadata(value?: unknown): LedgerMetadata {
+  const valueObject =
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
   const input =
-    value && typeof value === "object" && "recurringDecisions" in value
-      ? (value as { recurringDecisions: unknown }).recurringDecisions
-      : null;
+    "recurringDecisions" in valueObject ? valueObject.recurringDecisions : null;
+  const customCategories = Array.isArray(valueObject.customCategories)
+    ? valueObject.customCategories
+        .filter(
+          (item): item is string =>
+            typeof item === "string" &&
+            item.trim().length > 0 &&
+            item.trim().length <= 32,
+        )
+        .map((item) => item.trim())
+        .filter((item) => item.toLocaleLowerCase() !== "uncategorized")
+    : [];
+  const uniqueCategories = [
+    ...new Map(
+      customCategories.map((item) => [item.toLocaleLowerCase(), item]),
+    ).values(),
+  ].slice(0, 40);
   return {
     recurringDecisions: Object.fromEntries(
       input && typeof input === "object"
@@ -18,5 +37,6 @@ export function ledgerMetadata(value?: unknown): LedgerMetadata {
           )
         : [],
     ),
+    customCategories: uniqueCategories,
   };
 }

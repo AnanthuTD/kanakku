@@ -81,7 +81,7 @@ export function Button({
     </Pressable>
   );
 }
-const iconMap: Record<Category, typeof ShoppingBag> = {
+const iconMap: Partial<Record<Category, typeof ShoppingBag>> = {
   "Food & dining": Utensils,
   Groceries: Sprout,
   Transport: CarFront,
@@ -90,6 +90,7 @@ const iconMap: Record<Category, typeof ShoppingBag> = {
   Entertainment: Music2,
   Health: HeartPulse,
   Home: House,
+  "Friends & family": HeartPulse,
   Uncategorized: HelpCircle,
 };
 export function categoryColor(
@@ -112,7 +113,7 @@ export function CategoryIcon({
   size?: number;
 }) {
   const { colors } = useApp();
-  const Icon = iconMap[category];
+  const Icon = iconMap[category] || HelpCircle;
   const c = categoryColor(category, colors);
   return (
     <View

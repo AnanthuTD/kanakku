@@ -34,7 +34,6 @@ import { Mic, Square, X, Check, ArrowRight } from "lucide-react-native";
 import { useApp } from "../state/AppContext";
 import {
   Category,
-  CATEGORIES,
   Kind,
   classify,
   isMixedCategoryText,
@@ -69,6 +68,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
       colors,
       transactions,
       rules,
+      categories,
       update,
       busy,
       notice,
@@ -185,7 +185,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
           if (!categoryChosen)
             setCategory(
               !isMixedCategoryText(draft.note) &&
-                CATEGORIES.includes(draft.category as Category)
+                categories.includes(draft.category as Category)
                 ? (draft.category as Category)
                 : classify(draft.note).category,
             );
@@ -360,7 +360,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
           version === suggestionVersion.current &&
           result.similarity >= 0.3 &&
           result.margin >= 0.055 &&
-          CATEGORIES.includes(result.category as Category)
+          categories.includes(result.category as Category)
         )
           setCategory(result.category as Category);
       } catch {
@@ -1016,7 +1016,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                 {suggesting ? "Finding a suggestion…" : "Choose a category"}
               </Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <Pressable
                     key={c}
                     accessibilityRole="button"

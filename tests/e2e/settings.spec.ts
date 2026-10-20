@@ -1,4 +1,4 @@
-import { test, expect, home, setSwitch } from "./fixtures";
+import { test, expect, home, activity, setSwitch } from "./fixtures";
 
 test("dark/light choice survives reload and system follows the browser theme", async ({
   page,
@@ -54,6 +54,25 @@ test("Drive backup clearly explains encryption and stays unavailable in web prev
   await expect(
     backup.getByRole("button", { name: /Restore from Google Drive/ }),
   ).toBeDisabled();
+});
+
+test("custom categories can be created and survive reload", async ({
+  page,
+}) => {
+  await page.goto("/settings");
+  await page.getByRole("textbox", { name: "New category name" }).fill("Pets");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByText("Pets", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Pets", { exact: true })).toBeVisible();
+  await page.goto("/");
+  await activity(page);
+  await page.getByRole("button", { name: "Open transaction filters" }).click();
+  await expect(
+    page
+      .getByTestId("filters-sheet")
+      .getByRole("button", { name: "Pets", exact: true }),
+  ).toBeVisible();
 });
 
 test("quiet hours and reminder time validate, persist and can be disabled", async ({
