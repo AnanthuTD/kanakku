@@ -47,7 +47,7 @@ Node 24 supports the SQLite host tests. JDK 17 and Kotlin 2.2.20+ on PATH suppor
 
 See [E2E instructions](tests/e2e/README.md) and [Android cases](tests/android/ACCEPTANCE.md). Host SQLite tests do not prove Android encryption; browser emulation does not prove SMS, voice, WorkManager or overlays. Build success is not phone acceptance. Keep unverified items unchecked. SQLCipher keys belong to a connection: repository writes use BEGIN IMMEDIATE/COMMIT/ROLLBACK on the existing keyed connection under serial(). Expo withExclusiveTransactionAsync creates a fresh unkeyed connection and must not be used for this ledger.
 
-Maestro smoke flows target the isolated `app.tinkerbox.kanakku.e2e` package and clear only that test app. Never point clear-state flows at the personal package. `KANAKKU_BUILD_PROFILE=e2e` selects test metadata; ordinary prebuild restores personal metadata before building/distributing its APK. Do not overwrite the personal APK with a test-package build.
+Maestro smoke flows target the isolated `app.tinkerbox.kanakku.e2e` package and clear only that test app. Never point clear-state flows at the personal package. `KANAKKU_BUILD_PROFILE=e2e` selects test metadata and is remembered in `kanakku-profile.json`; use `KANAKKU_BUILD_PROFILE=personal` before building/distributing the personal APK or AAB, and confirm the package with aapt2. Do not overwrite the personal APK with a test-package build.
 
 Use JDK 17 / Android SDK 36 for builds. Public releases are built and release-signed by `.github/workflows/release.yml` on a `v*` tag (see RELEASE.md); local builds keep the development key unless the `KANAKKU_RELEASE_*` variables are set. Never commit a keystore or password. Artifacts target arm64 Android 12+. Verify signature, package, ABI, exclusion of model weights and the pinned download catalog after rebuilding. Maintain installed model provenance/licenses. Do not claim every Indian bank/card format is supported without real fixture evidence.
 
@@ -163,10 +163,10 @@ cp android/app/build/outputs/apk/release/app-release.apk artifacts/kanakku-e2e.a
 
 The config plugin forces Gradle's expo-updates fingerprint task to rerun on every build; it declares no source inputs, so without that rule a native edit would leave a stale runtime version in the APK and a later OTA update would be refused. After any native change, confirm `unzip -p <apk> assets/fingerprint` equals the shell's `npx @expo/fingerprint fingerprint:generate --platform android` hash.
 
-Personal build: always run an ordinary prebuild first so the personal package/name return.
+Personal build: select the personal profile explicitly. `app.config.js` persists the last profile in `kanakku-profile.json` (so Gradle's fingerprint matches), so a plain prebuild after an E2E build would still produce `app.tinkerbox.kanakku.e2e`.
 
 ```sh
-npx expo prebuild --platform android --no-install
+KANAKKU_BUILD_PROFILE=personal npx expo prebuild --platform android --no-install --clean
 (cd android && ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --max-workers=4)
 ```
 
