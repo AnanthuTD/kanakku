@@ -49,12 +49,17 @@ describe("encrypted Drive journal archive data", () => {
     const backup = makeJournalBackup(
       [{ ...payment, category: "Family" }],
       [{ merchant: "Maya", category: "Family" }],
-      { recurringDecisions: {}, customCategories: ["Family"] },
+      {
+        recurringDecisions: {},
+        customCategories: ["Family"],
+        categoryIcons: { Family: "Heart" },
+      },
     );
     const restored = parseJournalBackup(JSON.parse(JSON.stringify(backup)));
     expect(restored.transactions[0].category).toBe("Family");
     expect(restored.rules[0].category).toBe("Family");
     expect(restored.metadata.customCategories).toEqual(["Family"]);
+    expect(restored.metadata.categoryIcons).toEqual({ Family: "Heart" });
   });
 
   it("includes money lent, repayment history and reminders in the Drive archive", () => {
@@ -85,10 +90,32 @@ describe("encrypted Drive journal archive data", () => {
         transactions: [{ ...payment, id: "sms-1", kind: "purchase" }],
       }),
     ).toThrow(/invalid transaction/);
-    expect(() => parseJournalBackup({
-      ...backup,
-      metadata: { ...backup.metadata, loans: [{ ...loan, amount: 500 }] },
-    })).toThrow(/lending record/);
+    expect(() =>
+      parseJournalBackup({
+        ...backup,
+        metadata: { ...backup.metadata, loans: [{ ...loan, amount: 500 }] },
+      }),
+    ).toThrow(/lending record/);
+  });
+
+  it("restores foreign-currency card charges with their original code and confirmed INR value", () => {
+    const foreign = [
+      { ...payment, id: "sms-eur", currency: "EUR", amount: 999 },
+      { ...payment, id: "sms-usd", currency: "USD", amount: 1999, inrAmount: 168000 },
+    ];
+    const restored = parseJournalBackup(
+      JSON.parse(JSON.stringify(makeJournalBackup(foreign, [], { recurringDecisions: {} }))),
+    );
+    expect(restored.transactions.map((t) => [t.currency, t.inrAmount])).toEqual([
+      ["EUR", undefined],
+      ["USD", 168000],
+    ]);
+    const bad = makeJournalBackup(
+      [{ ...payment, currency: "rupees" }],
+      [],
+      { recurringDecisions: {} },
+    );
+    expect(() => parseJournalBackup(JSON.parse(JSON.stringify(bad)))).toThrow();
   });
 
   it("rejects unsupported formats, malformed values, and unknown transaction kinds", () => {

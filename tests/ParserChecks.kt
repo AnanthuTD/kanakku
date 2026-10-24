@@ -108,6 +108,89 @@ fun main() {
     verify(transaction.bank == bank && transaction.amount == amounts[index] && transaction.kind == "purchase")
     verify(transaction.reference == "1234567890${20 + index}")
   }
+  // Synthetic templates modelled on common issuer layouts; grammar coverage, not proof of real formats.
+  data class Issuer(val sender: String, val bank: String, val body: String, val amount: Long, val kind: String, val merchant: String, val account: String)
+  listOf(
+    Issuer("JD-SBIUPI-S", "SBI", "Dear UPI user A/C X4821 debited by 500.0 on date 13Oct26 trf to SAMPLE STORE Refno 612345678940. If not u? call 1800111109. -SBI", 50000L, "purchase", "SAMPLE STORE", "4821"),
+    Issuer("AD-SBIUPI-S", "SBI", "Dear SBI User, your A/c X4821-credited by Rs.1500 on 13Oct26 transfer from Sample Person Ref No 612345678941 -SBI", 150000L, "income", "Unknown merchant", "4821"),
+    Issuer("VM-ICICIT-S", "ICICI", "INR 649.00 spent using ICICI Bank Card XX1234 on 13-Oct-26 on SAMPLE MART. Avl Limit: INR 1,20,000.00. If not you, call 1800 2662/SMS BLOCK 1234 to 9215676766.", 64900L, "purchase", "SAMPLE MART", "1234"),
+    Issuer("AX-ICICIB-S", "ICICI", "ICICI Bank Acct XX123 debited for Rs 250.00 on 13-Oct-26; Sample Person credited. UPI:612345678942. Call 18002662 for dispute.", 25000L, "purchase", "Unknown merchant", "123"),
+    Issuer("VM-HDFCBK-S", "HDFC", "Sent Rs.320.00\nFrom HDFC Bank A/C *4821\nTo SAMPLE CAFE\nOn 13/10/26\nRef 612345678943\nNot You?\nCall 18002586161/SMS BLOCK UPI to 7308080808", 32000L, "purchase", "SAMPLE CAFE", "4821"),
+    Issuer("AD-KOTAKB-S", "Kotak", "Sent Rs.199.00 from Kotak Bank AC X4821 to sample@okaxis on 13-10-26.UPI Ref 612345678944. Not you, https://kotak.com/KBANKT/Fraud", 19900L, "purchase", "sample@okaxis", "4821"),
+    Issuer("VK-INDUSB-S", "IndusInd", "Your A/C 2134XXXX4821 has been debited with INR 1,200.00 towards UPI/612345678945/SAMPLE STORE. Avl Bal INR 5,000.00", 120000L, "purchase", "Unknown merchant", "4821"),
+    Issuer("AD-PNBSMS-S", "PNB", "A/c XX4821 debited INR 300.00 Dt 13-10-26 thru UPI:612345678946.Bal INR 4,000.00 Not u?Fwd this SMS to 9264092640 to block UPI.-PNB", 30000L, "purchase", "Unknown merchant", "4821"),
+    Issuer("BP-BOBTXN-S", "Bank of Baroda", "Rs.450.00 Dr. from A/C XXXXXX4821 and Cr. to sample@okicici. Ref:612345678947. AvlBal:Rs5000.00(2026:10:13 10:15:00). Not you? Call 18005700-BOB", 45000L, "purchase", "sample@okicici", "4821"),
+    Issuer("VM-CANBNK-S", "Canara", "An amount of INR 120.00 has been DEBITED to your account XXX4821 on 13/10/2026 towards UPI. Total Avail.Bal INR 3,000.00. - Canara Bank", 12000L, "purchase", "Unknown merchant", "4821"),
+    Issuer("AD-FEDBNK-S", "Federal Bank", "Rs 75.00 debited via UPI on 13-10-2026 10:15:00 to VPA sample@oksbi.Ref No 612345678948.Small txns?Use UPI Lite!-Federal Bank", 7500L, "purchase", "sample@oksbi", "UPI"),
+    Issuer("VM-AUBANK-S", "AU Bank", "Rs 999.00 spent on AU Bank Credit Card XX4821 at SAMPLE ONLINE on 13-10-2026. Avl Lmt Rs 50,000.00", 99900L, "purchase", "SAMPLE ONLINE", "4821"),
+    Issuer("AD-RBLCRD-S", "RBL", "Rs.2,499.00 spent on your RBL Bank credit card ending 4821 at SAMPLE TRAVELS on 13-10-2026. Avl limit Rs 40,000", 249900L, "purchase", "SAMPLE TRAVELS", "4821"),
+    Issuer("AX-AXISBK-S", "Axis", "Spent INR 250 Axis Bank Card no. XX8046 13-10-26 10:15:00 IST SAMPLE STORE Avl Limit: INR 50000 Not you? SMS BLOCK 8046 to 919951860002", 25000L, "purchase", "SAMPLE STORE", "8046"),
+    Issuer("AD-YESBNK-S", "Yes Bank", "INR 99.50 spent on YES BANK Card X4821 SAMPLE MART 13-10-2026 10:15:00 IST. Avl Lmt INR 50,000.00. SMS BLKCC 4821 to 9840909000 if not you", 9950L, "purchase", "SAMPLE MART", "4821"),
+    Issuer("AD-KGBANK-S", "Kerala Gramin Bank", "For the SAMPLE STREAM mandate executed for 13/10/2026 ,your account has been debited with Rs.199.00 towards SAMPLE STREAM for the UPI Mandate . If the mandate is not authorised by you, please contact Kerala Gramin Bank", 19900L, "purchase", "SAMPLE STREAM", "UPI"),
+    Issuer("AX-AXISBK-S", "Axis", "AutoPay transaction\nsuccessful.\nTxn amt: INR 149.00\nMerchant: SAMPLE MUSIC\nAxis Bank Card no.: XX8046\nAvl limit: INR 4000.00\nFor next AutoPay at SAMPLE MUSIC we will\nnotify you of the txn amt before it is\ninitiated by the merchant", 14900L, "purchase", "SAMPLE MUSIC", "8046"),
+  ).forEach { (sender, bank, body, amount, kind, merchant, account) ->
+    val transaction = parse(body, sender)
+    check(transaction != null) { "Issuer template did not parse: $sender" }
+    check(transaction.bank == bank && transaction.amount == amount && transaction.kind == kind) { "Issuer template mismatch: $sender -> $transaction" }
+    check(transaction.merchant == merchant && transaction.account == account) { "Issuer field mismatch: $sender -> ${transaction.merchant}/${transaction.account}" }
+    verify(transaction.method == "merchant")
+  }
+  // Foreign charges keep their own currency; the INR "Avl Limit" is never mistaken for the spend.
+  parse("Spent USD 9.99 Axis Bank Card no. XX8046 13-10-26 10:15:00 IST SAMPLE APP Avl Limit: INR 45000.50 Not you? SMS BLOCK 8046 to 919951860002", "AX-AXISBK-S")!!.let {
+    verify(it.currency == "USD" && it.amount == 999L && it.review && it.merchant == "SAMPLE APP")
+  }
+  parse("Txn reversal of USD 9.99 at SAMPLE APP was successful. Card no. XX8046 13-10-26 10:15:00 IST Avl Limit: INR 45000.50 Axis Bank", "AX-AXISBK-S")!!.let {
+    verify(it.currency == "USD" && it.amount == 999L && it.kind == "refund")
+  }
+  verify(parse("Spent INR 250 Axis Bank Card no. XX8046 13-10-26 10:15:00 IST SAMPLE STORE Avl Limit: INR 50000", "AX-AXISBK-S")!!.currency == "INR")
+  // Card statements: total, minimum and due date; payment confirmations and promotions are not dues.
+  val stmtAt = java.time.Instant.parse("2026-10-20T05:00:00Z").toEpochMilli()
+  SmsParser.statement("AX-AXISBK-S", "Your statement for Axis Bank Credit Card no. XX8046 is generated.\nDue on: 05-11-26\nTotal amt: INR 12,345.67\nMin amt due: INR 620.00\nPay at axisbank.com", stmtAt)!!.let {
+    verify(it.bank == "Axis" && it.account == "8046" && it.totalDue == 1234567L && it.minimumDue == 62000L && it.dueDate == "2026-11-05")
+  }
+  SmsParser.statement("AX-AXISBK-S", "Your statement for Axis Bank Credit Card no. XX8046 is generated. Due on: 05-11-26 Total amt: INR Cr. 150.00 Min amt due: INR 0.00", stmtAt)!!.let {
+    verify(it.totalDue == 0L)
+  }
+  verify(SmsParser.statement("AD-YESBNK-S", "YES BANK Credit Card XX4821 statement: Total due INR 2,499.50 Min due INR 200.00 Due by 08-Nov-2026. Pay now to avoid charges.", stmtAt)!!.let { it.totalDue == 249950L && it.dueDate == "2026-11-08" })
+  verify(SmsParser.statement("AD-HDFCBK-S", "HDFC Bank Credit Card XX4821 Statement: Total due Rs.12,345.00, Min due Rs.620.00, Payment due by 15-Nov-26.", stmtAt)!!.dueDate == "2026-11-15")
+  verify(SmsParser.statement("AX-AXISBK-S", "Your statement for Axis Bank Credit Card no. XX8046 is generated. Due on: 05-11-26 Total amt: INR Dr. 4,321.50 Min amt due: INR Dr. 220.00 Pay at axisbank.com", stmtAt)!!.let { it.totalDue == 432150L && it.minimumDue == 22000L })
+  verify(SmsParser.statement("AD-YESBNK-S", "YES BANK Credit Card XX4821 statement: Total due INR 999.00 Min due INR 100.00 Due by 08Nov26. Pay via app or login to NetBanking.", stmtAt)!!.dueDate == "2026-11-08")
+  verify(SmsParser.statement("AD-YESBNK-S", "Your OTP 123456 for YES BANK Credit Card XX4821 statement: Total due INR 999.00 Due by 08Nov26", stmtAt) == null)
+  verify(SmsParser.statement("AD-SBICRD-S", "Your SBI Card statement for card ending 6218 dated 20/10/2026: Total Amt Due Rs.12,345; Min Amt Due Rs.600; Payment Due Date 09/11/2026.", stmtAt)!!.let { it.bank == "SBI Card" && it.totalDue == 1234500L && it.minimumDue == 60000L })
+  verify(SmsParser.statement("VM-ICICIT-S", "ICICI Bank Credit Card XX1234 Statement: Total Amount Due INR 5,000.00, Minimum Amount Due INR 250.00, due by 15-Nov-26.", stmtAt)!!.account == "1234")
+  verify(SmsParser.statement("VA-SLCBNK-S", "Your slice UPI credit card bill of Rs. 12,345.67 has been paid successfully via autopay.", stmtAt) == null)
+  verify(SmsParser.statement("AD-HDFCBK-P", "HDFC Bank Credit Card XX4821 Statement: Total due Rs.12,345.00, Payment due by 15-Nov-26.", stmtAt) == null)
+  verify(SmsParser.statement("AD-HDFCBK-S", "Rs.420.25 spent on HDFC Bank Card xx4821 at SWIGGY on 13-Oct. Ref 123456789012", stmtAt) == null)
+  verify(SmsParser.statement("AD-HDFCBK-S", "HDFC Bank Credit Card XX4821 Statement: Total due Rs.12,345.00, Payment due by 15-Nov-25.", stmtAt) == null)
+  // Unreadable bank alerts: counted only when they look posted, and shared only as masked shapes.
+  val oddAlert = "Amt of Rs 1,250.00 paid frm your savings to Rahul Sharma 9876543210 at 10:15"
+  verify(SmsParser.unreadable("AD-HDFCBK-S", oddAlert, now))
+  verify(!SmsParser.unreadable("AD-HDFCBK-S", "Your card xx4821 statement: amount due Rs.1200", now))
+  verify(!SmsParser.unreadable("AD-HDFCBK-S", "Your OTP is 812344 for Rs.500 paid at AMAZON", now))
+  verify(!SmsParser.unreadable("AD-SWIGGY-S", oddAlert, now))
+  verify(!SmsParser.unreadable("VM-HDFCBK-P", oddAlert, now))
+  verify(!SmsParser.unreadable("VM-HDFCBK-S", "Rs.420.25 spent on HDFC Bank Card xx4821 at SWIGGY on 13-Oct. Ref 123456789012", now))
+  SmsParser.maskedTemplate(oddAlert).let { masked ->
+    verify(!Regex("[0-8]").containsMatchIn(masked))
+    verify(!masked.contains("Rahul") && !masked.contains("Sharma") && !masked.contains("frm"))
+    verify(masked == "Amt of Rs 9,999.99 paid _ your _ to _ _ 9999999999 at 99:99")
+  }
+  verify(!SmsParser.maskedTemplate("Paid to sample@okaxis via UPI").contains("sample"))
+  // A zero-value AutoPay verification must not fall back to the card's available limit.
+  verify(parse("AutoPay transaction\nsuccessful.\nTxn amt: INR 0.00\nMerchant: SAMPLE MUSIC\nAxis Bank Card no.: XX8046\nAvl limit: INR 4000.00", "AX-AXISBK-S") == null)
+  verify(parse("AutoPay transaction successful. Merchant: SAMPLE MUSIC Axis Bank Card no.: XX8046 Avl limit: INR 4000.00", "AX-AXISBK-S") == null)
+  verify(parse("Rs.120 spent on card xx4821 at SAMPLE. Avl Lmt: Rs.9,000", "AD-HDFCBK-S")!!.amount == 12000L)
+  // A mandate that is only registered or upcoming is not a payment.
+  verify(parse("Your UPI mandate for SAMPLE STREAM of Rs.199.00 has been created on a/c xx4821", "AD-KGBANK-S") == null)
+  // Promotional traffic is rejected even from a known bank header.
+  verify(parse("Rs.5,00,000 pre-approved loan credited to your a/c xx4821 in minutes! Apply now", "VM-HDFCBK-P") == null)
+  // Unknown bank-like headers still parse, but always go to review with their provenance.
+  parse("Rs.410.00 debited from A/c XX4821 to SAMPLE STORE on 13-10-26. Ref 612345678949", "AD-NEWBNK-S")!!.let {
+    verify(it.bank == "NEWBNK" && it.review && it.method == "unknown-bank-header" && it.amount == 41000L)
+  }
+  // Merchant or wallet senders that mention a card must not create a second, duplicate spend.
+  verify(parse("Rs.410.00 paid using HDFC card xx4821 for your order. Ref 612345678950", "AD-AMAZON-S") == null)
+  verify(parse("Rs.410.00 paid using HDFC card xx4821 for your order. Ref 612345678950", "AD-SWIGGY-S") == null)
   // Sender prefix/body/time changes coalesce only when bank/account/kind/ref/amount match.
   val refDebit = parse("Rs.200 debited from account xx4821 to VPA sample@oksbi on 13-Oct. UPI Ref 123456789030")!!
   val replay = SmsParser.parse("AD-HDFCBK", "INR 200.00 paid on account ending 4821 to VPA sample@oksbi on 14-Oct. UPI Ref 123456789030", now + 86400000)!!

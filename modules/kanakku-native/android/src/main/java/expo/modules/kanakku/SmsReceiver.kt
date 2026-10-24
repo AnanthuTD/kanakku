@@ -18,7 +18,7 @@ class SmsReceiver : BroadcastReceiver() {
         // Sender IDs of banks are public headers; personal numbers are masked.
         val from=if(Regex("^[A-Za-z]{2}-[A-Za-z0-9]{3,9}$").matches(sender)||Regex("^[A-Za-z]{4,9}$").matches(sender)) sender else "<number>"
         val parsedEvent=SmsParser.parse(sender,body,messages.first().timestampMillis)
-        if(parsedEvent==null) Diagnostics.log("info","sms","ignored",mapOf("sender" to from,"parts" to messages.size))
+        if(parsedEvent==null) { Diagnostics.log("info","sms","ignored",mapOf("sender" to from,"parts" to messages.size)); SmsParser.statement(sender,body,messages.first().timestampMillis)?.let { st -> if(vault.captureStatement(st)) { Diagnostics.log("info","sms","statement",mapOf("sender" to from)); KanakkuModule.notifyArrival() } } ?: UnreadAlerts.record(context,sender,body,messages.first().timestampMillis) }
         parsedEvent?.let { parsed ->
           // Durable minimal data comes before model loading/inference. Never store raw SMS.
           val fresh=vault.capture(parsed)

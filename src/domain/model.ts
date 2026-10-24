@@ -25,7 +25,8 @@ export type ThemeMode = "system" | "light" | "dark";
 export interface Transaction {
   id: string;
   amount: number; // integer minor units in currency (legacy/default INR), always positive
-  currency?: "INR" | "USD";
+  /** ISO 4217 code of `amount`; absent means INR. Foreign rows count only through `inrAmount`. */
+  currency?: string;
   /** Explicitly confirmed final INR charge for a foreign-currency alert. */
   inrAmount?: number;
   timePrecision?: "day" | "minute";
@@ -43,7 +44,7 @@ export interface Transaction {
   note: string;
   /** Confirmed structured bill details only. Never raw OCR text or a photo URI. */
   receipt?: ReceiptDraft;
-  source: "sample" | "sms" | "email";
+  source: "sample" | "sms" | "email" | "manual";
   reason: string;
   reference?: string;
   /** Bank-stated transaction time, distinct from SMS receipt time in at. */
@@ -228,6 +229,26 @@ export function mergeTransactions(
     ) {
       // Re-import can enrich immutable parser metadata, never replace user decisions.
       map.set(t.id, { ...existing, transactionAt: t.transactionAt });
+    } else if (
+      existing.source === "sms" &&
+      t.source === "sms" &&
+      existing.bank === t.bank &&
+      existing.account === t.account &&
+      (!existing.currency || existing.currency === "INR") &&
+      !!t.currency &&
+      t.currency !== "INR"
+    ) {
+      // Older parsers read a foreign card charge's INR "available limit" as the spend.
+      // Correct only the parser-owned value; notes, category and other decisions stay, and the
+      // row returns to review until the user confirms the final INR charge.
+      map.set(t.id, {
+        ...existing,
+        amount: t.amount,
+        currency: t.currency,
+        inrAmount: undefined,
+        review: true,
+        reason: "Corrected: charged in " + t.currency,
+      });
     }
   }
   return [...map.values()].sort((a, b) => b.at.localeCompare(a.at));

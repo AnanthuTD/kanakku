@@ -172,6 +172,8 @@ class HistoryImportWorker(c: Context, params: WorkerParameters) : Worker(c, para
                 ImportWindow.afterCheckpoint(it.getLong(1), it.getLong(0), p.getLong("lastDate", Long.MAX_VALUE), p.getLong("lastId", Long.MAX_VALUE))) { "Invalid import cursor" }
               val t = SmsParser.parse(it.getString(2) ?: "", it.getString(3) ?: "", it.getLong(1))
               if (t != null) recognised["${t.bank}/${t.kind}"] = (recognised["${t.bank}/${t.kind}"] ?: 0) + 1
+              else SmsParser.statement(it.getString(2) ?: "", it.getString(3) ?: "", it.getLong(1))?.let { s -> vault.captureStatement(s) }
+                ?: UnreadAlerts.record(c, it.getString(2) ?: "", it.getString(3) ?: "", it.getLong(1))
               val added = if (t != null && vault.capture(SemanticClassifier.enrich(c, t))) 1 else 0
               // Capture before checkpoint. A crash between them replays safely using the ingestion ID.
               p.edit().putLong("lastDate", it.getLong(1)).putLong("lastId", it.getLong(0))

@@ -53,6 +53,19 @@ describe("ledger correctness", () => {
         [base],
       )[0].category,
     ).toBe("Transport"));
+  it("re-import corrects a legacy foreign charge recorded as the card limit, keeping user context", () => {
+    const legacy = { ...base, amount: 4500050, category: "Entertainment", note: "Music app", review: false };
+    const [row] = mergeTransactions([legacy], [{ ...base, amount: 999, currency: "USD" }]);
+    expect(row).toMatchObject({ amount: 999, currency: "USD", note: "Music app", category: "Entertainment", review: true });
+    expect(row.inrAmount).toBeUndefined();
+    expect(netSpend([row])).toBe(0);
+  });
+  it("never rewrites a foreign row the user already settled, or rows from another account", () => {
+    const settled = { ...base, amount: 999, currency: "USD", inrAmount: 84000, review: false };
+    expect(mergeTransactions([settled], [{ ...base, amount: 999, currency: "USD" }])[0]).toEqual(settled);
+    const other = { ...base, account: "9999" };
+    expect(mergeTransactions([other], [{ ...base, amount: 999, currency: "USD" }])[0]).toEqual(other);
+  });
   it("parses currency with integer arithmetic and rejects invalid values", () => {
     expect(decimalToPaise("1,234.56")).toBe(123456);
     expect(decimalToPaise("0.29")).toBe(29);

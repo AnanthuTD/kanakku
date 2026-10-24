@@ -16,12 +16,14 @@ Business model: free, with no ads and no data sales. A future optional one-time 
 
 - **Core 1.0:** SMS import and capture, review with the companion, Activity, Insights, recurring payments, bill photos, voice notes (optional models), Drive backup, lending.
 - **Labs** (off by default, behind Settings › Labs): MCP agent access, Gemini AppFunctions, Brave merchant lookup.
-- **Gmail:** excluded from the Play production build until Google's restricted-scope (CASA) verification passes. It stays available in GitHub builds as a Labs feature.
+- **Gmail stays in the core app** (owner decision, 24 Oct): some banks, SBI in particular, send certain alerts only by email. Play approved the build for closed testing. Before production, the Google OAuth consent screen must leave "Testing" mode through restricted-scope verification. Kanakku parses mail on the device and has no server, so it should not need the CASA security assessment, but Google decides that during review. Until verification passes, only listed test users can connect Gmail, and testing-mode grants expire after seven days.
 - **Floating overlay:** opt-in only, offered once after the user has reviewed a few payments in the app.
 
 ## Milestones
 
 ### M1: Trust the total (production blockers)
+Progress 24 Oct: about 60 bank sender headers mapped; synthetic templates for SBI UPI, ICICI, HDFC, Kotak, IndusInd, PNB, BoB, Canara, Federal, AU, RBL, Axis, YES and KGB; promotional (-P) traffic rejected; unknown bank-like senders go to review; foreign-currency card charges keep their currency (older builds recorded the INR available limit as the spend, and re-import corrects those rows); unreadable bank alerts are counted with masked, user-shareable shapes; unlock explains retired keys. A masked, in-memory measurement against the owner's real inbox confirmed Axis payees and found the foreign-charge bug.
+
 1. Generic fallback parser. Bank-looking alerts that the specific templates do not match go to Review with low confidence instead of being dropped. OTP and promotional rejection still runs first.
 2. "Messages we couldn't read" counter in Settings, with a redacted, user-initiated "Share this format" action. Digits, names and VPAs are masked before the share sheet opens, and nothing is sent automatically.
 3. Key invalidation recovery screen ("Journal locked → Restore from Drive backup / Start fresh") with a test.
@@ -51,7 +53,7 @@ Business model: free, with no ads and no data sales. A future optional one-time 
 
 ## Launch gates
 
-- 12+ closed testers for 14 continuous days (Play requirement).
+- 12+ closed testers for 14 continuous days (Play requirement). The owner recruits them once the app feels production-ready, so the test period reflects real daily use.
 - No crash or ANR clusters in Android vitals during the test period.
 - At least five tester banks producing correct month totals, confirmed by the testers.
 - M1 complete and M2 items 1–3 complete.

@@ -156,8 +156,7 @@ export function parseJournalBackup(value: unknown): JournalBackup {
       !text(t.note) ||
       !sources.has(String(t.source)) ||
       !text(t.reason) ||
-      (t.currency !== undefined &&
-        !["INR", "USD"].includes(String(t.currency))) ||
+      (t.currency !== undefined && !/^[A-Z]{3}$/.test(String(t.currency))) ||
       (t.inrAmount !== undefined &&
         (!Number.isSafeInteger(t.inrAmount) || (t.inrAmount as number) <= 0)) ||
       (t.reference !== undefined && !text(t.reference, 256)) ||

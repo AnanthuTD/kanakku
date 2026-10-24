@@ -69,6 +69,8 @@ class Vault(private val context: Context) {
     // Answers given to the floating companion; sealed with the public key so no unlock is needed.
     execSQL("CREATE TABLE IF NOT EXISTS answers (id TEXT PRIMARY KEY, envelope TEXT NOT NULL)")
     execSQL("CREATE TABLE IF NOT EXISTS gmail_seen (id TEXT PRIMARY KEY)")
+    // Card statement alerts, sealed like payments and moved into the encrypted journal on unlock.
+    execSQL("CREATE TABLE IF NOT EXISTS statements (id TEXT PRIMARY KEY, envelope TEXT NOT NULL)")
   } }
   private fun envelope(t:ParsedTransaction):String {
     val classification=JSONObject().put("method",t.method).put("version",t.classifierVersion)
@@ -117,6 +119,17 @@ class Vault(private val context: Context) {
       return db.insertWithOnConflict("answers",null,values,SQLiteDatabase.CONFLICT_REPLACE)!=-1L
     }
   }
+  fun captureStatement(s: CardStatement): Boolean = synchronized(lifecycleGuard) {
+    if (!ready() || initialEpoch!=prefs.getLong("vaultEpoch",0)) return false
+    val j = JSONObject().put("id",s.id).put("bank",s.bank).put("account",s.account).put("totalDue",s.totalDue).put("dueDate",s.dueDate).put("at",s.at)
+    s.minimumDue?.let { j.put("minimumDue", it) }
+    inbox().use { db ->
+      val values = android.content.ContentValues().apply { put("id", s.id); put("envelope", seal(j.toString().toByteArray())) }
+      return db.insertWithOnConflict("statements", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1L
+    }
+  }
+  fun statements(): List<String> = inbox().use { db -> db.rawQuery("SELECT envelope FROM statements LIMIT 250", null).use { c -> buildList { while(c.moveToNext()) add(String(unseal(c.getString(0)))) } } }
+  fun acknowledgeStatements(ids: List<String>) = inbox().use { db -> db.beginTransaction(); try { ids.forEach { db.delete("statements", "id = ?", arrayOf(it)) }; db.setTransactionSuccessful() } finally { db.endTransaction() } }
   fun answers(): List<String> = inbox().use { db -> db.rawQuery("SELECT envelope FROM answers LIMIT 250", null).use { c -> buildList { while(c.moveToNext()) add(String(unseal(c.getString(0)))) } } }
   fun acknowledgeAnswers(ids: List<String>) = inbox().use { db -> db.beginTransaction(); try { ids.forEach { db.delete("answers", "id = ?", arrayOf(it)) }; db.setTransactionSuccessful() } finally { db.endTransaction() } }
   fun answerCount(): Int = inbox().use { db -> db.rawQuery("SELECT COUNT(*) FROM answers", null).use { c -> c.moveToFirst(); c.getInt(0) } }
