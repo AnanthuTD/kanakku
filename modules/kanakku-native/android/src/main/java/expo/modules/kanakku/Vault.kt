@@ -31,6 +31,10 @@ class Vault(private val context: Context) {
   fun ready() = store.containsAlias(alias)
   fun initialize() {
     check(context.getSystemService(KeyguardManager::class.java).isDeviceSecure) { "Set a device PIN or biometric before connecting SMS." }
+    // Android deletes authentication-bound keys when the screen lock is removed. A journal envelope
+    // without its key means the old journal can no longer be opened; remember that, so unlock can
+    // explain it instead of showing a generic failure. The envelope itself is never replaced here.
+    if (!ready() && File(context.noBackupFilesDir, "ledger-key.envelope").exists()) prefs.edit().putBoolean("keyRetired", true).commit()
     if (!ready()) KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore").apply {
       initialize(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_DECRYPT).setKeySize(2048)
         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP).setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA1)
@@ -149,6 +153,7 @@ class Vault(private val context: Context) {
     }.getOrDefault("Unknown")
     return mapOf("deviceSecure" to secure,"vaultReady" to ready(),"backing" to backing)
   }
+  fun keyRetired() = prefs.getBoolean("keyRetired", false)
   fun reset()=synchronized(lifecycleGuard) {
     DriveAutoBackupStore.disable(context)
     prefs.edit().putBoolean("capture",false).putLong("vaultEpoch",prefs.getLong("vaultEpoch",0)+1).commit()
@@ -161,7 +166,7 @@ class Vault(private val context: Context) {
       if(store.containsAlias(alias))store.deleteEntry(alias)
       if(store.containsAlias("kanakku-merchant-fingerprints-v1"))store.deleteEntry("kanakku-merchant-fingerprints-v1")
       context.getSharedPreferences("kanakku-merchant-rules",Context.MODE_PRIVATE).edit().clear().commit()
-      prefs.edit().remove("ledgerReviewCount").remove("lastReceipt").remove("captureSince").commit()
+      prefs.edit().remove("ledgerReviewCount").remove("lastReceipt").remove("captureSince").remove("keyRetired").commit()
     }
   }
   companion object { private val inboxGuard=Any();private val lifecycleGuard=Any() }

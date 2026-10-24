@@ -137,7 +137,7 @@ class KanakkuModule : Module() {
           override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { try { allowScreenshots(activity); val key=vault.databaseKey(); AssistantData.markUnlocked(); promise.resolve(key) } catch(e:Exception) { AssistantData.clear()
             // Android retires authentication-bound keys when the screen lock is removed or reset.
             // The journal cannot be opened again; never replace the key silently.
-            val retired=generateSequence<Throwable>(e){it.cause}.any{it is android.security.keystore.KeyPermanentlyInvalidatedException}
+            val retired=vault.keyRetired()||generateSequence<Throwable>(e){it.cause}.any{it is android.security.keystore.KeyPermanentlyInvalidatedException}
             Diagnostics.log("error","vault","unlock-key-unavailable",mapOf("retired" to retired),e)
             if(retired) promise.reject("KEY_INVALIDATED","Your phone's screen lock changed, so Android retired the key protecting this journal. To recover it, go to Settings › Reset journal, connect again, then restore your latest Drive backup. Without a backup, re-importing SMS rebuilds payments, but notes and rules are lost.",e)
             else promise.reject("KEY_UNAVAILABLE","Kanakku couldn't open the encrypted journal. Try unlocking again. If this keeps happening, restore your latest Drive backup after Settings › Reset journal.",e)} }
