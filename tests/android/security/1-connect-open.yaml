@@ -1,0 +1,22 @@
+appId: app.tinkerbox.kanakku.e2e
+---
+- launchApp
+- tapOn: "Open settings"
+- tapOn: "Bank alerts & import"
+- tapOn: "Connect bank SMS"
+- scrollUntilVisible:
+    element: "4 months"
+- tapOn: "4 months"
+- scrollUntilVisible:
+    element:
+      id: "lock-choice-open"
+- tapOn:
+    id: "lock-choice-open"
+- scrollUntilVisible:
+    element: "Continue with Android permissions"
+- tapOn: "Continue with Android permissions"
+- extendedWaitUntil:
+    visible: "Capture new bank SMS"
+    timeout: 60000
+- assertNotVisible:
+    id: ".*(pinEntry|lockPassword)"

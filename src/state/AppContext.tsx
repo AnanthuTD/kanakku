@@ -84,6 +84,7 @@ import {
   emptyImport,
   GmailStatus,
   requestNotifications,
+  type LockMode,
 } from "../native/bridge";
 const palettes = {
   light: {
@@ -180,7 +181,15 @@ interface ContextValue {
   loaded: boolean;
   error: string;
   setError: (s: string) => void;
-  connect: (months?: number | null) => Promise<void>;
+  connect: (months?: number | null, lockMode?: LockMode) => Promise<void>;
+  /** How the journal opens on this phone (Android only). */
+  lockMode: LockMode;
+  hasRecovery: boolean;
+  setLockMode: (mode: LockMode) => Promise<boolean>;
+  setRecoveryPassword: (password: string) => Promise<boolean>;
+  clearRecoveryPassword: () => Promise<void>;
+  /** Opens the journal with the recovery password after Android removed the screen-lock key. */
+  recoverJournal: (password: string) => Promise<boolean>;
   connectEmail: (months: number) => Promise<GmailStatus | undefined>;
   restoreBackup: (backup: {
     transactions: Transaction[];
@@ -253,6 +262,16 @@ export function AppProvider({ children }: React.PropsWithChildren) {
   );
   const [loans, setLoans] = useState<LoanRecord[]>([]);
   const [cardDues, setCardDues] = useState<CardDue[]>([]);
+  const [lockMode, setLockModeState] = useState<LockMode>(
+    native?.status().lockMode ?? "device",
+  );
+  const [hasRecovery, setHasRecovery] = useState(
+    native?.status().hasRecovery ?? false,
+  );
+  const refreshSecurity = () => {
+    setLockModeState(native?.status().lockMode ?? "device");
+    setHasRecovery(native?.status().hasRecovery ?? false);
+  };
   const [theme, setThemeState] = useState<ThemeMode>("system");
   const system = useColorScheme();
   const dark = theme === "dark" || (theme === "system" && system === "dark");
@@ -577,13 +596,75 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setMode("live");
       await AsyncStorage.setItem(MODE, "live");
     });
-  const connect = (months: number | null = null) =>
+  const recoverJournal = async (password: string) => {
+    let opened = false;
+    await perform(async () => {
+      if (!native) throw new Error("Recovery needs the Android app.");
+      const key = await native.recoverJournal(password);
+      const token = ++generation.current;
+      await openLive(key);
+      const data = await flush(await readLive());
+      if (token !== generation.current) return;
+      setTransactions(data.transactions);
+      setRules(data.rules);
+      setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
+      setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
+      setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
+      setLoans(ledgerMetadata(data.metadata).loans ?? []);
+      setCardDues(ledgerMetadata(data.metadata).cardDues ?? []);
+      setLocked(false);
+      setMode("live");
+      refreshSecurity();
+      setNotice("Journal opened with your recovery password. Import recent history to bring back anything that arrived meanwhile.");
+      opened = true;
+    });
+    return opened;
+  };
+  const setLockMode = async (next: LockMode) => {
+    let changed = false;
+    await perform(async () => {
+      if (!native) throw new Error("This setting needs the Android app.");
+      await native.setLockMode(next);
+      refreshSecurity();
+      setNotice(
+        next === "open"
+          ? "Kanakku now opens without asking. Your journal is still encrypted on this phone."
+          : "Kanakku will ask for your phone lock to open the journal.",
+      );
+      changed = true;
+    });
+    return changed;
+  };
+  const setRecoveryPassword = async (password: string) => {
+    let saved = false;
+    await perform(async () => {
+      if (!native) throw new Error("Recovery passwords need the Android app.");
+      if (state.current.locked) throw new Error("Unlock Kanakku first");
+      await native.setRecoveryPassword(password);
+      refreshSecurity();
+      setNotice("Recovery password saved on this phone. Keep it somewhere safe; Kanakku can't show it again.");
+      saved = true;
+    });
+    return saved;
+  };
+  const clearRecoveryPassword = () =>
+    perform(async () => {
+      if (!native) return;
+      await native.clearRecoveryPassword();
+      refreshSecurity();
+      setNotice("Recovery password removed from this phone.");
+    });
+  const connect = (months: number | null = null, chosenLock?: LockMode) =>
     perform(async () => {
       if (!native)
         throw new Error(
           "This is the web preview. Bank SMS, encrypted storage, overlays, and offline voice require the Android build.",
         );
       await requestSms();
+      // The user picks how the journal opens before its key is created.
+      if (chosenLock && !native.status().keyRetired)
+        await native.chooseLockMode(chosenLock).catch(() => undefined);
+      refreshSecurity();
       const key = await native.unlock();
       const token = ++generation.current;
       await openLive(key);
@@ -1624,6 +1705,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setPrevious(null);
       await closeLive();
       await native.resetVault(confirmation);
+      refreshSecurity();
       await AsyncStorage.setItem(MODE, "demo");
       setMode("demo");
       setLocked(false);
@@ -1900,6 +1982,12 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         loans,
         cardDues,
         settleCardDue,
+        lockMode,
+        hasRecovery,
+        setLockMode,
+        setRecoveryPassword,
+        clearRecoveryPassword,
+        recoverJournal,
         addLoan,
         removeLoan,
         recordLoanRepayment,

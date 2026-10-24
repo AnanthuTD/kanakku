@@ -189,7 +189,8 @@ export function money(paise: number, decimals = false) {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 2,
-    minimumFractionDigits: decimals ? 2 : 0,
+    // Whole rupees stay short (₹420); any paise always show two digits (₹4,321.50, never ₹4,321.5).
+    minimumFractionDigits: decimals || paise % 100 !== 0 ? 2 : 0,
   }).format(paise / 100);
 }
 export function decimalToPaise(value: string): number | null {

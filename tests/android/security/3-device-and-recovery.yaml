@@ -1,0 +1,44 @@
+appId: app.tinkerbox.kanakku.e2e
+---
+- launchApp
+- tapOn: "Open settings"
+- scrollUntilVisible:
+    element: "Privacy & device"
+- tapOn: "Privacy & device"
+- extendedWaitUntil:
+    visible: "How Kanakku opens"
+    timeout: 20000
+- tapOn:
+    id: "lock-choice-device"
+- extendedWaitUntil:
+    visible:
+      id: ".*(pinEntry|lockPassword)"
+    timeout: 20000
+- inputText: "2580"
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "Kanakku will ask for your phone lock to open the journal."
+    timeout: 20000
+- scrollUntilVisible:
+    element: "Set a recovery password"
+- tapOn: "Set a recovery password"
+- tapOn: "New recovery password"
+- inputText: "kanakku recovery 2026"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Repeat recovery password"
+- tapOn: "Repeat recovery password"
+- inputText: "kanakku recovery 2026"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Save recovery password"
+- tapOn: "Save recovery password"
+- extendedWaitUntil:
+    visible:
+      id: ".*(pinEntry|lockPassword)"
+    timeout: 20000
+- inputText: "2580"
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "Recovery password saved on this phone.*"
+    timeout: 30000

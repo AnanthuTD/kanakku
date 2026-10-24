@@ -54,6 +54,10 @@ import { Option } from "../src/components/LedgerFilters";
 import { ReviewPreferences } from "../src/components/ReviewPreferences";
 import { ImportPeriodPicker } from "../src/components/ImportPeriodPicker";
 import { UnreadAlertsCard } from "../src/components/UnreadAlerts";
+import { LockChoice } from "../src/components/LockChoice";
+import { SecuritySettings } from "../src/components/SecuritySettings";
+import { markLockChoiceMade } from "../src/components/LockChoiceCard";
+import type { LockMode } from "../src/native/bridge";
 import { ImportBanner } from "../src/components/ImportProgress";
 import { SettingsGroup } from "../src/components/SettingsGroup";
 import { AUTO_LOCK_OPTIONS } from "../src/domain/autoLock";
@@ -64,6 +68,7 @@ export default function Settings() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ section?: string }>();
   const [confirmConnect, setConfirmConnect] = useState(false);
+  const [lockChoice, setLockChoice] = useState<LockMode>("device");
   const testBuild = native?.status().testBuild === true;
   const [voiceClips, setVoiceClips] = useState(
     native?.status().debugVoiceClips === true,
@@ -460,9 +465,23 @@ export default function Settings() {
                       allowSkip
                       disabled={busy}
                     />
+                    <Text bold style={{ fontSize: 13 }}>
+                      How should Kanakku open?
+                    </Text>
+                    <LockChoice
+                      value={lockChoice}
+                      onChange={setLockChoice}
+                      disabled={busy}
+                    />
+                    <Text muted style={{ fontSize: 11, lineHeight: 17 }}>
+                      You can change this anytime in Settings › Privacy & device.
+                    </Text>
                     <Button
                       disabled={busy}
-                      onPress={() => app.connect(historyMonths)}
+                      onPress={() => {
+                        void markLockChoiceMade();
+                        void app.connect(historyMonths, lockChoice);
+                      }}
                     >
                       {busy
                         ? "Connecting…"
@@ -902,6 +921,8 @@ export default function Settings() {
             detail="Review device protection, app updates and journal reset options."
           >
           <SectionTitle title="Your device journal" />
+          <SecuritySettings />
+          {app.lockMode !== "open" && (
           <View style={{ gap: 9, marginBottom: 18 }}>
             <Text bold>Ask for unlock after</Text>
             <Text muted style={{ fontSize: 12, lineHeight: 19 }}>
@@ -936,6 +957,7 @@ export default function Settings() {
               })}
             </View>
           </View>
+          )}
           <SectionTitle title="Gemini access" />
           <View style={[ui.row, { alignItems: "flex-start", gap: 12, marginBottom: 8 }]}>
             <View style={{ flex: 1, gap: 5 }}>

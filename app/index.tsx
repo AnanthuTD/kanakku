@@ -74,6 +74,7 @@ import { native } from "../src/native/bridge";
 import { ReviewSheet, ReviewHandle } from "../src/components/ReviewSheet";
 import { ImportBanner } from "../src/components/ImportProgress";
 import { CardDues } from "../src/components/CardDues";
+import { LockChoiceCard } from "../src/components/LockChoiceCard";
 import {
   heldSpend,
   needsInrSettlement,
@@ -102,6 +103,10 @@ export default function Home() {
     error,
     notice,
   } = app;
+  const [recoveryPassword, setRecoveryPassword] = useState("");
+  const security = native?.status();
+  // Android removed the screen-lock key; only the recovery password (or a reset) can help now.
+  const canRecover = !!(locked && security?.keyRetired && security?.hasRecovery);
   const unlockAttempted = useRef(false);
   const unlockRef = useRef(app.unlock);
   unlockRef.current = app.unlock;
@@ -126,6 +131,7 @@ export default function Home() {
       return;
     }
     if (!loaded || busy || unlockAttempted.current) return;
+    if (native?.status().keyRetired) return;
     unlockAttempted.current = true;
     const timer = setTimeout(() => void unlockRef.current(), 250);
     return () => clearTimeout(timer);
@@ -506,6 +512,21 @@ export default function Home() {
         <ActivityIndicator color={colors.accent} />
       </View>
     );
+  // "Open without asking": unlocking needs no prompt, so show the loading view instead of a lock screen.
+  if (locked && app.lockMode === "open" && !error)
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: colors.bg,
+        }}
+      >
+        <Mascot size={86} />
+        <ActivityIndicator color={colors.accent} />
+      </View>
+    );
   if (locked)
     return (
       <View
@@ -545,9 +566,43 @@ export default function Home() {
             {error}
           </Text>
         ) : null}
-        <Button disabled={busy} onPress={app.unlock} style={{ minWidth: 240 }}>
-          {busy ? "Unlocking…" : "Unlock Kanakku"}
-        </Button>
+        {canRecover ? (
+          <View style={{ width: "100%", maxWidth: 340, gap: 10 }}>
+            <TextInput
+              testID="recovery-password"
+              accessibilityLabel="Recovery password"
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={recoveryPassword}
+              onChangeText={setRecoveryPassword}
+              placeholder="Recovery password"
+              placeholderTextColor={colors.muted}
+              style={{
+                borderWidth: 1,
+                borderColor: colors.line,
+                borderRadius: 12,
+                paddingHorizontal: 14,
+                minHeight: 48,
+                color: colors.text,
+                backgroundColor: colors.card,
+              }}
+            />
+            <Button
+              disabled={busy || recoveryPassword.length < 12}
+              onPress={async () => {
+                if (await app.recoverJournal(recoveryPassword))
+                  setRecoveryPassword("");
+              }}
+            >
+              {busy ? "Opening…" : "Open with recovery password"}
+            </Button>
+          </View>
+        ) : (
+          <Button disabled={busy} onPress={app.unlock} style={{ minWidth: 240 }}>
+            {busy ? "Unlocking…" : "Unlock Kanakku"}
+          </Button>
+        )}
         <View style={{ marginTop: 18, width: "100%", maxWidth: 420 }}>
           <ImportBanner />
         </View>
@@ -916,6 +971,7 @@ export default function Home() {
                 <ChevronRight size={16} color={colors.muted} />
               </Pressable>
             )}
+            <LockChoiceCard />
             <CardDues hideAmount={hideAmount} />
             {monthly.some(
               (t) =>

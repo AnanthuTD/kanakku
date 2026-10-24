@@ -28,6 +28,7 @@ try {
         "CompanionDrafts.kt",
         "ModelFiles.kt",
         "BankEmailParser.kt",
+        "RecoveryKey.kt",
       ].map((file) => source + file),
       "tests/ParserChecks.kt",
       "tests/ModelDownloadChecks.kt",

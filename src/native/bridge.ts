@@ -17,7 +17,14 @@ export interface NativeStatus {
   /** False on processors without ARMv8.2 fp16/dot-product support. */
   voiceSupported?: boolean;
   debugVoiceClips?: boolean;
+  /** How the journal opens: "device" asks for the phone lock, "open" uses a no-prompt hardware key. */
+  lockMode?: LockMode;
+  /** A recovery password has been set on this phone. */
+  hasRecovery?: boolean;
+  /** The screen-lock key was deleted by Android while a journal still exists. */
+  keyRetired?: boolean;
 }
+export type LockMode = "device" | "open";
 export interface ReviewPreferences {
   notifications: boolean;
   quietEnabled: boolean;
@@ -253,6 +260,14 @@ interface KanakkuNative {
   setCapture(enabled: boolean): Promise<void>;
   importHistory(months: number): Promise<ImportProgress>;
   importStatus(): Promise<ImportProgress>;
+  /** Only before the first connection. */
+  chooseLockMode(mode: LockMode): Promise<LockMode>;
+  /** Asks for the phone lock, then re-seals the journal key for the chosen mode. */
+  setLockMode(mode: LockMode): Promise<LockMode>;
+  setRecoveryPassword(password: string): Promise<boolean>;
+  clearRecoveryPassword(): Promise<boolean>;
+  /** Opens a journal whose screen-lock key Android deleted; resolves the journal key. */
+  recoverJournal(password: string): Promise<string>;
   /** Bank alerts that looked like payments but could not be read; samples are masked shapes only. */
   unreadAlerts(): Promise<UnreadAlerts>;
   /** Sealed card statement alerts (JSON) waiting to move into the encrypted journal. */

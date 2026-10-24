@@ -25,36 +25,55 @@ import javax.crypto.spec.SecretKeySpec
 
 class Vault(private val context: Context) {
   private val alias = "kanakku-sealed-inbox-v1"
+  // "open" mode: a hardware-backed key that needs no fingerprint/PIN, so it survives screen-lock changes.
+  private val openAlias = "kanakku-sealed-inbox-open-v1"
   private val store get() = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
   private val prefs get() = context.getSharedPreferences("kanakku-settings", Context.MODE_PRIVATE)
   private val initialEpoch=prefs.getLong("vaultEpoch",0)
-  fun ready() = store.containsAlias(alias)
+  /** "device": the phone's lock (biometric, PIN, pattern) is needed to open the journal. "open": no prompt. */
+  fun lockMode() = if (prefs.getString("lockMode", "device") == "open") "open" else "device"
+  private fun activeAlias() = if (lockMode() == "open") openAlias else alias
+  private val envelopeFile get() = File(context.noBackupFilesDir, "ledger-key.envelope")
+  private val recoveryFile get() = AtomicFile(File(context.noBackupFilesDir, "ledger-key.recovery"))
+  fun ready() = store.containsAlias(activeAlias())
+  /** Before the first connection only: choose how the journal will open. */
+  fun chooseInitialLockMode(mode: String) {
+    require(mode == "device" || mode == "open")
+    check(!envelopeFile.exists()) { "Change this in Settings › Privacy & device." }
+    prefs.edit().putString("lockMode", mode).commit()
+  }
+  private fun generate(keyAlias: String, authBound: Boolean) {
+    KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore").apply {
+      val spec = KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_DECRYPT).setKeySize(2048)
+        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP).setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA1)
+      if (authBound) spec.setUserAuthenticationRequired(true).setUserAuthenticationParameters(60, KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL)
+      initialize(spec.build())
+    }.generateKeyPair()
+  }
   fun initialize() {
-    check(context.getSystemService(KeyguardManager::class.java).isDeviceSecure) { "Set a device PIN or biometric before connecting SMS." }
+    if (lockMode() == "device") check(context.getSystemService(KeyguardManager::class.java).isDeviceSecure) { "Set a device PIN or biometric before connecting SMS." }
     // Android deletes authentication-bound keys when the screen lock is removed. A journal envelope
     // without its key means the old journal can no longer be opened; remember that, so unlock can
     // explain it instead of showing a generic failure. The envelope itself is never replaced here.
     if (!ready() && File(context.noBackupFilesDir, "ledger-key.envelope").exists()) prefs.edit().putBoolean("keyRetired", true).commit()
-    if (!ready()) KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore").apply {
-      initialize(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_DECRYPT).setKeySize(2048)
-        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP).setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA1)
-        .setUserAuthenticationRequired(true).setUserAuthenticationParameters(60, KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL).build())
-    }.generateKeyPair()
+    if (!ready()) generate(activeAlias(), authBound = lockMode() == "device")
   }
   private fun b64(bytes: ByteArray) = Base64.encodeToString(bytes, Base64.NO_WRAP)
   private fun decode(s: String) = Base64.decode(s, Base64.NO_WRAP)
-  private fun rsa(mode: Int) = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding").apply {
-    val key = if (mode == Cipher.ENCRYPT_MODE) store.getCertificate(alias).publicKey else store.getKey(alias, null)
+  private fun rsa(mode: Int, keyAlias: String) = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding").apply {
+    val key = if (mode == Cipher.ENCRYPT_MODE) store.getCertificate(keyAlias).publicKey else store.getKey(keyAlias, null)
     init(mode, key, OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA1, PSource.PSpecified.DEFAULT))
   }
-  private fun seal(bytes: ByteArray): String {
+  // Each envelope names the key that sealed it, so a lock-mode switch interrupted half-way stays readable.
+  private fun seal(bytes: ByteArray, keyAlias: String = activeAlias()): String {
     val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
     val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key) }
-    return JSONObject().put("key", b64(rsa(Cipher.ENCRYPT_MODE).doFinal(key.encoded))).put("iv", b64(cipher.iv)).put("data", b64(cipher.doFinal(bytes))).toString()
+    return JSONObject().put("key", b64(rsa(Cipher.ENCRYPT_MODE, keyAlias).doFinal(key.encoded))).put("iv", b64(cipher.iv)).put("data", b64(cipher.doFinal(bytes))).put("alias", keyAlias).toString()
   }
+  private fun sealedBy(text: String) = JSONObject(text).optString("alias", alias)
   private fun unseal(text: String): ByteArray {
     val j = JSONObject(text)
-    val key = SecretKeySpec(rsa(Cipher.DECRYPT_MODE).doFinal(decode(j.getString("key"))), "AES")
+    val key = SecretKeySpec(rsa(Cipher.DECRYPT_MODE, j.optString("alias", alias)).doFinal(decode(j.getString("key"))), "AES")
     return Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, decode(j.getString("iv")))) }.doFinal(decode(j.getString("data")))
   }
   fun databaseKey(): String {
@@ -134,12 +153,12 @@ class Vault(private val context: Context) {
       return added
     }
   }
-  fun statements(): List<String> = inbox().use { db -> db.rawQuery("SELECT envelope FROM statements LIMIT 250", null).use { c -> buildList { while(c.moveToNext()) add(String(unseal(c.getString(0)))) } } }
+  fun statements(): List<String> = inbox().use { db -> db.rawQuery("SELECT envelope FROM statements LIMIT 250", null).use { c -> buildList { while(c.moveToNext()) { val e=c.getString(0); if(store.containsAlias(sealedBy(e))) add(String(unseal(e))) } } } }
   fun acknowledgeStatements(ids: List<String>) = inbox().use { db -> db.beginTransaction(); try { ids.forEach { db.delete("statements", "id = ?", arrayOf(it)) }; db.setTransactionSuccessful() } finally { db.endTransaction() } }
-  fun answers(): List<String> = inbox().use { db -> db.rawQuery("SELECT envelope FROM answers LIMIT 250", null).use { c -> buildList { while(c.moveToNext()) add(String(unseal(c.getString(0)))) } } }
+  fun answers(): List<String> = inbox().use { db -> db.rawQuery("SELECT envelope FROM answers LIMIT 250", null).use { c -> buildList { while(c.moveToNext()) { val e=c.getString(0); if(store.containsAlias(sealedBy(e))) add(String(unseal(e))) } } } }
   fun acknowledgeAnswers(ids: List<String>) = inbox().use { db -> db.beginTransaction(); try { ids.forEach { db.delete("answers", "id = ?", arrayOf(it)) }; db.setTransactionSuccessful() } finally { db.endTransaction() } }
   fun answerCount(): Int = inbox().use { db -> db.rawQuery("SELECT COUNT(*) FROM answers", null).use { c -> c.moveToFirst(); c.getInt(0) } }
-  fun pending(): List<String> = inbox().use { db -> db.rawQuery("SELECT envelope FROM inbox LIMIT 250", null).use { c -> buildList { while(c.moveToNext()) add(String(unseal(c.getString(0)))) } } }
+  fun pending(): List<String> = inbox().use { db -> db.rawQuery("SELECT envelope FROM inbox LIMIT 250", null).use { c -> buildList { while(c.moveToNext()) { val e=c.getString(0); if(store.containsAlias(sealedBy(e))) add(String(unseal(e))) } } } }
   fun pendingCount(): Int = inbox().use { db -> db.rawQuery("SELECT COUNT(*) FROM inbox", null).use { c -> c.moveToFirst(); c.getInt(0) } }
   fun pendingReviewCount(): Int = inbox().use { db -> db.rawQuery("SELECT COUNT(*) FROM inbox WHERE review = 1", null).use { c -> c.moveToFirst(); c.getInt(0) } }
   fun acknowledge(ids: List<String>) = inbox().use { db -> db.beginTransaction(); try { ids.forEach { db.delete("inbox", "id = ?", arrayOf(it)) }; db.setTransactionSuccessful() } finally { db.endTransaction() } }
@@ -148,12 +167,79 @@ class Vault(private val context: Context) {
   fun security():Map<String,Any> {
     val secure=context.getSystemService(KeyguardManager::class.java).isDeviceSecure
     val backing=if(!ready())"not-initialized" else runCatching {
-      val info=KeyFactory.getInstance("RSA","AndroidKeyStore").getKeySpec(store.getKey(alias,null),KeyInfo::class.java)
+      val info=KeyFactory.getInstance("RSA","AndroidKeyStore").getKeySpec(store.getKey(activeAlias(),null),KeyInfo::class.java)
       when(info.securityLevel){KeyProperties.SECURITY_LEVEL_STRONGBOX->"StrongBox";KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT->"Trusted environment";else->"Software"}
     }.getOrDefault("Unknown")
     return mapOf("deviceSecure" to secure,"vaultReady" to ready(),"backing" to backing)
   }
   fun keyRetired() = prefs.getBoolean("keyRetired", false)
+
+  /** Re-seals the journal key and every staged item under the other mode's key. Call while authenticated. */
+  fun switchLockMode(newMode: String) = synchronized(lifecycleGuard) {
+    require(newMode == "device" || newMode == "open")
+    if (newMode == lockMode()) return@synchronized
+    if (newMode == "device") check(context.getSystemService(KeyguardManager::class.java).isDeviceSecure) { "Set a screen lock on this phone first." }
+    val oldAlias = activeAlias()
+    val target = if (newMode == "open") openAlias else alias
+    val dbKey = databaseKey()
+    if (store.containsAlias(target)) store.deleteEntry(target)
+    generate(target, authBound = newMode == "device")
+    synchronized(inboxGuard) {
+      inbox().use { db ->
+        db.beginTransaction()
+        try {
+          for (table in listOf("inbox", "answers", "statements"))
+            db.rawQuery("SELECT id, envelope FROM $table", null).use { c ->
+              while (c.moveToNext()) {
+                val e = c.getString(1)
+                if (!store.containsAlias(sealedBy(e))) continue
+                db.update(table, android.content.ContentValues().apply { put("envelope", seal(unseal(e), target)) }, "id = ?", arrayOf(c.getString(0)))
+              }
+            }
+          db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+      }
+      writeEnvelope(dbKey, target)
+      prefs.edit().putString("lockMode", newMode).commit()
+      if (store.containsAlias(oldAlias)) store.deleteEntry(oldAlias)
+    }
+  }
+  private fun writeEnvelope(dbKey: String, keyAlias: String) {
+    val file = AtomicFile(envelopeFile)
+    val out = file.startWrite()
+    try { out.write(seal(dbKey.toByteArray(), keyAlias).toByteArray()); file.finishWrite(out) } catch (e: Exception) { file.failWrite(out); throw e }
+  }
+
+  fun hasRecovery() = recoveryFile.baseFile.exists()
+  /** Stores a password-locked copy of the journal key on this phone. Needs the journal to be open. */
+  fun setRecoveryPassword(password: String) {
+    val wrapped = RecoveryKey.wrap(databaseKey(), password)
+    val out = recoveryFile.startWrite()
+    try { out.write(wrapped.toByteArray()); recoveryFile.finishWrite(out) } catch (e: Exception) { recoveryFile.failWrite(out); throw e }
+  }
+  fun clearRecoveryPassword() = recoveryFile.delete()
+  /**
+   * Opens a journal whose screen-lock key Android deleted. The user proves ownership with the
+   * recovery password; the journal key is then sealed under a new key for the current mode.
+   * Staged items sealed by the deleted key cannot be read and are dropped (an SMS re-import
+   * brings those payments back).
+   */
+  fun recover(password: String): String = synchronized(lifecycleGuard) {
+    check(hasRecovery()) { "No recovery password was set on this phone." }
+    val dbKey = RecoveryKey.unwrap(String(recoveryFile.readFully()), password)
+    initialize()
+    synchronized(inboxGuard) {
+      inbox().use { db ->
+        for (table in listOf("inbox", "answers", "statements"))
+          db.rawQuery("SELECT id, envelope FROM $table", null).use { c ->
+            while (c.moveToNext()) if (!store.containsAlias(sealedBy(c.getString(1)))) db.delete(table, "id = ?", arrayOf(c.getString(0)))
+          }
+      }
+      writeEnvelope(dbKey, activeAlias())
+      prefs.edit().remove("keyRetired").remove("lockMode").commit()
+    }
+    dbKey
+  }
   fun reset()=synchronized(lifecycleGuard) {
     DriveAutoBackupStore.disable(context)
     prefs.edit().putBoolean("capture",false).putLong("vaultEpoch",prefs.getLong("vaultEpoch",0)+1).commit()
@@ -164,6 +250,8 @@ class Vault(private val context: Context) {
       SQLiteDatabase.deleteDatabase(File(context.noBackupFilesDir,"sealed-inbox.db"))
       AtomicFile(File(context.noBackupFilesDir,"ledger-key.envelope")).delete()
       if(store.containsAlias(alias))store.deleteEntry(alias)
+      if(store.containsAlias(openAlias))store.deleteEntry(openAlias)
+      recoveryFile.delete()
       if(store.containsAlias("kanakku-merchant-fingerprints-v1"))store.deleteEntry("kanakku-merchant-fingerprints-v1")
       context.getSharedPreferences("kanakku-merchant-rules",Context.MODE_PRIVATE).edit().clear().commit()
       prefs.edit().remove("ledgerReviewCount").remove("lastReceipt").remove("captureSince").remove("keyRetired").commit()

@@ -1,0 +1,18 @@
+appId: app.tinkerbox.kanakku.e2e
+---
+- launchApp
+- runFlow:
+    when:
+      visible: "Unlock Kanakku"
+    commands:
+      - tapOn: "Unlock Kanakku"
+- extendedWaitUntil:
+    visible:
+      id: ".*(pinEntry|lockPassword)"
+    timeout: 20000
+- inputText: ${PIN}
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      id: "card-due-8046"
+    timeout: 20000

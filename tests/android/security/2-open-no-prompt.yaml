@@ -1,0 +1,9 @@
+appId: app.tinkerbox.kanakku.e2e
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "card-due-8046"
+    timeout: 30000
+- assertNotVisible:
+    id: ".*(pinEntry|lockPassword)"

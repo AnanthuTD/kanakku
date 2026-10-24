@@ -11,6 +11,10 @@ Plan and owner decisions: [docs/ROADMAP-1.0.md](docs/ROADMAP-1.0.md).
 - [x] Card statements: total, minimum and due date are sealed, moved into encrypted metadata and shown on Overview with repayments matched per card, plus a manual paid mark.
 - [x] Unreadable bank alerts: counted, with masked shapes the user can preview and share from Settings.
 - [x] Unlock explains a key retired by a screen-lock change and points to Drive restore.
+- [x] Journal lock choice: "Use my phone lock" or "Open without asking", asked before connecting (and once on Overview for existing users from their second unlocked launch); switchable in Settings › Privacy & device. Emulator: open mode opens without a prompt and survives screen-lock removal; switching back to phone lock prompts.
+- [x] Optional recovery password (on-phone PBKDF2/AES-GCM copy of the journal key, 12+ characters). Emulator: after the screen lock was removed, the lock screen shows the recovery form directly, the journal reopens with its data, and later PIN unlocks work. Flows: tests/android/security.
+- [x] Amounts with paise always show two digits (₹4,321.50, not ₹4,321.5).
+- [ ] Phone acceptance of lock choice, recovery password and the one-time Overview card.
 - [ ] Re-import on the owner's phone after beta.11 installs; confirm the 9 corrected Axis USD rows and the monthly totals.
 - [ ] Card-due reminder notification (optional, three days before the due date).
 - [ ] Native acceptance of statements, unread-alert sharing and retired-key messaging on the emulator and phone.

@@ -1,0 +1,22 @@
+appId: app.tinkerbox.kanakku.e2e
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "recovery-password"
+    timeout: 30000
+- tapOn:
+    id: "recovery-password"
+- inputText: "kanakku recovery 2026"
+- hideKeyboard
+- tapOn: "Open with recovery password"
+- extendedWaitUntil:
+    visible:
+      id: ".*(pinEntry|lockPassword)"
+    timeout: 30000
+- inputText: "2580"
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      id: "card-due-8046"
+    timeout: 60000

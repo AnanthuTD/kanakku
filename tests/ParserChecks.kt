@@ -1,4 +1,5 @@
 import expo.modules.kanakku.SmsParser
+import expo.modules.kanakku.RecoveryKey
 import expo.modules.kanakku.WordPiece
 import expo.modules.kanakku.ImportWindow
 import expo.modules.kanakku.MerchantQuery
@@ -143,6 +144,15 @@ fun main() {
     verify(it.currency == "USD" && it.amount == 999L && it.kind == "refund")
   }
   verify(parse("Spent INR 250 Axis Bank Card no. XX8046 13-10-26 10:15:00 IST SAMPLE STORE Avl Limit: INR 50000", "AX-AXISBK-S")!!.currency == "INR")
+  // Recovery password: round-trips the journal key, rejects a wrong or short password, and leaks nothing.
+  val journalKey = "a".repeat(64)
+  val wrapped = RecoveryKey.wrap(journalKey, "correct horse battery")
+  verify(RecoveryKey.unwrap(wrapped, "correct horse battery") == journalKey)
+  verify(!wrapped.contains(journalKey) && wrapped.startsWith("kanakku-recovery-key:1:600000:"))
+  verify(runCatching { RecoveryKey.unwrap(wrapped, "correct horse batterz") }.exceptionOrNull()?.message == "That recovery password doesn't match.")
+  verify(runCatching { RecoveryKey.wrap(journalKey, "short") }.isFailure)
+  verify(runCatching { RecoveryKey.unwrap(wrapped.replace(":600000:", ":1000:"), "correct horse battery") }.isFailure)
+  verify(RecoveryKey.wrap(journalKey, "correct horse battery") != wrapped)
   // Card statements: total, minimum and due date; payment confirmations and promotions are not dues.
   val stmtAt = java.time.Instant.parse("2026-10-20T05:00:00Z").toEpochMilli()
   SmsParser.statement("AX-AXISBK-S", "Your statement for Axis Bank Credit Card no. XX8046 is generated.\nDue on: 05-11-26\nTotal amt: INR 12,345.67\nMin amt due: INR 620.00\nPay at axisbank.com", stmtAt)!!.let {

@@ -65,7 +65,7 @@ class KanakkuModule : Module() {
     OnDestroy { foreground=false;pcmRecorder.cancel();MerchantLookup.cancel();instance=null; speech?.destroy();speech=null;speechPromise?.reject("CANCELLED","Voice session ended",null);speechPromise=null }
     Function("status") {
       val prefs=context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE)
-      mapOf("sms" to (ContextCompat.checkSelfPermission(context,Manifest.permission.READ_SMS)==PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(context,Manifest.permission.RECEIVE_SMS)==PackageManager.PERMISSION_GRANTED), "overlay" to Settings.canDrawOverlays(context), "capture" to Vault(context).enabled(), "offlineVoice" to SpeechRecognizer.isOnDeviceRecognitionAvailable(context), "overlayEnabled" to prefs.getBoolean("overlay",false), "sounds" to prefs.getBoolean("sounds",true), "testBuild" to (context.packageName==TEST_PACKAGE), "diagnostics" to Diagnostics.enabled(context), "voiceSupported" to WhisperEngine.supported, "debugVoiceClips" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("debugVoiceClips",false)))
+      mapOf("sms" to (ContextCompat.checkSelfPermission(context,Manifest.permission.READ_SMS)==PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(context,Manifest.permission.RECEIVE_SMS)==PackageManager.PERMISSION_GRANTED), "overlay" to Settings.canDrawOverlays(context), "capture" to Vault(context).enabled(), "offlineVoice" to SpeechRecognizer.isOnDeviceRecognitionAvailable(context), "overlayEnabled" to prefs.getBoolean("overlay",false), "sounds" to prefs.getBoolean("sounds",true), "testBuild" to (context.packageName==TEST_PACKAGE), "diagnostics" to Diagnostics.enabled(context), "voiceSupported" to WhisperEngine.supported, "debugVoiceClips" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("debugVoiceClips",false)), "lockMode" to Vault(context).lockMode(), "hasRecovery" to Vault(context).hasRecovery(), "keyRetired" to Vault(context).keyRetired())
     }
     AsyncFunction("geminiAccessStatus") {
       val supported=AppFunctionManager.getInstance(context)!=null
@@ -133,18 +133,55 @@ class KanakkuModule : Module() {
       try {
         val activity=appContext.currentActivity as? FragmentActivity ?: throw Exception("Open Kanakku to unlock.")
         val vault=Vault(context);vault.initialize()
-        val auth=BiometricPrompt(activity,ContextCompat.getMainExecutor(context),object: BiometricPrompt.AuthenticationCallback(){
-          override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { try { allowScreenshots(activity); val key=vault.databaseKey(); AssistantData.markUnlocked(); promise.resolve(key) } catch(e:Exception) { AssistantData.clear()
-            // Android retires authentication-bound keys when the screen lock is removed or reset.
-            // The journal cannot be opened again; never replace the key silently.
+        val open={ try { allowScreenshots(activity); val key=vault.databaseKey(); AssistantData.markUnlocked(); promise.resolve(key) } catch(e:Exception) { AssistantData.clear()
+            // Android deletes authentication-bound keys when the screen lock is removed. Never replace the key silently.
             val retired=vault.keyRetired()||generateSequence<Throwable>(e){it.cause}.any{it is android.security.keystore.KeyPermanentlyInvalidatedException}
-            Diagnostics.log("error","vault","unlock-key-unavailable",mapOf("retired" to retired),e)
-            if(retired) promise.reject("KEY_INVALIDATED","Your phone's screen lock changed, so Android retired the key protecting this journal. To recover it, go to Settings › Reset journal, connect again, then restore your latest Drive backup. Without a backup, re-importing SMS rebuilds payments, but notes and rules are lost.",e)
+            Diagnostics.log("error","vault","unlock-key-unavailable",mapOf("retired" to retired,"recovery" to vault.hasRecovery()),e)
+            if(retired&&vault.hasRecovery()) promise.reject("KEY_INVALIDATED","Your phone's screen lock changed, so Android removed the key that opens this journal. Enter your recovery password to open it again.",e)
+            else if(retired) promise.reject("KEY_INVALIDATED","Your phone's screen lock changed, so Android removed the key that opens this journal. To recover it, go to Settings › Reset journal, connect again, then restore your latest Drive backup. Without a backup, re-importing SMS rebuilds payments, but notes and rules are lost.",e)
             else promise.reject("KEY_UNAVAILABLE","Kanakku couldn't open the encrypted journal. Try unlocking again. If this keeps happening, restore your latest Drive backup after Settings › Reset journal.",e)} }
-          override fun onAuthenticationError(code:Int,message:CharSequence) {promise.reject("UNLOCK_CANCELLED",message.toString(),null)}
-        })
-        auth.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("Unlock Kanakku").setSubtitle("Your spending stays on this device").setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL).build())
+        // A journal whose key Android deleted cannot be opened by any prompt; say so before asking.
+        if(vault.keyRetired()) {
+          Diagnostics.log("error","vault","unlock-key-unavailable",mapOf("retired" to true,"recovery" to vault.hasRecovery()),null)
+          promise.reject("KEY_INVALIDATED",if(vault.hasRecovery()) "Your phone's screen lock changed, so Android removed the key that opens this journal. Enter your recovery password to open it again." else "Your phone's screen lock changed, so Android removed the key that opens this journal. To recover it, go to Settings › Reset journal, connect again, then restore your latest Drive backup. Without a backup, re-importing SMS rebuilds payments, but notes and rules are lost.",null)
+          return@AsyncFunction
+        }
+        // "Open without unlocking": the hardware key needs no prompt.
+        if(vault.lockMode()=="open") open() else authenticate(activity,"Unlock Kanakku",{ open() },{ code,message -> promise.reject(code,message,null) })
       } catch(e:Exception) {promise.reject("UNLOCK_FAILED",e.message,e)}
+    }.runOnQueue(Queues.MAIN)
+    AsyncFunction("chooseLockMode") { mode:String -> Vault(context).chooseInitialLockMode(mode); Vault(context).lockMode() }
+    AsyncFunction("setLockMode") { mode:String, promise: Promise ->
+      try {
+        val activity=appContext.currentActivity as? FragmentActivity ?: throw Exception("Open Kanakku first.")
+        authenticate(activity,if(mode=="open") "Turn off the unlock prompt" else "Ask for your phone lock",{
+          try { Vault(context).switchLockMode(mode); Diagnostics.log("info","vault","lock-mode",mapOf("mode" to mode)); promise.resolve(Vault(context).lockMode()) }
+          catch(e:Exception) { promise.reject("LOCK_MODE_FAILED",e.message ?: "Couldn't change how Kanakku opens.",e) }
+        },{ code,message -> promise.reject(code,message,null) })
+      } catch(e:Exception) { promise.reject("LOCK_MODE_FAILED",e.message,e) }
+    }.runOnQueue(Queues.MAIN)
+    AsyncFunction("setRecoveryPassword") { password:String, promise: Promise ->
+      try {
+        val vault=Vault(context)
+        val save={ try { vault.setRecoveryPassword(password); Diagnostics.log("info","vault","recovery-set",emptyMap()); promise.resolve(true) } catch(e:Exception) { promise.reject("RECOVERY_FAILED",e.message ?: "Couldn't save the recovery password.",e) } }
+        if(vault.lockMode()=="open") save() else {
+          val activity=appContext.currentActivity as? FragmentActivity ?: throw Exception("Open Kanakku first.")
+          authenticate(activity,"Confirm it's you",{ save() },{ code,message -> promise.reject(code,message,null) })
+        }
+      } catch(e:Exception) { promise.reject("RECOVERY_FAILED",e.message,e) }
+    }.runOnQueue(Queues.MAIN)
+    AsyncFunction("clearRecoveryPassword") { Vault(context).clearRecoveryPassword(); Vault(context).hasRecovery() }
+    AsyncFunction("recoverJournal") { password:String, promise: Promise ->
+      try {
+        val vault=Vault(context)
+        val recover={ try { val activity=appContext.currentActivity; if(activity!=null) allowScreenshots(activity); val key=vault.recover(password); AssistantData.markUnlocked(); Diagnostics.log("info","vault","recovered",emptyMap()); promise.resolve(key) }
+          catch(e:Exception) { promise.reject("RECOVERY_FAILED",e.message ?: "Couldn't open the journal.",e) } }
+        // In phone-lock mode the new key is authentication-bound; confirm first so the journal can be read right away.
+        if(vault.lockMode()=="open") recover() else {
+          val activity=appContext.currentActivity as? FragmentActivity ?: throw Exception("Open Kanakku first.")
+          authenticate(activity,"Confirm it's you",{ recover() },{ code,message -> promise.reject(code,message,null) })
+        }
+      } catch(e:Exception) { promise.reject("RECOVERY_FAILED",e.message,e) }
     }.runOnQueue(Queues.MAIN)
     AsyncFunction("suggestCategory") { text:String -> val s=SemanticClassifier.suggest(context,text);mapOf("category" to s.category,"similarity" to s.similarity,"margin" to s.margin) }
     AsyncFunction("recognizeReceipt") { uri:String ->
@@ -330,6 +367,12 @@ class KanakkuModule : Module() {
   companion object {
     const val TEST_PACKAGE="app.tinkerbox.kanakku.e2e"
     /** Keep Android screenshots and screen recordings available while the unlocked journal is open. */
+    fun authenticate(activity:FragmentActivity,title:String,onSuccess:()->Unit,onError:(String,String)->Unit) {
+      BiometricPrompt(activity,ContextCompat.getMainExecutor(activity),object: BiometricPrompt.AuthenticationCallback(){
+        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { onSuccess() }
+        override fun onAuthenticationError(code:Int,message:CharSequence) { onError("UNLOCK_CANCELLED",message.toString()) }
+      }).authenticate(BiometricPrompt.PromptInfo.Builder().setTitle(title).setSubtitle("Your spending stays on this device").setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL).build())
+    }
     fun allowScreenshots(activity:android.app.Activity) {
       activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
     }

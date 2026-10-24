@@ -6,6 +6,7 @@ import {
   inMonth,
   isMixedCategoryText,
   mergeTransactions,
+  money,
   netSpend,
   Transaction,
 } from "./model";
@@ -65,6 +66,12 @@ describe("ledger correctness", () => {
     expect(mergeTransactions([settled], [{ ...base, amount: 999, currency: "USD" }])[0]).toEqual(settled);
     const other = { ...base, account: "9999" };
     expect(mergeTransactions([other], [{ ...base, amount: 999, currency: "USD" }])[0]).toEqual(other);
+  });
+  it("shows paise with two digits and whole rupees without decimals", () => {
+    expect(money(432150)).toBe("₹4,321.50");
+    expect(money(42000)).toBe("₹420");
+    expect(money(30025)).toBe("₹300.25");
+    expect(money(42000, true)).toBe("₹420.00");
   });
   it("parses currency with integer arithmetic and rejects invalid values", () => {
     expect(decimalToPaise("1,234.56")).toBe(123456);
