@@ -3,7 +3,7 @@
     "name": "Kanakku",
     "slug": "kanakku",
     "description": "Private Android spend journal built from your bank SMS, kept on this device.",
-    "version": "0.2.0-beta.10",
+    "version": "0.2.0-beta.11",
     "scheme": "kanakku",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -21,7 +21,7 @@
         "android.permission.CAMERA"
       ],
       "allowBackup": false,
-      "versionCode": 11,
+      "versionCode": 12,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#345D45",
