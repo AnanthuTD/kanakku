@@ -9,6 +9,7 @@ name: Connect bank SMS, enable the floating companion, then leave the app
       android.permission.RECORD_AUDIO: allow
       android.permission.READ_EXTERNAL_STORAGE: deny
       android.permission.WRITE_EXTERNAL_STORAGE: deny
+- runFlow: ../common/skip-welcome.yaml
 - extendedWaitUntil:
     visible: "Open settings"
     timeout: 120000
@@ -42,13 +43,11 @@ name: Connect bank SMS, enable the floating companion, then leave the app
     timeout: 30000
 - inputText: "2580"
 - pressKey: Enter
-- scrollUntilVisible:
-    element: "History scan complete"
-    direction: UP
-    timeout: 180000
+# The import banner hides once the journal has absorbed the import, so wait for the connected
+# state here; the exact Overview total below (and the harness's native status) prove the import.
 - extendedWaitUntil:
-    visible: "History scan complete"
-    timeout: 180000
+    visible: "Capture new transaction alerts"
+    timeout: 60000
 # The companion is opt-in: the reviewer sees the switch being turned on.
 - openLink: "kanakku:///settings?section=companion"
 - scrollUntilVisible:

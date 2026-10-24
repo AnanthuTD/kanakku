@@ -75,6 +75,7 @@ import { ReviewSheet, ReviewHandle } from "../src/components/ReviewSheet";
 import { ImportBanner } from "../src/components/ImportProgress";
 import { CardDues } from "../src/components/CardDues";
 import { LockChoiceCard } from "../src/components/LockChoiceCard";
+import { wasOnboarded } from "../src/data/onboarding";
 import {
   heldSpend,
   needsInrSettlement,
@@ -104,6 +105,17 @@ export default function Home() {
     notice,
   } = app;
   const [recoveryPassword, setRecoveryPassword] = useState("");
+  // A fresh Android install starts with the first-run flow instead of an empty journal.
+  useEffect(() => {
+    if (!loaded || !native || app.mode === "live") return;
+    let live = true;
+    void wasOnboarded().then((done) => {
+      if (live && !done) router.replace("/welcome" as Href);
+    });
+    return () => {
+      live = false;
+    };
+  }, [loaded, app.mode]);
   const security = native?.status();
   // Android removed the screen-lock key; only the recovery password (or a reset) can help now.
   const canRecover = !!(locked && security?.keyRetired && security?.hasRecovery);

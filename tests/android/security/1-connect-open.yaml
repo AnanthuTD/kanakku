@@ -1,22 +1,29 @@
 appId: app.tinkerbox.kanakku.e2e
+name: First-run welcome connects bank SMS with "Open without asking"
 ---
 - launchApp
-- tapOn: "Open settings"
-- tapOn: "Bank alerts & import"
-- tapOn: "Connect bank SMS"
+- extendedWaitUntil:
+    visible: "Your bank SMS, turned into a private spend journal."
+    timeout: 120000
+- tapOn: "Get started"
+- assertVisible: "How should Kanakku open?"
+- tapOn:
+    id: "lock-choice-open"
+- tapOn: "Continue"
+- assertVisible: "Bring in your bank alerts"
 - scrollUntilVisible:
     element: "4 months"
 - tapOn: "4 months"
 - scrollUntilVisible:
-    element:
-      id: "lock-choice-open"
-- tapOn:
-    id: "lock-choice-open"
-- scrollUntilVisible:
-    element: "Continue with Android permissions"
-- tapOn: "Continue with Android permissions"
+    element: "Allow access and continue"
+- tapOn: "Allow access and continue"
 - extendedWaitUntil:
-    visible: "Capture new bank SMS"
+    visible: "You're set."
     timeout: 60000
 - assertNotVisible:
     id: ".*(pinEntry|lockPassword)"
+- assertNotVisible: "Set a recovery password"
+- tapOn: "Go to my journal"
+- extendedWaitUntil:
+    visible: "This month"
+    timeout: 30000

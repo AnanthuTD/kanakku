@@ -9,6 +9,7 @@ name: Synthetic provider import with real device authentication
       android.permission.RECORD_AUDIO: deny
       android.permission.READ_EXTERNAL_STORAGE: deny
       android.permission.WRITE_EXTERNAL_STORAGE: deny
+- runFlow: ../common/skip-welcome.yaml
 - extendedWaitUntil:
     visible: "Open settings"
     timeout: 120000
@@ -42,13 +43,11 @@ name: Synthetic provider import with real device authentication
     timeout: 30000
 - inputText: "2580"
 - pressKey: Enter
-- scrollUntilVisible:
-    element: "History scan complete"
-    direction: UP
-    timeout: 180000
+# The import banner hides once the journal has absorbed the import, so wait for the connected
+# state here; the exact Overview total below (and the harness's native status) prove the import.
 - extendedWaitUntil:
-    visible: "History scan complete"
-    timeout: 180000
+    visible: "Capture new transaction alerts"
+    timeout: 60000
 - tapOn:
     text: "Back to settings"
     waitToSettleTimeoutMs: 1000
@@ -59,4 +58,4 @@ name: Synthetic provider import with real device authentication
     visible:
       id: "overview-total"
       text: "₹300.25"
-    timeout: 30000
+    timeout: 180000

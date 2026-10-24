@@ -8,6 +8,7 @@ name: Mixed-purpose notes require an explicit category choice
       android.permission.RECEIVE_SMS: deny
       android.permission.RECORD_AUDIO: deny
       android.permission.POST_NOTIFICATIONS: deny
+- runFlow: ../common/skip-welcome.yaml
 - extendedWaitUntil:
     visible: "This month"
     timeout: 120000

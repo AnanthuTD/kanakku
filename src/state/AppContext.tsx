@@ -661,6 +661,8 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           "This is the web preview. Bank SMS, encrypted storage, overlays, and offline voice require the Android build.",
         );
       await requestSms();
+      // Import progress and private review prompts are notifications; declining keeps the in-app queue.
+      await requestNotifications().catch(() => false);
       // The user picks how the journal opens before its key is created.
       if (chosenLock && !native.status().keyRetired)
         await native.chooseLockMode(chosenLock).catch(() => undefined);

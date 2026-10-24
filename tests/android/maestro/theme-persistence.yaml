@@ -10,6 +10,7 @@ name: Theme setting survives app restart
       android.permission.POST_NOTIFICATIONS: deny
       android.permission.READ_EXTERNAL_STORAGE: deny
       android.permission.WRITE_EXTERNAL_STORAGE: deny
+- runFlow: ../common/skip-welcome.yaml
 - extendedWaitUntil:
     visible: "This month"
     timeout: 120000
