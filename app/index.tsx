@@ -73,6 +73,7 @@ import { TransactionRow } from "../src/components/TransactionRow";
 import { native } from "../src/native/bridge";
 import { ReviewSheet, ReviewHandle } from "../src/components/ReviewSheet";
 import { ImportBanner } from "../src/components/ImportProgress";
+import { CardDues } from "../src/components/CardDues";
 import {
   heldSpend,
   needsInrSettlement,
@@ -907,6 +908,7 @@ export default function Home() {
                 <ChevronRight size={16} color={colors.muted} />
               </Pressable>
             )}
+            <CardDues hideAmount={hideAmount} />
             {monthly.some(
               (t) =>
                 !t.excluded &&

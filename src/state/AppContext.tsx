@@ -31,6 +31,7 @@ import {
   loanOutstanding,
   restoreLentTransaction,
 } from "../domain/lending";
+import { upsertCardDues, validCardDue, type CardDue } from "../domain/cardDues";
 import { makeJournalBackup } from "../domain/backup";
 import {
   DEFAULT_AUTO_LOCK_DELAY,
@@ -62,7 +63,7 @@ import {
   money,
   spendOf,
 } from "../domain/model";
-import { sampleTransactions } from "../data/sample";
+import { sampleCardDues, sampleTransactions } from "../data/sample";
 import {
   closeLive,
   openLive,
@@ -138,6 +139,10 @@ interface ContextValue {
   categoryIcons: Record<string, string>;
   addCategory: (label: string, iconKey?: string) => Promise<boolean>;
   loans: LoanRecord[];
+  /** Latest card statements read from SMS, with what is still due. */
+  cardDues: CardDue[];
+  /** The user says this card bill is paid (e.g. from an account Kanakku can't see). */
+  settleCardDue: (id: string) => Promise<void>;
   addLoan: (
     input: Omit<LoanRecord, "id" | "lentAt" | "repayments" | "remind"> & {
       lentAt?: string;
@@ -241,6 +246,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     {},
   );
   const [loans, setLoans] = useState<LoanRecord[]>([]);
+  const [cardDues, setCardDues] = useState<CardDue[]>([]);
   const [theme, setThemeState] = useState<ThemeMode>("system");
   const system = useColorScheme();
   const dark = theme === "dark" || (theme === "system" && system === "dark");
@@ -276,6 +282,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     customCategories,
     categoryIcons,
     loans,
+    cardDues,
     mode,
     locked,
     autoLockDelay,
@@ -287,6 +294,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     customCategories,
     categoryIcons,
     loans,
+    cardDues,
     mode,
     locked,
     autoLockDelay,
@@ -336,6 +344,13 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         );
         setCategoryIcons(ledgerMetadata(data?.metadata).categoryIcons ?? {});
         setLoans(ledgerMetadata(data?.metadata).loans ?? []);
+        setCardDues(
+          data
+            ? (ledgerMetadata(data.metadata).cardDues ?? [])
+            : realBuild
+              ? []
+              : sampleCardDues(),
+        );
       }
       setSounds(native?.status().sounds ?? true);
       setOverlayState(native?.status().overlayEnabled || false);
@@ -414,6 +429,31 @@ export function AppProvider({ children }: React.PropsWithChildren) {
   }) => {
     if (!native) return data;
     let transactions = data.transactions;
+    // Card statements sealed by the SMS receiver or import. Unusable records are acknowledged
+    // too, so a malformed envelope can never block the queue.
+    const sealedStatements = (await native.pendingStatements())
+      .map((value) => {
+        try {
+          return JSON.parse(value) as unknown;
+        } catch {
+          return null;
+        }
+      })
+      .filter((value): value is { id: string } => !!value && typeof (value as { id?: unknown }).id === "string");
+    if (sealedStatements.length) {
+      const statements = sealedStatements.filter(validCardDue);
+      if (statements.length) {
+        data = {
+          ...data,
+          metadata: {
+            ...data.metadata,
+            cardDues: upsertCardDues(data.metadata.cardDues ?? [], statements),
+          },
+        };
+        await saveJournalAndSnapshot(transactions, data.rules, data.metadata);
+      }
+      await native.acknowledgeStatements(sealedStatements.map((value) => value.id));
+    }
     const values = await native.pending();
     if (values.length) {
       const incoming: Transaction[] = values
@@ -521,6 +561,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
       setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
       setLoans(ledgerMetadata(data.metadata).loans ?? []);
+      setCardDues(ledgerMetadata(data.metadata).cardDues ?? []);
       setLocked(false);
       setMode("live");
       await AsyncStorage.setItem(MODE, "live");
@@ -549,6 +590,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
       setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
       setLoans(ledgerMetadata(data.metadata).loans ?? []);
+      setCardDues(ledgerMetadata(data.metadata).cardDues ?? []);
       setMode("live");
       setLocked(false);
       setPrevious(null);
@@ -576,6 +618,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
       setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
       setLoans(ledgerMetadata(data.metadata).loans ?? []);
+      setCardDues(ledgerMetadata(data.metadata).cardDues ?? []);
       setMode("live");
       setLocked(false);
       setPrevious(null);
@@ -610,6 +653,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     categories = state.current.customCategories,
     nextLoans = state.current.loans,
     nextCategoryIcons = state.current.categoryIcons,
+    nextCardDues = state.current.cardDues,
   ) => {
     if (state.current.mode === "live") {
       if (state.current.locked) throw new Error("Unlock Kanakku first");
@@ -618,6 +662,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         customCategories: categories,
         categoryIcons: nextCategoryIcons,
         loans: nextLoans,
+        cardDues: nextCardDues,
       };
       // Refresh only an explicitly enabled, device-encrypted backup snapshot.
       // The scheduled worker never opens the biometric-protected SQLCipher DB.
@@ -638,10 +683,27 @@ export function AppProvider({ children }: React.PropsWithChildren) {
             customCategories: categories,
             categoryIcons: nextCategoryIcons,
             loans: nextLoans,
+            cardDues: nextCardDues,
           },
         }),
       );
   };
+  const settleCardDue = (id: string) =>
+    perform(async () => {
+      const next = state.current.cardDues.map((due) =>
+        due.id === id ? { ...due, settledByUser: true } : due,
+      );
+      await persist(
+        state.current.transactions,
+        state.current.rules,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        next,
+      );
+      setCardDues(next);
+    });
   const update = async (
     id: string,
     patch: Partial<Transaction>,
@@ -811,6 +873,9 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
       setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
       setLoans(ledgerMetadata(data.metadata).loans ?? []);
+      setCardDues(
+        saved ? (ledgerMetadata(data.metadata).cardDues ?? []) : sampleCardDues(),
+      );
       setPrevious(null);
       await AsyncStorage.setItem(MODE, "demo");
     });
@@ -1543,6 +1608,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setCustomCategories([]);
       setCategoryIcons({});
       setLoans([]);
+      setCardDues([]);
       setPrevious(null);
       await closeLive();
       await native.resetVault(confirmation);
@@ -1556,6 +1622,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setCustomCategories([]);
       setCategoryIcons({});
       setLoans([]);
+      setCardDues(realBuild ? [] : sampleCardDues());
       setImportProgress(emptyImport);
       setOverlayState(false);
       setNotice(
@@ -1611,6 +1678,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setCategoryIcons(ledgerMetadata(backup.metadata).categoryIcons ?? {});
       const restoredLoans = ledgerMetadata(backup.metadata).loans ?? [];
       setLoans(restoredLoans);
+      setCardDues(ledgerMetadata(backup.metadata).cardDues ?? []);
       for (const loan of restoredLoans) {
         if (!loan.remind || !loan.dueDate || loanOutstanding(loan) === 0)
           continue;
@@ -1674,6 +1742,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setCustomCategories([]);
       setCategoryIcons({});
       setLoans([]);
+      setCardDues([]);
       setPrevious(null);
       closeLive().catch(() => {});
       cancelVoice();
@@ -1723,7 +1792,10 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       const token = generation.current;
       try {
         const data = await flush(await readLive());
-        if (token === generation.current) setTransactions(data.transactions);
+        if (token === generation.current) {
+          setTransactions(data.transactions);
+          setCardDues(ledgerMetadata(data.metadata).cardDues ?? []);
+        }
       } catch (e) {
         if (token === generation.current) {
           generation.current++;
@@ -1734,6 +1806,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           setCustomCategories([]);
           setCategoryIcons({});
           setLoans([]);
+          setCardDues([]);
           setPrevious(null);
           await closeLive();
         }
@@ -1813,6 +1886,8 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         categoryIcons,
         addCategory,
         loans,
+        cardDues,
+        settleCardDue,
         addLoan,
         removeLoan,
         recordLoanRepayment,

@@ -1,4 +1,5 @@
 import { Transaction, classify } from "../domain/model";
+import type { CardDue } from "../domain/cardDues";
 export function sampleTransactions(now = new Date()): Transaction[] {
   const rows: [string, number, string, string, number, boolean?][] = [
     ["Swiggy", 420, "HDFC Swiggy", "4821", 0],
@@ -65,4 +66,24 @@ export function sampleTransactions(now = new Date()): Transaction[] {
     review: false,
   });
   return result.sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/** A labelled sample card statement for the preview: due in nine days, nothing repaid yet. */
+export function sampleCardDues(now = new Date()): CardDue[] {
+  const day = (offset: number) => {
+    const date = new Date(now);
+    date.setDate(now.getDate() + offset);
+    return date;
+  };
+  return [
+    {
+      id: "sample-statement-8046",
+      bank: "Axis Flipkart",
+      account: "8046",
+      totalDue: 452000,
+      minimumDue: 23000,
+      dueDate: day(9).toISOString().slice(0, 10),
+      at: day(-12).toISOString(),
+    },
+  ];
 }

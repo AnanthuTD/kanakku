@@ -1,4 +1,5 @@
 import { validLoan } from "../domain/lending";
+import { validCardDue, type CardDue } from "../domain/cardDues";
 
 export type RecurringDecision = "confirmed" | "ignored";
 export interface LedgerMetadata {
@@ -6,6 +7,8 @@ export interface LedgerMetadata {
   customCategories?: string[];
   categoryIcons?: Record<string, string>;
   loans?: import("../domain/lending").LoanRecord[];
+  /** Latest statement per credit card, read from bank SMS. */
+  cardDues?: CardDue[];
 }
 const CATEGORY_ICON_KEYS = new Set([
   "Tag",
@@ -45,6 +48,9 @@ export function ledgerMetadata(value?: unknown): LedgerMetadata {
   const loans = Array.isArray(valueObject.loans)
     ? valueObject.loans.filter((loan) => validLoan(loan)).slice(0, 10_000)
     : [];
+  const cardDues = Array.isArray(valueObject.cardDues)
+    ? valueObject.cardDues.filter((due) => validCardDue(due)).slice(0, 100)
+    : [];
   const categoryIcons = Object.fromEntries(
     valueObject.categoryIcons && typeof valueObject.categoryIcons === "object"
       ? Object.entries(valueObject.categoryIcons).filter(
@@ -69,5 +75,6 @@ export function ledgerMetadata(value?: unknown): LedgerMetadata {
     customCategories: uniqueCategories,
     ...(Object.keys(categoryIcons).length ? { categoryIcons } : {}),
     loans,
+    ...(cardDues.length ? { cardDues } : {}),
   };
 }
