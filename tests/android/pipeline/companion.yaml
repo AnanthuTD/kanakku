@@ -15,6 +15,9 @@ name: Connect bank SMS, enable the floating companion, then leave the app
 - tapOn:
     text: "Open settings"
     waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Bank alerts & import"
+    waitToSettleTimeoutMs: 1000
 - scrollUntilVisible:
     element: "Connect bank SMS"
     timeout: 60000
@@ -47,6 +50,7 @@ name: Connect bank SMS, enable the floating companion, then leave the app
     visible: "History scan complete"
     timeout: 180000
 # The companion is opt-in: the reviewer sees the switch being turned on.
+- openLink: "kanakku:///settings?section=companion"
 - scrollUntilVisible:
     element: "Enable floating avatar"
     timeout: 60000

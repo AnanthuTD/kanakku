@@ -806,7 +806,11 @@ export default function Home() {
               <Pressable
                 testID="connect-bank-setup"
                 accessibilityRole="button"
-                accessibilityLabel="Set up bank alerts to start your journal"
+                accessibilityLabel={
+                  mode === "live"
+                    ? "No bank alerts yet. Open bank alert settings"
+                    : "Set up bank alerts to start your journal"
+                }
                 onPress={() => router.push("/settings?section=bank")}
                 style={[
                   s.setupCard,
@@ -820,10 +824,14 @@ export default function Home() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text bold style={{ fontSize: 13 }}>
-                    Start your spend journal
+                    {mode === "live"
+                      ? "Waiting for your first bank alert"
+                      : "Start your spend journal"}
                   </Text>
                   <Text muted style={{ fontSize: 11, marginTop: 2 }}>
-                    Connect bank alerts to see your spending here.
+                    {mode === "live"
+                      ? "New payments appear here. Import past alerts to fill earlier months."
+                      : "Connect bank alerts to see your spending here."}
                   </Text>
                 </View>
                 <ArrowRight size={17} color={colors.accent} />

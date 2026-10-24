@@ -15,6 +15,9 @@ name: Synthetic provider import with real device authentication
 - tapOn:
     text: "Open settings"
     waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Bank alerts & import"
+    waitToSettleTimeoutMs: 1000
 - scrollUntilVisible:
     element: "Connect bank SMS"
     timeout: 60000
@@ -46,6 +49,9 @@ name: Synthetic provider import with real device authentication
 - extendedWaitUntil:
     visible: "History scan complete"
     timeout: 180000
+- tapOn:
+    text: "Back to settings"
+    waitToSettleTimeoutMs: 1000
 - tapOn:
     text: "Back to overview"
     waitToSettleTimeoutMs: 1000

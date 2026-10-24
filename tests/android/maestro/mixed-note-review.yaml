@@ -51,7 +51,6 @@ name: Mixed-purpose notes require an explicit category choice
 - assertVisible: "Taxi ride and takeaway dinner"
 - scrollUntilVisible:
     element: "Uncategorized"
-    direction: UP
     timeout: 60000
     waitToSettleTimeoutMs: 1000
 - assertVisible:

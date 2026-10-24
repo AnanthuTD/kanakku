@@ -4,6 +4,9 @@ name: Provider replay preserves exact net spending
 - tapOn:
     text: "Open settings"
     waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Bank alerts & import"
+    waitToSettleTimeoutMs: 1000
 - scrollUntilVisible:
     element: "4 months"
     timeout: 60000
@@ -23,6 +26,9 @@ name: Provider replay preserves exact net spending
 - extendedWaitUntil:
     visible: "History scan complete"
     timeout: 180000
+- tapOn:
+    text: "Back to settings"
+    waitToSettleTimeoutMs: 1000
 - tapOn:
     text: "Back to overview"
     waitToSettleTimeoutMs: 1000
