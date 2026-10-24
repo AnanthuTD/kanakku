@@ -18,6 +18,15 @@ import {
   Zap,
   Music2,
   HelpCircle,
+  Tag,
+  Coffee,
+  Plane,
+  Heart,
+  BookOpen,
+  Gift,
+  Briefcase,
+  Dumbbell,
+  PawPrint,
 } from "lucide-react-native";
 import { useApp } from "../state/AppContext";
 import { Category } from "../domain/model";
@@ -93,6 +102,21 @@ const iconMap: Partial<Record<Category, typeof ShoppingBag>> = {
   "Friends & family": HeartPulse,
   Uncategorized: HelpCircle,
 };
+export const CATEGORY_ICON_OPTIONS = [
+  { key: "Tag", label: "General", Icon: Tag },
+  { key: "ShoppingBag", label: "Shopping", Icon: ShoppingBag },
+  { key: "Coffee", label: "Food", Icon: Coffee },
+  { key: "Plane", label: "Travel", Icon: Plane },
+  { key: "Heart", label: "Family", Icon: Heart },
+  { key: "BookOpen", label: "Learning", Icon: BookOpen },
+  { key: "Gift", label: "Gifts", Icon: Gift },
+  { key: "Briefcase", label: "Work", Icon: Briefcase },
+  { key: "Dumbbell", label: "Fitness", Icon: Dumbbell },
+  { key: "PawPrint", label: "Pets", Icon: PawPrint },
+] as const;
+const customIconMap: Record<string, typeof ShoppingBag> = Object.fromEntries(
+  CATEGORY_ICON_OPTIONS.map(({ key, Icon }) => [key, Icon]),
+);
 export function categoryColor(
   category: Category,
   colors: ReturnType<typeof useApp>["colors"],
@@ -108,12 +132,17 @@ export function categoryColor(
 export function CategoryIcon({
   category,
   size = 44,
+  iconKey,
 }: {
   category: Category;
   size?: number;
+  iconKey?: string;
 }) {
-  const { colors } = useApp();
-  const Icon = iconMap[category] || HelpCircle;
+  const { colors, categoryIcons } = useApp();
+  const Icon =
+    customIconMap[iconKey || categoryIcons[category]] ||
+    iconMap[category] ||
+    HelpCircle;
   const c = categoryColor(category, colors);
   return (
     <View

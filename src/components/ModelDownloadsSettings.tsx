@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AppState, View, type LayoutChangeEvent } from "react-native";
+import { AppState, Pressable, View, type LayoutChangeEvent } from "react-native";
 import { native, type ModelDownloadStatus } from "../native/bridge";
 import catalog from "../native/modelCatalog.json";
 import { useApp } from "../state/AppContext";
@@ -19,6 +19,7 @@ export function ModelDownloadsSettings({
   const [error, setError] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const generation = useRef(0);
   useEffect(() => {
     if (!native) return;
@@ -88,15 +89,29 @@ export function ModelDownloadsSettings({
     >
       <SectionTitle title="Optional models" />
       <Text muted style={{ fontSize: 12 }}>
-        Download only the features you want. SMS import, merchant rules and
-        manual review work without these models. Once downloaded, they work
-        offline and stay available across compatible app updates.
+        Add voice notes or smarter category suggestions. Your journal works
+        without either download; both features run offline once installed.
       </Text>
-      <Text muted style={{ fontSize: 12 }}>
-        Downloads contact Hugging Face and its delivery hosts. They receive
-        normal network information, including your IP address; your SMS, notes
-        and audio are not sent.
-      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={privacyOpen ? "Hide model download details" : "Network and privacy details"}
+        accessibilityState={{ expanded: privacyOpen }}
+        onPress={() => setPrivacyOpen((open) => !open)}
+        style={{ minHeight: 44, justifyContent: "center" }}
+      >
+        <Text style={{ color: colors.accent, fontSize: 12 }}>
+          {privacyOpen ? "Hide details" : "Network and privacy details"}
+        </Text>
+      </Pressable>
+      {privacyOpen ? (
+        <View style={{ padding: 12, borderRadius: 12, backgroundColor: colors.accentSoft }}>
+          <Text muted style={{ fontSize: 12, lineHeight: 19 }}>
+            Downloads contact Hugging Face and its delivery hosts, which see
+            normal network information such as your IP address. SMS, payment
+            notes and recordings stay on this phone.
+          </Text>
+        </View>
+      ) : null}
       {!native && (
         <Text>
           Manage model downloads in the Android app. This browser preview does

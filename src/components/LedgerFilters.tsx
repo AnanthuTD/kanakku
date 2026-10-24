@@ -211,6 +211,11 @@ export function LedgerFilters({
           selected={draft.source === "email"}
           onPress={() => setDraft({ ...draft, source: "email" })}
         />
+        <Option
+          label="Manual"
+          selected={draft.source === "manual"}
+          onPress={() => setDraft({ ...draft, source: "manual" })}
+        />
       </View>
       <Text bold>Category</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>

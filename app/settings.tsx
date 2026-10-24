@@ -14,6 +14,8 @@ import {
   ScrollView,
   Pressable,
   BackHandler,
+  AppState,
+  Linking,
   Switch,
   ActivityIndicator,
   TextInput,
@@ -37,7 +39,14 @@ import {
   Plus,
 } from "lucide-react-native";
 import { useApp } from "../src/state/AppContext";
-import { Text, Button, SectionTitle, styles as ui } from "../src/components/ui";
+import {
+  Text,
+  Button,
+  SectionTitle,
+  CategoryIcon,
+  CATEGORY_ICON_OPTIONS,
+  styles as ui,
+} from "../src/components/ui";
 import { native } from "../src/native/bridge";
 import { ThemeMode, Category } from "../src/domain/model";
 import { Sheet } from "../src/components/Sheet";
@@ -47,6 +56,7 @@ import { ImportPeriodPicker } from "../src/components/ImportPeriodPicker";
 import { ImportBanner } from "../src/components/ImportProgress";
 import { SettingsGroup } from "../src/components/SettingsGroup";
 import { AUTO_LOCK_OPTIONS } from "../src/domain/autoLock";
+import { makeAssistantSnapshot } from "../src/domain/appFunctions";
 export default function Settings() {
   const app = useApp();
   const { colors, theme, mode, rules, busy, error, notice } = app;
@@ -66,6 +76,7 @@ export default function Settings() {
   const [ruleCategory, setRuleCategory] = useState<Category>("Food & dining");
   const [ruleAlias, setRuleAlias] = useState("");
   const [newCategory, setNewCategory] = useState("");
+  const [newCategoryIcon, setNewCategoryIcon] = useState("Tag");
   const [resetVisible, setResetVisible] = useState(false);
   const [resetText, setResetText] = useState("");
   const [security, setSecurity] = useState<{
@@ -74,6 +85,13 @@ export default function Settings() {
     backing: string;
   } | null>(null);
   const [journalDetailsOpen, setJournalDetailsOpen] = useState(false);
+  const [bankDetailsOpen, setBankDetailsOpen] = useState(false);
+  const [geminiAccess, setGeminiAccessState] = useState({
+    supported: false,
+    enabled: false,
+  });
+  const [geminiAccessBusy, setGeminiAccessBusy] = useState(false);
+  const [confirmGeminiChanges, setConfirmGeminiChanges] = useState(true);
   const importing = ["queued", "running", "waiting"].includes(
     app.importProgress.state,
   );
@@ -87,6 +105,63 @@ export default function Settings() {
       .then(setSecurity)
       .catch(() => {});
   }, [mode, busy]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next !== "active") return;
+      const refreshed = native?.status();
+      setStatus(refreshed);
+      setCapture(refreshed?.capture || false);
+    });
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    let live = true;
+    native?.geminiAccessStatus().then((value) => {
+      if (live) setGeminiAccessState(value);
+    }).catch(() => {});
+    native?.assistantWriteSettings().then((value) => {
+      if (live) setConfirmGeminiChanges(value.confirmChanges);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  const changeGeminiConfirmation = async (enabled: boolean) => {
+    try {
+      if (!native) throw new Error("Use the Android app to change Gemini settings.");
+      setConfirmGeminiChanges(await native.setAssistantWriteConfirmation(enabled));
+    } catch (e) {
+      app.setError(e instanceof Error ? e.message : "Could not update this setting.");
+    }
+  };
+  const changeGeminiAccess = async (enabled: boolean) => {
+    if (!native) return;
+    setGeminiAccessBusy(true);
+    let accessChanged = false;
+    try {
+      const value = await native.setGeminiAccess(enabled);
+      accessChanged = true;
+      setGeminiAccessState(value);
+      if (enabled && app.mode === "live" && !app.locked) {
+        const updated = await native.setAssistantSnapshot(
+          makeAssistantSnapshot(app.transactions, app.recurringDecisions),
+        );
+        if (!updated)
+          throw new Error("Kanakku could not prepare the unlocked journal for Gemini. Unlock Kanakku and try again.");
+      } else await native.clearAssistantSnapshot();
+    } catch (e) {
+      if (enabled && accessChanged) {
+        try {
+          setGeminiAccessState(await native.setGeminiAccess(false));
+        } catch {
+          // Keep the original setup error visible if access rollback also fails.
+        }
+      }
+      app.setError(
+        e instanceof Error ? e.message : "Could not update Gemini access.",
+      );
+    } finally {
+      setGeminiAccessBusy(false);
+    }
+  };
   const changeCapture = async (value: boolean) => {
     try {
       if (!native)
@@ -153,7 +228,9 @@ export default function Settings() {
             onPress={() =>
               selectedGroup
                 ? router.replace("/settings")
-                : router.replace("/")
+                : // Return to the existing journal screen so Activity filters
+                  // and scroll survive; replace("/") would stack a fresh copy.
+                  router.dismissTo("/")
             }
             style={{ padding: 12 }}
           >
@@ -173,19 +250,42 @@ export default function Settings() {
             <ImportBanner />
           </View>
           {error ? (
-            <Pressable
-              onPress={() => app.setError("")}
+            <View
+              accessibilityRole="alert"
               style={{
                 padding: 16,
                 backgroundColor: colors.orangeSoft,
                 borderRadius: 16,
                 marginBottom: 20,
+                gap: 10,
               }}
             >
               <Text style={{ color: colors.danger, fontSize: 12 }}>
                 {error}
               </Text>
-            </Pressable>
+              {error.startsWith("Bank alert access wasn’t granted.") && (
+                <Button
+                  secondary
+                  onPress={() => {
+                    void Linking.openSettings().catch(() =>
+                      app.setError(
+                        "Could not open phone settings. Open Kanakku in your phone’s Settings and allow SMS access.",
+                      ),
+                    );
+                  }}
+                >
+                  Open phone settings
+                </Button>
+              )}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss error"
+                onPress={() => app.setError("")}
+                style={{ minHeight: 40, justifyContent: "center" }}
+              >
+                <Text muted style={{ fontSize: 12 }}>Dismiss</Text>
+              </Pressable>
+            </View>
           ) : null}
           {notice ? (
             <Text style={{ color: colors.accent, marginBottom: 20 }}>
@@ -322,23 +422,27 @@ export default function Settings() {
                   : "Explore now. Connect when ready."}
               </Text>
             </View>
-            <Text muted style={{ fontSize: 12, lineHeight: 20 }}>
-              Kanakku reads supported bank SMS to build your spending journal.
-              It discards OTPs and unrelated messages without saving them.
+            <Text muted style={{ fontSize: 12, lineHeight: 19 }}>
+              Find supported bank alerts on this phone. No bank login is needed.
             </Text>
-            <View
-              style={{
-                padding: 14,
-                borderRadius: 13,
-                backgroundColor: colors.accentSoft,
-                marginVertical: 16,
-              }}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: bankDetailsOpen }}
+              accessibilityLabel={bankDetailsOpen ? "Hide SMS privacy details" : "How SMS access works"}
+              onPress={() => setBankDetailsOpen((open) => !open)}
+              style={{ minHeight: 44, justifyContent: "center", marginTop: 4 }}
             >
-              <Text style={{ fontSize: 11, lineHeight: 19 }}>
-                No bank login. No SMS sent to a server. Your ledger is encrypted
-                and opens with your device authentication.
+              <Text style={{ color: colors.accent, fontSize: 12 }}>
+                {bankDetailsOpen ? "Hide details" : "How SMS access works"}
               </Text>
-            </View>
+            </Pressable>
+            {bankDetailsOpen ? (
+              <View style={{ padding: 12, borderRadius: 12, backgroundColor: colors.accentSoft, gap: 4 }}>
+                <Text style={{ fontSize: 11, lineHeight: 18 }}>
+                  Messages are filtered on your phone. OTPs and unrelated texts aren’t saved; your journal stays encrypted on this device.
+                </Text>
+              </View>
+            ) : null}
             {mode === "demo" ? (
               <>
                 <Button disabled={busy} onPress={() => setConfirmConnect(true)}>
@@ -347,10 +451,7 @@ export default function Settings() {
                 {confirmConnect && (
                   <View style={{ marginTop: 16, gap: 12 }}>
                     <Text style={{ fontSize: 12, lineHeight: 20 }}>
-                      Android grants access to all SMS. Kanakku filters messages
-                      locally before storing transaction details. This enables
-                      real-time capture. Choose how much past history to import
-                      below.
+                      Android lets Kanakku read your SMS inbox to find bank alerts. Messages are filtered on this phone; OTPs and unrelated texts aren’t saved. Choose how much history to check, or skip past messages.
                     </Text>
                     <ImportPeriodPicker
                       value={historyMonths}
@@ -407,10 +508,8 @@ export default function Settings() {
                     Unlock to import history
                   </Button>
                 )}
-                <Text muted style={{ fontSize: 10, marginTop: 10 }}>
-                  Only eligible transaction details are retained. Repeated
-                  imports do not add duplicate alerts. Pause above to choose a
-                  different period.
+                <Text muted style={{ fontSize: 10, lineHeight: 16, marginTop: 10 }}>
+                  Re-imports won’t add duplicate alerts. Pause anytime to change the period.
                 </Text>
               </>
             )}
@@ -656,9 +755,57 @@ export default function Settings() {
                   backgroundColor: colors.card,
                 }}
               >
-                <Text style={{ fontSize: 12 }}>{category}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+                  <CategoryIcon
+                    category={category}
+                    iconKey={app.categoryIcons[category]}
+                    size={26}
+                  />
+                  <Text style={{ fontSize: 12 }}>{category}</Text>
+                </View>
               </View>
             ))}
+          </View>
+          <Text muted style={{ fontSize: 12, marginTop: -16, marginBottom: 8 }}>
+            Choose an icon
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 9,
+              marginBottom: 18,
+            }}
+          >
+            {CATEGORY_ICON_OPTIONS.map(({ key, label, Icon }) => {
+              const selected = newCategoryIcon === key;
+              return (
+                <Pressable
+                  key={key}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${label} category icon`}
+                  accessibilityState={{ selected }}
+                  aria-pressed={selected}
+                  onPress={() => setNewCategoryIcon(key)}
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: selected ? colors.accent : colors.line,
+                    backgroundColor: selected ? colors.accentSoft : colors.card,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Icon
+                    size={19}
+                    color={selected ? colors.accent : colors.muted}
+                    strokeWidth={1.8}
+                  />
+                </Pressable>
+              );
+            })}
           </View>
           <View style={{ flexDirection: "row", gap: 10, marginBottom: 28 }}>
             <TextInput
@@ -683,7 +830,8 @@ export default function Settings() {
             <Button
               disabled={busy || !newCategory.trim()}
               onPress={async () => {
-                if (await app.addCategory(newCategory)) setNewCategory("");
+                if (await app.addCategory(newCategory, newCategoryIcon))
+                  setNewCategory("");
               }}
             >
               Add
@@ -755,9 +903,9 @@ export default function Settings() {
           <View style={{ gap: 9, marginBottom: 18 }}>
             <Text bold>Ask for unlock after</Text>
             <Text muted style={{ fontSize: 12, lineHeight: 19 }}>
-              Kanakku stays open briefly when you switch apps. It locks and clears
-              the journal when this time passes. Choose Immediately for the
-              strongest protection.
+              Switching apps starts this timer. Kanakku keeps your journal open
+              for the selected time, then locks and clears it. Choose Immediately
+              for the strongest protection.
             </Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {AUTO_LOCK_OPTIONS.map((option) => {
@@ -786,6 +934,46 @@ export default function Settings() {
               })}
             </View>
           </View>
+          <SectionTitle title="Gemini access" />
+          <View style={[ui.row, { alignItems: "flex-start", gap: 12, marginBottom: 8 }]}>
+            <View style={{ flex: 1, gap: 5 }}>
+              <Text bold>Let Gemini ask Kanakku</Text>
+              <Text muted style={{ fontSize: 12, lineHeight: 19 }}>
+                Share requested spending results with Gemini. When enabled, Gemini can search payments, request an update, or add a manual expense.
+              </Text>
+            </View>
+            <Switch
+              accessibilityLabel="Allow Gemini to read Kanakku spending data"
+              value={geminiAccess.enabled}
+              disabled={!geminiAccess.supported || geminiAccessBusy}
+              onValueChange={changeGeminiAccess}
+              trackColor={{ true: colors.accent }}
+            />
+          </View>
+          <Text muted style={{ fontSize: 11, lineHeight: 18, marginBottom: 18 }}>
+            {geminiAccess.supported
+              ? "Search checks note text on this phone, but does not return existing notes. Matching results include a payment ID so Gemini can request an edit. Kanakku stages edits and new expenses in your encrypted journal."
+              : "This phone does not currently support App Functions. Gemini access needs Android 16 or a compatible Android App Functions provider."}
+          </Text>
+          <View style={[ui.row, { alignItems: "flex-start", gap: 12, marginBottom: 4 }]}
+          >
+            <View style={{ flex: 1, gap: 5 }}>
+              <Text bold>Confirm Gemini changes in Kanakku</Text>
+              <Text muted style={{ fontSize: 12, lineHeight: 19 }}>
+                When on, approve each update or manual expense here before it is saved. When off, Kanakku saves supported changes automatically while the journal is open and unlocked. Deletes are not available to Gemini.
+              </Text>
+            </View>
+            <Switch
+              accessibilityLabel="Confirm Gemini changes in Kanakku"
+              value={confirmGeminiChanges}
+              disabled={!geminiAccess.enabled || geminiAccessBusy}
+              onValueChange={changeGeminiConfirmation}
+              trackColor={{ true: colors.accent }}
+            />
+          </View>
+          <Text muted style={{ fontSize: 11, lineHeight: 18, marginBottom: 18 }}>
+            If Kanakku is closed or locked when Gemini asks for a change, it will not be saved. Open and unlock Kanakku to process it.
+          </Text>
           <View
             style={[
               ui.card,

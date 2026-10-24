@@ -25,6 +25,7 @@ test("web Settings explains the optional provider without collecting a key or en
   });
   await home(page);
   await page.getByRole("button", { name: "Open settings" }).click();
+  await page.getByTestId("settings-menu-tools").click();
   await expect(
     page.getByText("Optional web merchant lookup", { exact: true }),
   ).toBeVisible();

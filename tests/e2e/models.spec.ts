@@ -8,6 +8,9 @@ test("optional model downloads explain size and privacy without pretending the b
   await page
     .getByRole("button", { name: "Open settings", exact: true })
     .click();
+  await page
+    .getByRole("button", { name: /Voice & suggestions/ })
+    .click();
   const models = page.getByTestId("optional-models");
   await expect(
     models.getByText("English voice · 57.0 MiB", { exact: true }),
@@ -16,9 +19,14 @@ test("optional model downloads explain size and privacy without pretending the b
     models.getByText("Smart category suggestions · 22.0 MiB", { exact: true }),
   ).toBeVisible();
   await expect(
-    models.getByText(
-      /SMS import, merchant rules and manual review work without/,
-    ),
+    models.getByText(/Your journal works without either download/),
+  ).toBeVisible();
+  await expect(
+    models.getByText(/Downloads contact Hugging Face/),
+  ).toHaveCount(0);
+  await models.getByRole("button", { name: "Network and privacy details" }).click();
+  await expect(
+    models.getByText(/Downloads contact Hugging Face/),
   ).toBeVisible();
   await expect(
     models.getByText(/This browser preview does not download or run models/),

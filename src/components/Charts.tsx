@@ -17,11 +17,13 @@ export function SpendingChart({
   onDay,
   until = new Date(),
   hideAmount = false,
+  compact = false,
 }: {
   transactions: Transaction[];
   onDay?: (date: string) => void;
   until?: Date;
   hideAmount?: boolean;
+  compact?: boolean;
 }) {
   const { colors } = useApp();
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -43,9 +45,9 @@ export function SpendingChart({
       style={{
         flexDirection: "row",
         alignItems: "flex-end",
-        height: 124,
-        gap: 13,
-        marginTop: 22,
+        height: compact ? 76 : 124,
+        gap: compact ? 8 : 13,
+        marginTop: compact ? 13 : 22,
       }}
     >
       {days.map((d, i) => (
@@ -56,17 +58,17 @@ export function SpendingChart({
           onPress={() => onDay?.(d.key)}
           style={{
             flex: 1,
-            height: 124,
+            height: compact ? 76 : 124,
             justifyContent: "flex-end",
             alignItems: "center",
-            gap: 10,
+            gap: compact ? 5 : 10,
           }}
         >
           <View
             style={{
-              height: Math.max(5, (d.amount / max) * 87),
+              height: Math.max(5, (d.amount / max) * (compact ? 46 : 87)),
               width: "100%",
-              maxWidth: 34,
+              maxWidth: compact ? 27 : 34,
               backgroundColor: i === 6 ? colors.accent : colors.accent,
               borderRadius: 6,
               opacity: i === 6 ? 1 : 0.16 + i * 0.075,
@@ -74,7 +76,7 @@ export function SpendingChart({
           />
           <Text
             style={{
-              fontSize: 10,
+              fontSize: compact ? 9 : 10,
               color: i === 6 ? colors.text : colors.muted,
             }}
             bold={i === 6}

@@ -30,8 +30,10 @@ jobs:
           unzip -q "$RUNNER_TEMP/kotlin.zip" -d "$RUNNER_TEMP/kotlin"
           echo "$RUNNER_TEMP/kotlin/kotlinc/bin" >> "$GITHUB_PATH"
       - run: npm ci
+      - run: npm ci --prefix mcp
       - run: npx playwright install --with-deps chromium
       - run: npm run test:regression
+      - run: npm test --prefix mcp
       - uses: actions/upload-artifact@v7
         if: always()
         with:

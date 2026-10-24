@@ -25,6 +25,10 @@
 
 Kanakku reads supported bank transaction SMS on the phone, keeps an encrypted spending journal, and asks — in its own words — when a payment needs context. Its totals cover captured supported alerts. Optional Gmail capture adds authenticated SBI debit-card and SBI Card purchase emails after explicit Google authorization; message parsing and journal storage happen on-device. Google restricted-scope verification and the Play app-signing OAuth client remain release gates. No Kanakku account, no journal server, no ads.
 
+## Connect AI agents with MCP
+
+An optional local MCP server lets MCP-capable clients such as Claude Code, Codex, and Gemini CLI query a selected encrypted Drive backup, analyze spend and monthly trends, inspect transactions and journal-backed rules, and stage edits to transactions, custom categories, merchant rules, and recurring-payment decisions. It runs locally over stdio and has no Kanakku backend. Data returned by tools becomes available to the chosen AI provider under its terms. Edits always require a preview and export to a separate encrypted backup; the extra approval phrase is configurable, and the phone is never changed directly. Device-only settings are outside the backup and cannot be changed through MCP. Setup and client configuration are in [mcp/README.md](mcp/README.md).
+
 ## Why you can trust it
 
 Every claim below is in the source, and most are covered by tests.

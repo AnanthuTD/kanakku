@@ -40,6 +40,7 @@ import {
   Moon,
   X,
   LockKeyhole,
+  CircleHelp,
 } from "lucide-react-native";
 import { FlashList, FlashListRef } from "@shopify/flash-list";
 import { LedgerFilters } from "../src/components/LedgerFilters";
@@ -147,7 +148,7 @@ export default function Home() {
   const [kind, setKind] = useState<Kind | null>(null);
   const [activityRange, setActivityRange] = useState<DateRange | undefined>();
   const [merchant, setMerchant] = useState<string | null>(null);
-  const [source, setSource] = useState<"sms" | "email" | null>(null);
+  const [source, setSource] = useState<"sms" | "email" | "manual" | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const activityList = useRef<FlashListRef<Transaction>>(null);
   const activityOffset = useRef(0);
@@ -403,6 +404,14 @@ export default function Home() {
       <View style={[ui.row, { gap: 4 }]}>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Open getting started guide"
+          onPress={() => router.push("/guide" as Href)}
+          style={s.iconButton}
+        >
+          <CircleHelp size={20} color={colors.text} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel={
             dark ? "Switch to light theme" : "Switch to dark theme"
           }
@@ -593,19 +602,48 @@ export default function Home() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={ui.screen}
           >
-            <View style={{ marginTop: 16, marginBottom: 26 }}>
-              <Text muted style={{ fontSize: 12, marginBottom: 4 }}>
-                YOUR MONEY, A LITTLE CLEARER
+            <View style={[ui.between, s.monthHeading]}>
+              <Text serif style={{ fontSize: 26, lineHeight: 36 }}>
+                This month
               </Text>
-              <Text
-                serif
-                style={{ fontSize: 35, lineHeight: 44, letterSpacing: -0.9 }}
+              <View
+                style={[
+                  s.monthPicker,
+                  { backgroundColor: colors.card, borderColor: colors.line },
+                ]}
               >
-                Room to breathe.
-              </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous month"
+                  hitSlop={8}
+                  onPress={() => changeMonth(-1)}
+                  style={s.monthArrow}
+                >
+                  <ChevronLeft size={18} color={colors.muted} />
+                </Pressable>
+                <Text bold style={{ fontSize: 11 }}>
+                  {monthLabel}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Next month"
+                  hitSlop={8}
+                  onPress={() => changeMonth(1)}
+                  style={s.monthArrow}
+                >
+                  <ChevronRight size={18} color={colors.muted} />
+                </Pressable>
+              </View>
             </View>
-            {period}
-            <View style={[s.hero, { backgroundColor: colors.accentSoft }]}>
+            <View
+              style={[
+                s.hero,
+                {
+                  backgroundColor: colors.accentSoft,
+                  borderColor: dark ? colors.line : "#D8E1D1",
+                },
+              ]}
+            >
               <View style={ui.between}>
                 <Pressable
                   accessibilityRole="button"
@@ -613,16 +651,19 @@ export default function Home() {
                   onPress={() => goActivity()}
                 >
                   <Text style={{ fontSize: 12, color: colors.accent }}>
-                    Net spending this month
+                    Spent so far
                   </Text>
                   <Text
                     testID="overview-total"
                     serif
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
                     style={{
-                      fontSize: 51,
-                      lineHeight: 67,
-                      letterSpacing: -2,
-                      marginTop: 4,
+                      fontSize: 45,
+                      lineHeight: 56,
+                      letterSpacing: -1.8,
+                      marginTop: 3,
                     }}
                   >
                     {hideAmount ? "₹ •••••" : money(total)}
@@ -643,57 +684,20 @@ export default function Home() {
                   )}
                 </Pressable>
               </View>
-              <View style={[ui.row, { gap: 6, marginTop: 2 }]}>
-                <ShieldCheck size={12} color={colors.accent} />
-                <Text style={{ fontSize: 10, color: colors.accent }}>
-                  {mode === "live"
-                    ? "Captured from supported bank alerts"
-                    : sampleData
-                      ? "A preview with sample transactions"
-                      : "Connect bank alerts to start your journal"}
-                </Text>
-              </View>
-              {held > 0 && (
-                <Pressable
-                  testID="held-spend"
-                  accessibilityRole="button"
-                  accessibilityLabel="Payments to bank accounts awaiting your context"
-                  onPress={() =>
-                    applyFilters({
-                      range: monthRange(month),
-                      reviewOnly: true,
-                      awaitingContextOnly: true,
-                    })
-                  }
-                  style={{ marginTop: 6 }}
-                >
-                  <Text style={{ fontSize: 11, color: colors.orange }}>
-                    {hideAmount ? "Some payments" : money(held)} to bank
-                    accounts not counted yet · tell me what they were
+              {comparisonCovered &&
+                (comparisonCurrent !== 0 || comparisonPrevious !== 0) && (
+                  <Text
+                    style={{ fontSize: 11, color: colors.accent, marginTop: 2 }}
+                  >
+                    {comparisonCurrent === comparisonPrevious
+                      ? "About the same as this time last month"
+                      : `${money(Math.abs(comparisonCurrent - comparisonPrevious))} ${comparisonCurrent > comparisonPrevious ? "more" : "less"} than this time last month`}
                   </Text>
-                </Pressable>
-              )}
-              {monthly.some(
-                (t) =>
-                  !t.excluded &&
-                  (needsInrSettlement(t) || t.emailMatchCandidates?.length),
-              ) && (
-                <Text muted style={{ fontSize: 11, marginTop: 6 }}>
-                  {
-                    monthly.filter(
-                      (t) =>
-                        !t.excluded &&
-                        (needsInrSettlement(t) ||
-                          t.emailMatchCandidates?.length),
-                    ).length
-                  }{" "}
-                  alerts need a bank-alert match decision or final INR charge.
-                  They are not included in spending yet; resolve them in review.
-                </Text>
-              )}
+                )}
               <SpendingChart
                 transactions={transactions}
                 hideAmount={hideAmount}
+                compact
                 until={
                   month === monthKey(new Date())
                     ? new Date()
@@ -709,27 +713,124 @@ export default function Home() {
                   setDay(d);
                 }}
               />
-              <View
-                style={[
-                  ui.between,
+              {mode !== "live" &&
+                (sampleData ? (
+                  <>
+                  {/* Keep preview figures visibly labeled as sample data. */}
+                  <Text muted style={{ fontSize: 10, marginTop: 7 }}>
+                    A preview with sample transactions
+                  </Text>
+                  <Pressable
+                    testID="sample-data-connect"
+                    accessibilityRole="button"
+                    accessibilityLabel="Setup step two of two. Connect bank alerts for your journal"
+                    onPress={() => router.push("/settings?section=bank")}
+                    style={({ pressed }) => [
+                      ui.row,
+                      {
+                        gap: 6,
+                        marginTop: 3,
+                        minHeight: 44,
+                        opacity: pressed ? 0.72 : 1,
+                      },
+                    ]}
+                  >
+                    <ShieldCheck size={13} color={colors.accent} />
+                    <Text style={{ fontSize: 10, color: colors.accent }}>
+                      Step 2 of 2 · Connect bank alerts
+                    </Text>
+                    <ArrowRight size={12} color={colors.accent} />
+                  </Pressable>
+                  </>
+                ) : (
+                  <View style={[ui.row, { gap: 6, marginTop: 7 }]}>
+                    <ShieldCheck size={13} color={colors.accent} />
+                    <Text style={{ fontSize: 10, color: colors.accent }}>
+                      Your private journal
+                    </Text>
+                  </View>
+                ))}
+            </View>
+            <View style={s.quickActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open transactions and all payments"
+                onPress={() => goActivity()}
+                style={({ pressed }) => [
+                  s.quickAction,
                   {
-                    marginTop: 15,
-                    paddingTop: 14,
-                    borderTopWidth: 1,
-                    borderColor: dark ? "#40523F" : "#D1DCC8",
+                    backgroundColor: colors.card,
+                    borderColor: colors.line,
+                    opacity: pressed ? 0.75 : 1,
                   },
                 ]}
               >
-                <Text style={{ fontSize: 10, color: colors.accent }}>
-                  Last 7 days in this period
-                </Text>
-                <Text style={{ fontSize: 10, color: colors.accent }}>
-                  A small habit. A clearer picture.
-                </Text>
-              </View>
+                <View
+                  style={[s.quickIcon, { backgroundColor: colors.blueSoft }]}
+                >
+                  <Wallet size={18} color={colors.blue} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text bold style={{ fontSize: 12 }}>
+                    Transactions
+                  </Text>
+                </View>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open the spending mix and category breakdown"
+                onPress={() => changeTab("Insights")}
+                style={({ pressed }) => [
+                  s.quickAction,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.line,
+                    opacity: pressed ? 0.75 : 1,
+                  },
+                ]}
+              >
+                <View
+                  style={[s.quickIcon, { backgroundColor: colors.purpleSoft }]}
+                >
+                  <ChartNoAxesCombined size={18} color={colors.purple} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text bold style={{ fontSize: 12 }}>
+                    Spending mix
+                  </Text>
+                </View>
+              </Pressable>
             </View>
+            {transactions.length === 0 && (
+              <Pressable
+                testID="connect-bank-setup"
+                accessibilityRole="button"
+                accessibilityLabel="Set up bank alerts to start your journal"
+                onPress={() => router.push("/settings?section=bank")}
+                style={[
+                  s.setupCard,
+                  { backgroundColor: colors.card, borderColor: colors.line },
+                ]}
+              >
+                <View
+                  style={[s.quickIcon, { backgroundColor: colors.accentSoft }]}
+                >
+                  <ShieldCheck size={18} color={colors.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text bold style={{ fontSize: 13 }}>
+                    Start your spend journal
+                  </Text>
+                  <Text muted style={{ fontSize: 11, marginTop: 2 }}>
+                    Connect bank alerts to see your spending here.
+                  </Text>
+                </View>
+                <ArrowRight size={17} color={colors.accent} />
+              </Pressable>
+            )}
             {pending.length > 0 && (
               <Pressable
+                testID="pending-review"
                 accessibilityRole="button"
                 onPress={() => {
                   applyFilters({
@@ -748,8 +849,8 @@ export default function Home() {
               >
                 <View
                   style={{
-                    width: 36,
-                    height: 36,
+                    width: 40,
+                    height: 40,
                     backgroundColor: colors.orangeSoft,
                     borderRadius: 13,
                     alignItems: "center",
@@ -762,125 +863,89 @@ export default function Home() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text bold style={{ fontSize: 12 }}>
-                    A few little mysteries
+                    {pending.length}{" "}
+                    {pending.length === 1 ? "payment" : "payments"} to review
                   </Text>
                   <Text muted style={{ fontSize: 10 }}>
-                    Add context to {pending.length} payments
+                    Add a name or category
                   </Text>
                 </View>
                 <ArrowRight size={17} color={colors.accent} />
               </Pressable>
             )}
-            <View style={{ marginTop: 31 }}>
-              <SectionTitle
-                title="Where it went"
-                action="Explore"
-                onPress={() => changeTab("Insights")}
-              />
-              {breakdown.length ? (
-                breakdown.slice(0, 4).map(({ category: cat, amount }) => (
-                  <Pressable
-                    key={cat}
-                    accessibilityRole="button"
-                    onPress={() => goActivity(cat)}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 12,
-                      marginBottom: 18,
-                    }}
-                  >
-                    <CategoryIcon category={cat} size={39} />
-                    <View style={{ flex: 1 }}>
-                      <View style={ui.between}>
-                        <Text style={{ fontSize: 12 }}>{cat}</Text>
-                        <Text bold style={{ fontSize: 12 }}>
-                          {hideAmount ? "••••" : money(amount)}
-                        </Text>
-                      </View>
-                      <View
-                        style={{
-                          height: 5,
-                          backgroundColor: colors.line,
-                          borderRadius: 3,
-                          marginTop: 8,
-                        }}
-                      >
-                        <View
-                          style={{
-                            height: 5,
-                            borderRadius: 3,
-                            width: `${Math.max(0, Math.min(100, (amount / Math.max(total, 1)) * 100))}%`,
-                            backgroundColor: categoryColor(cat, colors).fg,
-                          }}
-                        />
-                      </View>
-                    </View>
-                  </Pressable>
-                ))
-              ) : (
-                <Empty
-                  title="Nothing to show for this month"
-                  detail="Categories appear here as eligible transactions are added."
-                />
-              )}
-            </View>
-            <View style={{ marginTop: 15 }}>
-              <SectionTitle
-                title="Recent activity"
-                action="View all"
-                onPress={() => goActivity()}
-              />
-              {monthly.slice(0, 4).map((t) => (
-                <TransactionRow
-                  key={t.id}
-                  transaction={t}
-                  hideAmount={hideAmount}
-                  onPress={() => sheet.current?.open(t.id)}
-                />
-              ))}
-            </View>
-            <View style={[s.privacy, { borderColor: colors.line }]}>
-              <ShieldCheck size={17} color={colors.accent} />
-              <View style={{ flex: 1 }}>
-                <Text bold style={{ fontSize: 11 }}>
-                  {mode === "live"
-                    ? "Your finances stay with you."
-                    : sampleData
-                      ? "Take a look around. This is sample data."
-                      : "Not connected yet."}
-                </Text>
-                <Text muted style={{ fontSize: 10, lineHeight: 17 }}>
-                  {mode === "live"
-                    ? "Encrypted on your device. No account needed."
-                    : sampleData
-                      ? "Connect your bank SMS in the Android app."
-                      : "Connect your bank SMS to start your journal."}
-                </Text>
-              </View>
-              {mode === "demo" && (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Set up bank alerts"
-                  onPress={() => {
-                    rememberActivityScroll();
-                    router.push("/settings?section=bank");
-                  }}
-                  style={{
-                    minHeight: 48,
-                    paddingHorizontal: 10,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
+            {held > 0 && (
+              <Pressable
+                testID="held-spend"
+                accessibilityRole="button"
+                accessibilityLabel="Payments to bank accounts awaiting your context"
+                onPress={() =>
+                  applyFilters({
+                    range: monthRange(month),
+                    reviewOnly: true,
+                    awaitingContextOnly: true,
+                  })
+                }
+                style={[
+                  s.attentionRow,
+                  { borderColor: colors.line, backgroundColor: colors.card },
+                ]}
+              >
+                <View
+                  style={[s.quickIcon, { backgroundColor: colors.orangeSoft }]}
                 >
-                  <Text bold style={{ fontSize: 11, color: colors.accent }}>
-                    Set up alerts
+                  <ArrowUpRight size={18} color={colors.orange} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text bold style={{ fontSize: 12 }}>
+                    {hideAmount ? "Some payments" : money(held)} to bank
+                    accounts not counted yet
                   </Text>
-                  <ArrowUpRight color={colors.accent} size={19} />
-                </Pressable>
-              )}
-            </View>
+                  <Text muted style={{ fontSize: 10, marginTop: 2 }}>
+                    Tell Kanakku what they were for
+                  </Text>
+                </View>
+                <ChevronRight size={16} color={colors.muted} />
+              </Pressable>
+            )}
+            {monthly.some(
+              (t) =>
+                !t.excluded &&
+                (needsInrSettlement(t) || t.emailMatchCandidates?.length),
+            ) && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() =>
+                  applyFilters({ range: monthRange(month), reviewOnly: true })
+                }
+                style={[
+                  s.attentionRow,
+                  { borderColor: colors.line, backgroundColor: colors.card },
+                ]}
+              >
+                <View
+                  style={[s.quickIcon, { backgroundColor: colors.blueSoft }]}
+                >
+                  <ShieldCheck size={18} color={colors.blue} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text bold style={{ fontSize: 12 }}>
+                    {
+                      monthly.filter(
+                        (t) =>
+                          !t.excluded &&
+                          (needsInrSettlement(t) ||
+                            t.emailMatchCandidates?.length),
+                      ).length
+                    }{" "}
+                    payment alerts need a match
+                  </Text>
+                  <Text muted style={{ fontSize: 10, marginTop: 2 }}>
+                    Check these before they count toward spending
+                  </Text>
+                </View>
+                <ChevronRight size={16} color={colors.muted} />
+              </Pressable>
+            )}
           </ScrollView>
         )}
         {tab === "Activity" && (
@@ -921,6 +986,7 @@ export default function Home() {
             >
               <Search size={18} color={colors.muted} />
               <TextInput
+                testID="transaction-search"
                 accessibilityLabel="Search transactions"
                 placeholder="Search merchants, notes, accounts…"
                 placeholderTextColor={colors.muted}
@@ -1156,6 +1222,7 @@ export default function Home() {
                   )}
                   <TransactionRow
                     transaction={item}
+                    hideAmount={hideAmount}
                     onPress={() => sheet.current?.open(item.id)}
                   />
                 </View>
@@ -1538,7 +1605,52 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  hero: { borderRadius: 25, padding: 23 },
+  monthHeading: { marginTop: 8, marginBottom: 16, gap: 8 },
+  monthPicker: {
+    minHeight: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingHorizontal: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  monthArrow: {
+    minWidth: 36,
+    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  hero: { borderRadius: 25, borderWidth: 1, padding: 20 },
+  quickActions: { flexDirection: "row", gap: 10, marginTop: 14 },
+  quickAction: {
+    flex: 1,
+    minHeight: 64,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  quickIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  setupCard: {
+    marginTop: 12,
+    minHeight: 76,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   reviewBanner: {
     marginTop: 15,
     flexDirection: "row",
@@ -1548,12 +1660,14 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 19,
   },
-  privacy: {
-    marginTop: 30,
-    paddingTop: 20,
-    borderTopWidth: 1,
+  attentionRow: {
+    marginTop: 10,
+    minHeight: 68,
+    padding: 11,
+    borderWidth: 1,
+    borderRadius: 17,
     flexDirection: "row",
-    gap: 10,
+    gap: 11,
     alignItems: "center",
   },
   search: {

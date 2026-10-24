@@ -11,13 +11,19 @@ name: Theme setting survives app restart
       android.permission.READ_EXTERNAL_STORAGE: deny
       android.permission.WRITE_EXTERNAL_STORAGE: deny
 - extendedWaitUntil:
-    visible: "Room to breathe."
+    visible: "This month"
     timeout: 120000
 - tapOn:
     text: "Open settings"
     waitToSettleTimeoutMs: 1000
 - tapOn:
+    text: "Appearance"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
     text: "Light"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Back to settings"
     waitToSettleTimeoutMs: 1000
 - tapOn:
     text: "Back to overview"
@@ -35,14 +41,20 @@ name: Theme setting survives app restart
       android.permission.READ_EXTERNAL_STORAGE: deny
       android.permission.WRITE_EXTERNAL_STORAGE: deny
 - extendedWaitUntil:
-    visible: "Room to breathe."
+    visible: "This month"
     timeout: 120000
 - assertVisible: "Switch to light theme"
 - tapOn:
     text: "Open settings"
     waitToSettleTimeoutMs: 1000
 - tapOn:
+    text: "Appearance"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
     text: "Light"
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Back to settings"
     waitToSettleTimeoutMs: 1000
 - tapOn:
     text: "Back to overview"

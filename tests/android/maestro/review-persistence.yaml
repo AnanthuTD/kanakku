@@ -11,21 +11,21 @@ name: Sample review correction persists after app restart
       android.permission.READ_EXTERNAL_STORAGE: deny
       android.permission.WRITE_EXTERNAL_STORAGE: deny
 - extendedWaitUntil:
-    visible: "Room to breathe."
+    visible: "This month"
     timeout: 120000
-- assertVisible: "Room to breathe."
+- assertVisible: "This month"
 - tapOn:
     text: "Activity"
     waitToSettleTimeoutMs: 1000
 - tapOn:
-    text: "Search transactions"
+    id: "transaction-search"
     waitToSettleTimeoutMs: 1000
 - assertVisible:
-    text: "Search transactions"
+    id: "transaction-search"
     focused: true
 - inputText: "Rahul S"
 - assertVisible:
-    text: "^Rahul S$"
+    id: "transaction-search"
     focused: true
 - assertVisible: "Clear search"
 - assertNotVisible:
@@ -42,11 +42,17 @@ name: Sample review correction persists after app restart
     id: "transaction-sample-1"
 - assertVisible: "What was this for?"
 - tapOn:
-    text: "Payment note"
+    id: "payment-note"
     waitToSettleTimeoutMs: 1000
+- assertVisible:
+    id: "payment-note"
+    focused: true
 - inputText: "auto to office"
-- assertVisible: "auto to office"
+- assertVisible:
+    id: "payment-note"
+    focused: true
 - hideKeyboard
+- assertVisible: "auto to office"
 - scrollUntilVisible:
     element: "Save category"
     direction: DOWN
@@ -74,20 +80,20 @@ name: Sample review correction persists after app restart
       android.permission.READ_EXTERNAL_STORAGE: deny
       android.permission.WRITE_EXTERNAL_STORAGE: deny
 - extendedWaitUntil:
-    visible: "Room to breathe."
+    visible: "This month"
     timeout: 120000
 - tapOn:
     text: "Activity"
     waitToSettleTimeoutMs: 1000
 - tapOn:
-    text: "Search transactions"
+    id: "transaction-search"
     waitToSettleTimeoutMs: 1000
 - assertVisible:
-    text: "Search transactions"
+    id: "transaction-search"
     focused: true
 - inputText: "Rahul S"
 - assertVisible:
-    text: "^Rahul S$"
+    id: "transaction-search"
     focused: true
 - assertVisible: "Clear search"
 - assertNotVisible:

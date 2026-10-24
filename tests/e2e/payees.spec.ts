@@ -71,14 +71,15 @@ test("payments to an unnamed bank account wait for context; a suffix cannot sett
   ).toHaveCount(0);
 
   const review = await openTransaction(page, "A/c ••7788");
-  await review.getByRole("button", { name: "Transfer", exact: true }).click();
+  await review
+    .getByRole("button", { name: "Self transfer", exact: true })
+    .click();
   await expect(
     review.getByRole("switch", { name: "Remember merchant category" }),
   ).toBeDisabled();
   await expect(
     review.getByText(
-      "A masked account ending cannot identify a unique payee. Save this payment only.",
-      { exact: true },
+      /Future alerts from .* same masked ending will use your choice\./,
     ),
   ).toBeVisible();
   await review

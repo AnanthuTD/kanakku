@@ -4,7 +4,7 @@ Last updated 20 October 2026. Applies to the Kanakku Android app (`app.tinkerbox
 
 ## Your journal stays on your phone
 
-Kanakku turns supported bank SMS alerts into a local spend journal. You do not create a Kanakku account. Your SMS, recorded speech and bill images are processed on the phone, and your saved journal is encrypted there. If you choose, you can manually upload a separate, end-to-end encrypted journal backup to your Google Drive and restore it later. Optional Gmail checks, merchant searches, app updates and model downloads use external services. The bill-recognition SDK also collects technical metrics, as explained below.
+Kanakku turns supported bank SMS alerts into a local spend journal. You do not create a Kanakku account. Your SMS, recorded speech and bill images are processed on the phone, and your saved journal is encrypted there. If you choose, you can manually upload a separate, end-to-end encrypted journal backup to your Google Drive and restore it later. Optional Gmail checks, merchant searches, app updates and model downloads use external services. The optional local MCP server reads a backup only after you configure it on your computer; when an AI agent requests data, the requested normalized transaction fields are sent to that agent's provider as tool results. The MCP server has no Kanakku backend and does not expose raw SMS/email bodies. The bill-recognition SDK also collects technical metrics, as explained below.
 
 ## What the app processes and keeps
 
@@ -68,6 +68,10 @@ Details: [ML Kit privacy terms](https://developers.google.com/ml-kit/terms) and 
 Kanakku's beta diagnostics log records operational stages, counts, timings and scrubbed error information on the phone. It does not deliberately include SMS text, transcripts, account details, bill content or API keys. Settings lets you clear or turn off this local log. It is shared with the developer only if you choose to provide it, for example in a bug report. This setting does not control Google's SDK metrics or Expo/Brave service logs.
 
 Kanakku contains no advertisements and does not sell your journal. It does not use the journal for advertising profiles.
+
+## Optional Gemini access on Android
+
+On supported Android devices, Settings → Privacy & device can enable Android App Functions for Gemini. Access is off by default and only works while the Kanakku journal is unlocked. Summary and analytics calls return requested totals and grouped spending. Transaction search compares the query with merchant, bank, account label, category, transaction kind, and note text on-device; returned matches include their transaction ID, date/time, amount, merchant, category, source, bank, and masked account label, but never return existing note text, receipt images, or raw SMS/email content. A transaction ID lets Gemini target a later edit. Recurring-payment results contain locally inferred merchant, cadence, status, dates, amounts, and evidence; they are not confirmation of an active mandate. Gemini can also request changes to a transaction's merchant, category, note, or recurring decision, and request a manual expense. Kanakku checks for possible duplicates and stages changes for its encrypted journal. The confirmation setting is on by default and requires approval in Kanakku; if the user turns it off, supported non-destructive changes can be saved automatically while the journal is open and unlocked. Delete and other destructive actions are not available. Gemini/Google may process the details returned by Kanakku to answer the user's request; this is separate from Kanakku directly uploading or syncing journal data. Android App Functions and Gemini availability depend on the device and assistant version.
 
 ## Permissions
 

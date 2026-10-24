@@ -1,5 +1,24 @@
 import { test, expect, home, activity, setSwitch } from "./fixtures";
 
+test("getting started guide covers the core workflows and links into setup", async ({ page }) => {
+  await home(page);
+  await page.getByRole("button", { name: "Open getting started guide" }).click();
+  await expect(page.getByText("Your journal, made simple")).toBeVisible();
+  for (const topic of [
+    "Bring in bank alerts",
+    "Fill gaps with email alerts",
+    "Add a bill or receipt",
+    "Use voice and category suggestions",
+    "Meet the floating helper",
+    "Understand unclear payments",
+    "Mark a self transfer",
+    "Track money lent",
+  ]) await expect(page.getByText(topic, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Set up bank alerts" }).first().click();
+  await expect(page).toHaveURL(/settings\?section=bank/);
+  await expect(page.getByTestId("settings-screen")).toBeVisible();
+});
+
 test("dark/light choice survives reload and system follows the browser theme", async ({
   page,
 }) => {
@@ -47,7 +66,9 @@ test("settings menu opens a dedicated page and back returns to the menu", async 
   await expect(page.getByTestId("settings-menu")).toBeVisible();
   await page.getByRole("button", { name: /Appearance/ }).click();
   await expect(page.getByTestId("settings-menu")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Dark", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Dark", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Back to settings" }).click();
   await expect(page.getByTestId("settings-menu")).toBeVisible();
 });
@@ -62,7 +83,9 @@ test("Drive backup clearly explains encryption and stays unavailable in web prev
     backup.getByText("Keep a recovery copy in Google Drive"),
   ).toBeVisible();
   await expect(
-    backup.getByText(/journal is encrypted on this phone before it is saved to Drive/),
+    backup.getByText(
+      /journal is encrypted on this phone before it is saved to Drive/,
+    ),
   ).toBeVisible();
   await backup.getByRole("button", { name: "What gets saved?" }).click();
   await expect(
@@ -97,10 +120,17 @@ test("custom categories can be created and survive reload", async ({
   await page.goto("/settings");
   await page.getByRole("button", { name: /Categories & extra tools/ }).click();
   await page.getByRole("textbox", { name: "New category name" }).fill("Pets");
+  const petIcon = page.getByRole("button", { name: "Pets category icon" });
+  await petIcon.click();
+  await expect(petIcon).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText("Pets", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText("Pets", { exact: true })).toBeVisible();
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("kanakku-demo-v1") || "{}"),
+  );
+  expect(saved.metadata.categoryIcons.Pets).toBe("PawPrint");
   await page.goto("/");
   await activity(page);
   await page.getByRole("button", { name: "Open transaction filters" }).click();

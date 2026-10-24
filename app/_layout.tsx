@@ -16,6 +16,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { AppProvider, useApp } from "../src/state/AppContext";
 import { LaunchSplash } from "../src/components/LaunchSplash";
 import { appUpdates } from "../src/services/appUpdates";
+import { GeminiActionPrompt } from "../src/components/GeminiActionPrompt";
 
 // The native splash stays up until LaunchSplash draws an identical frame.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -31,6 +32,7 @@ function Navigation() {
         }}
       />
       <LaunchSplash />
+      <GeminiActionPrompt />
     </View>
   );
 }

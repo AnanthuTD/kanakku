@@ -3,9 +3,10 @@ export const AUTO_LOCK_OPTIONS = [
   { value: 60_000, label: "1 minute" },
   { value: 5 * 60_000, label: "5 minutes" },
   { value: 15 * 60_000, label: "15 minutes" },
+  { value: 60 * 60_000, label: "1 hour" },
 ] as const;
 
-export const DEFAULT_AUTO_LOCK_DELAY = 60_000;
+export const DEFAULT_AUTO_LOCK_DELAY = 60 * 60_000;
 
 export function shouldLockAfterBackground(
   delayMs: number,

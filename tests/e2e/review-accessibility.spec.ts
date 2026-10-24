@@ -18,10 +18,19 @@ test("keyboard review opens with close focus, contains both tab directions and E
     exact: true,
   });
   await expect(close).toBeFocused();
+  // Shift+Tab from the first control wraps to the dialog's last control.
+  const lastControl = review.getByRole("button", {
+    name: "Record this payment as money lent",
+    exact: true,
+  });
+  await page.keyboard.press("Shift+Tab");
+  await expect(lastControl).toBeFocused();
   await page.keyboard.press("Shift+Tab");
   await expect(
     review.getByRole("button", { name: "Done", exact: true }),
   ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(lastControl).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(close).toBeFocused();
   for (let i = 0; i < 34; i++) {

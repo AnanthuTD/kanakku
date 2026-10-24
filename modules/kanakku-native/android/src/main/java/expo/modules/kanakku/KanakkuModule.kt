@@ -14,6 +14,7 @@ import android.provider.Telephony
 import android.speech.*
 import androidx.biometric.BiometricPrompt
 import androidx.biometric.BiometricManager
+import androidx.appfunctions.AppFunctionManager
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import expo.modules.kotlin.modules.Module
@@ -21,9 +22,20 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.functions.Queues
 import java.lang.ref.WeakReference
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class KanakkuModule : Module() {
   private val context get() = requireNotNull(appContext.reactContext)
+  private val geminiFunctions = listOf(
+    "app.tinkerbox.kanakku.KanakkuAppFunctionService#getSpendingSummary",
+    "app.tinkerbox.kanakku.KanakkuAppFunctionService#searchTransactions",
+    "app.tinkerbox.kanakku.KanakkuAppFunctionService#getSpendingAnalytics",
+    "app.tinkerbox.kanakku.KanakkuAppFunctionService#getRecurringPayments",
+    "app.tinkerbox.kanakku.KanakkuAppFunctionService#updateTransaction",
+    "app.tinkerbox.kanakku.KanakkuAppFunctionService#createManualExpense",
+  )
   private var speech: SpeechRecognizer? = null
   private var speechPromise: Promise? = null
   private val pcmRecorder=PcmRecorder()
@@ -55,12 +67,80 @@ class KanakkuModule : Module() {
       val prefs=context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE)
       mapOf("sms" to (ContextCompat.checkSelfPermission(context,Manifest.permission.READ_SMS)==PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(context,Manifest.permission.RECEIVE_SMS)==PackageManager.PERMISSION_GRANTED), "overlay" to Settings.canDrawOverlays(context), "capture" to Vault(context).enabled(), "offlineVoice" to SpeechRecognizer.isOnDeviceRecognitionAvailable(context), "overlayEnabled" to prefs.getBoolean("overlay",false), "sounds" to prefs.getBoolean("sounds",true), "testBuild" to (context.packageName==TEST_PACKAGE), "diagnostics" to Diagnostics.enabled(context), "voiceSupported" to WhisperEngine.supported, "debugVoiceClips" to (context.packageName==TEST_PACKAGE && prefs.getBoolean("debugVoiceClips",false)))
     }
+    AsyncFunction("geminiAccessStatus") {
+      val supported=AppFunctionManager.getInstance(context)!=null
+      mapOf(
+        "supported" to supported,
+        "enabled" to (supported && context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).getBoolean("geminiAppFunctions",false))
+      )
+    }
+    AsyncFunction("setGeminiAccess") { enabled:Boolean, promise:Promise ->
+      val manager=AppFunctionManager.getInstance(context)
+      if(manager==null) {
+        promise.reject("APP_FUNCTIONS_UNAVAILABLE","Gemini App Functions need Android 16 or a supported Android App Functions provider.",null)
+        return@AsyncFunction
+      }
+      CoroutineScope(Dispatchers.IO).launch {
+        try {
+          val value=if(enabled) AppFunctionManager.APP_FUNCTION_STATE_ENABLED else AppFunctionManager.APP_FUNCTION_STATE_DISABLED
+          geminiFunctions.forEach { manager.setAppFunctionEnabled(it,value) }
+          context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).edit().putBoolean("geminiAppFunctions",enabled).commit()
+          if(!enabled) { AssistantData.clearSnapshot(); AssistantData.clearActions() }
+          promise.resolve(mapOf("supported" to true,"enabled" to enabled))
+        } catch(e:Exception) {
+          // Best-effort rollback prevents a partially enabled set of functions.
+          if(enabled) runCatching {
+            geminiFunctions.forEach { manager.setAppFunctionEnabled(it,AppFunctionManager.APP_FUNCTION_STATE_DISABLED) }
+          }
+          promise.reject("APP_FUNCTIONS_SETUP","Could not update Gemini access. Try again after opening Kanakku once.",e)
+        }
+      }
+    }
+    AsyncFunction("setAssistantSnapshot") { snapshot:String, promise:Promise ->
+      val enabled=context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).getBoolean("geminiAppFunctions",false)
+      if(!enabled) {
+        AssistantData.clearSnapshot()
+        AssistantData.clearActions()
+        promise.resolve(true)
+      } else {
+        val manager=AppFunctionManager.getInstance(context)
+        if(manager==null) {
+          AssistantData.clearSnapshot()
+          promise.resolve(false)
+        } else CoroutineScope(Dispatchers.IO).launch {
+          try {
+            geminiFunctions.forEach { manager.setAppFunctionEnabled(it,AppFunctionManager.APP_FUNCTION_STATE_ENABLED) }
+            promise.resolve(AssistantData.replace(snapshot))
+          } catch(e:Exception) {
+            AssistantData.clearSnapshot()
+            promise.reject("APP_FUNCTIONS_SETUP","Could not refresh Gemini analytics functions.",e)
+          }
+        }
+      }
+    }
+    AsyncFunction("clearAssistantSnapshot") { AssistantData.clearSnapshot(); true }
+    AsyncFunction("lockAssistantSession") { AssistantData.clear(); true }
+    AsyncFunction("assistantWriteSettings") {
+      mapOf("confirmChanges" to context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).getBoolean("confirmGeminiChanges",true))
+    }
+    AsyncFunction("setAssistantWriteConfirmation") { enabled:Boolean ->
+      context.getSharedPreferences("kanakku-settings",Context.MODE_PRIVATE).edit().putBoolean("confirmGeminiChanges",enabled).commit()
+      enabled
+    }
+    AsyncFunction("pendingAssistantAction") { AssistantData.nextAction()?.toString() }
+    AsyncFunction("completeAssistantAction") { id:String -> AssistantData.completeAction(id) }
     AsyncFunction("unlock") { promise: Promise ->
       try {
         val activity=appContext.currentActivity as? FragmentActivity ?: throw Exception("Open Kanakku to unlock.")
         val vault=Vault(context);vault.initialize()
         val auth=BiometricPrompt(activity,ContextCompat.getMainExecutor(context),object: BiometricPrompt.AuthenticationCallback(){
-          override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { try { allowScreenshots(activity); promise.resolve(vault.databaseKey()) } catch(e:Exception) {promise.reject("KEY_UNAVAILABLE","Unable to unlock stored data. Device security may have changed. Reset the journal in Settings to re-import SMS; saved notes and rules cannot be recovered.",e)} }
+          override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { try { allowScreenshots(activity); val key=vault.databaseKey(); AssistantData.markUnlocked(); promise.resolve(key) } catch(e:Exception) { AssistantData.clear()
+            // Android retires authentication-bound keys when the screen lock is removed or reset.
+            // The journal cannot be opened again; never replace the key silently.
+            val retired=generateSequence<Throwable>(e){it.cause}.any{it is android.security.keystore.KeyPermanentlyInvalidatedException}
+            Diagnostics.log("error","vault","unlock-key-unavailable",mapOf("retired" to retired),e)
+            if(retired) promise.reject("KEY_INVALIDATED","Your phone's screen lock changed, so Android retired the key protecting this journal. To recover it, go to Settings › Reset journal, connect again, then restore your latest Drive backup. Without a backup, re-importing SMS rebuilds payments, but notes and rules are lost.",e)
+            else promise.reject("KEY_UNAVAILABLE","Kanakku couldn't open the encrypted journal. Try unlocking again. If this keeps happening, restore your latest Drive backup after Settings › Reset journal.",e)} }
           override fun onAuthenticationError(code:Int,message:CharSequence) {promise.reject("UNLOCK_CANCELLED",message.toString(),null)}
         })
         auth.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("Unlock Kanakku").setSubtitle("Your spending stays on this device").setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL).build())
@@ -207,6 +287,10 @@ class KanakkuModule : Module() {
     AsyncFunction("setCapture") { enabled:Boolean -> if(enabled) check(Vault(context).ready()) {"Unlock first"}; Vault(context).setEnabled(enabled) }.runOnQueue(Queues.MAIN)
     AsyncFunction("importHistory") { months:Int -> HistoryImport.start(context, months); HistoryImport.status(context) }
     AsyncFunction("importStatus") { HistoryImport.status(context) }
+    AsyncFunction("pendingStatements") { val v=Vault(context); if(v.ready()) v.statements() else emptyList() }
+    AsyncFunction("acknowledgeStatements") { ids:List<String> -> Vault(context).acknowledgeStatements(ids) }
+    AsyncFunction("unreadAlerts") { UnreadAlerts.status(context) }
+    AsyncFunction("clearUnreadAlerts") { UnreadAlerts.clear(context); UnreadAlerts.status(context) }
     AsyncFunction("reconcileHistory") { HistoryImport.reconcile(context); HistoryImport.status(context) }
     AsyncFunction("pauseImport") { HistoryImport.pause(context); HistoryImport.status(context) }
     AsyncFunction("resumeImport") { HistoryImport.resume(context); HistoryImport.status(context) }

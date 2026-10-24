@@ -37,6 +37,9 @@ import {
   shouldLockAfterBackground,
 } from "../domain/autoLock";
 import { validDay } from "../domain/ledger";
+import { makeAssistantSnapshot } from "../domain/appFunctions";
+import { AssistantAction, findAssistantExpenseMatches, persistAssistantUpdate } from "../domain/assistantActions";
+import { recurringKey } from "../domain/subscriptions";
 import React, {
   createContext,
   useContext,
@@ -132,7 +135,8 @@ interface ContextValue {
   rules: MerchantRule[];
   categories: Category[];
   customCategories: string[];
-  addCategory: (label: string) => Promise<boolean>;
+  categoryIcons: Record<string, string>;
+  addCategory: (label: string, iconKey?: string) => Promise<boolean>;
   loans: LoanRecord[];
   addLoan: (
     input: Omit<LoanRecord, "id" | "lentAt" | "repayments" | "remind"> & {
@@ -200,6 +204,8 @@ interface ContextValue {
   previewOverlay: () => Promise<void>;
   notice: string;
   setNotice: (s: string) => void;
+  assistantAction: AssistantAction | null;
+  resolveAssistantAction: (approve: boolean) => Promise<void>;
 }
 const AppContext = createContext<ContextValue | null>(null);
 const THEME = "kanakku-theme";
@@ -231,6 +237,9 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     Record<string, RecurringDecision>
   >({});
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [categoryIcons, setCategoryIcons] = useState<Record<string, string>>(
+    {},
+  );
   const [loans, setLoans] = useState<LoanRecord[]>([]);
   const [theme, setThemeState] = useState<ThemeMode>("system");
   const system = useColorScheme();
@@ -242,6 +251,8 @@ export function AppProvider({ children }: React.PropsWithChildren) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [assistantAction, setAssistantAction] = useState<AssistantAction | null>(null);
+  const assistantActionBusy = useRef(false);
   // Beta diagnostics: every error shown to the user is also recorded locally.
   useEffect(() => {
     if (error) logDiagnostic("error", "ui", "shown", { message: error, mode });
@@ -256,12 +267,14 @@ export function AppProvider({ children }: React.PropsWithChildren) {
   const [previous, setPrevious] = useState<{
     transactions: Transaction[];
     rules: MerchantRule[];
+    recurringDecisions?: Record<string, RecurringDecision>;
   } | null>(null);
   const state = useRef({
     transactions,
     rules,
     recurringDecisions,
     customCategories,
+    categoryIcons,
     loans,
     mode,
     locked,
@@ -272,6 +285,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     rules,
     recurringDecisions,
     customCategories,
+    categoryIcons,
     loans,
     mode,
     locked,
@@ -296,8 +310,14 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         setThemeState(savedTheme as ThemeMode);
       if (savedAutoLock !== null) {
         const delay = Number(savedAutoLock);
-        if ([0, 60_000, 300_000, 900_000].includes(delay))
-          setAutoLockDelayState(delay);
+        if ([0, 60_000, 300_000, 900_000, 3_600_000].includes(delay)) {
+          // Earlier builds defaulted to one minute. Move that default to the
+          // one-hour handoff window unless the user chose another interval.
+          const migrated = delay === 60_000 ? 3_600_000 : delay;
+          setAutoLockDelayState(migrated);
+          if (migrated !== delay)
+            AsyncStorage.setItem(AUTO_LOCK, String(migrated)).catch(() => {});
+        }
       }
       if (savedMode === "live" && native) {
         setMode("live");
@@ -314,6 +334,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         setCustomCategories(
           ledgerMetadata(data?.metadata).customCategories ?? [],
         );
+        setCategoryIcons(ledgerMetadata(data?.metadata).categoryIcons ?? {});
         setLoans(ledgerMetadata(data?.metadata).loans ?? []);
       }
       setSounds(native?.status().sounds ?? true);
@@ -348,7 +369,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     );
   };
   const setAutoLockDelay = (delayMs: number) => {
-    if (![0, 60_000, 300_000, 900_000].includes(delayMs)) return;
+    if (![0, 60_000, 300_000, 900_000, 3_600_000].includes(delayMs)) return;
     setAutoLockDelayState(delayMs);
     AsyncStorage.setItem(AUTO_LOCK, String(delayMs)).catch(() =>
       setError("Could not save the auto-lock preference."),
@@ -498,6 +519,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
+      setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
       setLoans(ledgerMetadata(data.metadata).loans ?? []);
       setLocked(false);
       setMode("live");
@@ -525,6 +547,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
+      setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
       setLoans(ledgerMetadata(data.metadata).loans ?? []);
       setMode("live");
       setLocked(false);
@@ -551,6 +574,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
+      setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
       setLoans(ledgerMetadata(data.metadata).loans ?? []);
       setMode("live");
       setLocked(false);
@@ -585,12 +609,14 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     decisions = state.current.recurringDecisions,
     categories = state.current.customCategories,
     nextLoans = state.current.loans,
+    nextCategoryIcons = state.current.categoryIcons,
   ) => {
     if (state.current.mode === "live") {
       if (state.current.locked) throw new Error("Unlock Kanakku first");
       const metadata = {
         recurringDecisions: decisions,
         customCategories: categories,
+        categoryIcons: nextCategoryIcons,
         loans: nextLoans,
       };
       // Refresh only an explicitly enabled, device-encrypted backup snapshot.
@@ -610,6 +636,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           metadata: {
             recurringDecisions: decisions,
             customCategories: categories,
+            categoryIcons: nextCategoryIcons,
             loans: nextLoans,
           },
         }),
@@ -719,10 +746,12 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         previous.transactions,
         state.current.transactions,
       );
-      await persist(next, previous.rules);
+      const previousRecurring = previous.recurringDecisions ?? state.current.recurringDecisions;
+      await persist(next, previous.rules, previousRecurring);
       if (token !== generation.current) return;
       setTransactions(next);
       setRules(previous.rules);
+      setRecurringDecisions(previousRecurring);
       setPrevious(null);
       setNotice("Change undone.");
     });
@@ -780,6 +809,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules(data.rules);
       setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
       setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
+      setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
       setLoans(ledgerMetadata(data.metadata).loans ?? []);
       setPrevious(null);
       await AsyncStorage.setItem(MODE, "demo");
@@ -816,7 +846,156 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     if (!saved)
       throw new Error("The journal is busy or was locked. Please try again.");
   };
-  const addCategory = async (label: string) => {
+  const runAssistantAction = async (action: AssistantAction) => {
+    if (state.current.mode !== "live" || state.current.locked)
+      throw new Error("Unlock Kanakku to apply this change.");
+    if (action.type === "update") {
+      const current = state.current.transactions.find((t) => t.id === action.transactionId);
+      if (!current) throw new Error("That payment is no longer in your journal. Search again.");
+      const patch = action.patch ?? {};
+      const allowedCategory = [...CATEGORIES, ...state.current.customCategories]
+        .find((item) => item.toLocaleLowerCase() === patch.category?.trim().toLocaleLowerCase());
+      if (patch.category && !allowedCategory)
+        throw new Error("That category is not in Kanakku yet. Add it in Settings first.");
+      const transactionPatch: Partial<Transaction> = {
+        ...(patch.merchant ? { merchant: patch.merchant.trim().slice(0, 80) } : {}),
+        ...(allowedCategory ? { category: allowedCategory } : {}),
+        ...(patch.note !== undefined ? { note: patch.note.trim().slice(0, 240) } : {}),
+      };
+      if (transactionPatch.merchant && !transactionPatch.merchant.trim())
+        throw new Error("Enter a merchant name between 1 and 80 characters.");
+      let saved = false;
+      let failure: unknown;
+      await perform(async () => {
+        try {
+          const s = state.current;
+          const token = generation.current;
+          const latest = s.transactions.find((t) => t.id === current.id);
+          if (!latest) throw new Error("That payment is no longer in your journal. Search again.");
+          const updated = await persistAssistantUpdate({
+            transactions: s.transactions,
+            recurringDecisions: s.recurringDecisions,
+            transactionId: latest.id,
+            recurringKey: recurringKey(latest),
+            patch: {
+              merchant: transactionPatch.merchant,
+              category: transactionPatch.category,
+              note: transactionPatch.note,
+              markRecurring: patch.markRecurring,
+            },
+            persist: (nextTransactions, nextDecisions) =>
+              persist(nextTransactions, s.rules, nextDecisions),
+          });
+          if (token !== generation.current) throw new Error("Kanakku locked before the change finished. Unlock and try again.");
+          setPrevious({ transactions: updated.previous, rules: s.rules, recurringDecisions: updated.previousRecurringDecisions });
+          setTransactions(updated.transactions);
+          setRecurringDecisions(updated.recurringDecisions);
+          setNotice("Gemini’s changes were saved in Kanakku.");
+          saved = true;
+        } catch (error) {
+          failure = error;
+          throw error;
+        }
+      });
+      if (failure) throw failure;
+      if (!saved) throw new Error("Kanakku could not save the payment change.");
+      return;
+    }
+    const details = action.details;
+    if (!details || !Number.isFinite(details.amountRupees) || details.amountRupees <= 0 || details.amountRupees > 10_000_000)
+      throw new Error("The expense details are incomplete or invalid.");
+    const day = details.date.slice(0, 10);
+    if (!validDay(day)) throw new Error("Choose a valid expense date.");
+    const possibleMatches = details.createSeparate
+      ? []
+      : findAssistantExpenseMatches(state.current.transactions, details);
+    if (possibleMatches.length)
+      throw new Error("A similar payment appeared before this was saved. Search it and choose whether to update or keep a separate expense.");
+    const category = [...CATEGORIES, ...state.current.customCategories]
+      .find((item) => item.toLocaleLowerCase() === details.category.trim().toLocaleLowerCase()) ?? "Uncategorized";
+    const amount = Math.round(details.amountRupees * 100);
+    const transaction: Transaction = {
+      id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      amount,
+      inrAmount: amount,
+      currency: "INR",
+      timePrecision: "day",
+      merchant: details.merchant.trim().slice(0, 80) || "Manual expense",
+      account: "Added manually",
+      bank: "Manual entry",
+      at: new Date(`${day}T12:00:00`).toISOString(),
+      category,
+      kind: "purchase",
+      review: false,
+      excluded: false,
+      note: details.note.trim().slice(0, 240),
+      source: "manual",
+      reason: "Manually added from Gemini",
+      classification: { method: "user", version: "assistant-v1" },
+    };
+    let saved = false;
+    if (task.current) throw new Error("Kanakku is finishing another change. Try again shortly.");
+    await perform(async () => {
+      const s = state.current;
+      const next = [transaction, ...s.transactions];
+      await persist(next, s.rules);
+      setPrevious({ transactions: s.transactions, rules: s.rules });
+      setTransactions(next);
+      setNotice("Manual expense added to your journal.");
+      saved = true;
+    });
+    if (!saved) throw new Error("Kanakku could not save the manual expense.");
+  };
+  const resolveAssistantAction = async (approve: boolean) => {
+    const action = assistantAction;
+    if (!action) return;
+    if (!native) return;
+    assistantActionBusy.current = true;
+    try {
+      if (approve) await runAssistantAction(action);
+      await native.completeAssistantAction(action.id);
+      setAssistantAction(null);
+      if (approve) setNotice("Gemini change saved in Kanakku.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not apply the Gemini change.");
+      // Keep the request available so the user can cancel it or retry after fixing the issue.
+    } finally {
+      assistantActionBusy.current = false;
+    }
+  };
+  useEffect(() => {
+    let current = true;
+    const processNext = async () => {
+      if (!native || !loaded || mode !== "live" || locked || AppState.currentState !== "active" || assistantActionBusy.current) return;
+      try {
+        const raw = await native.pendingAssistantAction();
+        if (!current || !raw) return;
+        const action = JSON.parse(raw) as AssistantAction;
+        if (action.confirmRequired) {
+          setAssistantAction((existing) => existing?.id === action.id ? existing : action);
+          return;
+        }
+        assistantActionBusy.current = true;
+        try {
+          await runAssistantAction(action);
+          await native.completeAssistantAction(action.id);
+          setNotice("Gemini change saved in Kanakku.");
+        } catch (e) {
+          await native.completeAssistantAction(action.id);
+          setError(e instanceof Error ? e.message : "Could not apply the Gemini change.");
+        } finally {
+          assistantActionBusy.current = false;
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not check for a Gemini change.");
+      }
+    };
+    setAssistantAction(null);
+    void processNext();
+    const timer = setInterval(() => { void processNext(); }, 1500);
+    return () => { current = false; clearInterval(timer); };
+  }, [loaded, mode, locked]);
+  const addCategory = async (label: string, iconKey = "Tag") => {
     const normalized = label.trim().replace(/\s+/g, " ");
     if (!normalized || normalized.length > 32) {
       setError("Category names must contain 1–32 characters.");
@@ -840,14 +1019,21 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       return false;
     }
     const next = [...state.current.customCategories, normalized];
+    const nextCategoryIcons = {
+      ...state.current.categoryIcons,
+      [normalized]: iconKey,
+    };
     try {
       await persist(
         state.current.transactions,
         state.current.rules,
         state.current.recurringDecisions,
         next,
+        state.current.loans,
+        nextCategoryIcons,
       );
       setCustomCategories(next);
+      setCategoryIcons(nextCategoryIcons);
       setError("");
       setNotice(
         `Added “${normalized}”. You can choose it when editing a payment.`,
@@ -1355,6 +1541,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules([]);
       setRecurringDecisions({});
       setCustomCategories([]);
+      setCategoryIcons({});
       setLoans([]);
       setPrevious(null);
       await closeLive();
@@ -1367,6 +1554,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setRules([]);
       setRecurringDecisions({});
       setCustomCategories([]);
+      setCategoryIcons({});
       setLoans([]);
       setImportProgress(emptyImport);
       setOverlayState(false);
@@ -1420,6 +1608,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       setCustomCategories(
         ledgerMetadata(backup.metadata).customCategories ?? [],
       );
+      setCategoryIcons(ledgerMetadata(backup.metadata).categoryIcons ?? {});
       const restoredLoans = ledgerMetadata(backup.metadata).loans ?? [];
       setLoans(restoredLoans);
       for (const loan of restoredLoans) {
@@ -1447,6 +1636,27 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         .catch(() => {});
   }, [mode, locked, transactions]);
   useEffect(() => {
+    let current = true;
+    const bridge = native;
+    if (mode !== "live" || locked) {
+      bridge?.lockAssistantSession().catch(() => {});
+      return () => { current = false; };
+    }
+    bridge?.geminiAccessStatus().then(async (access) => {
+      if (!current) return;
+      if (access.enabled) {
+        const updated = await bridge.setAssistantSnapshot(
+          makeAssistantSnapshot(transactions, state.current.recurringDecisions),
+        );
+        if (current && !updated)
+          setError("Gemini access is on, but Kanakku could not prepare the unlocked journal. Turn access off and on again, or unlock Kanakku.");
+      } else {
+        await bridge.clearAssistantSnapshot();
+      }
+    }).catch(() => {});
+    return () => { current = false; };
+  }, [mode, locked, transactions, recurringDecisions]);
+  useEffect(() => {
     let backgroundedAt: number | null = null;
     let lockTimer: ReturnType<typeof setTimeout> | undefined;
     const clearTimer = () => {
@@ -1456,11 +1666,13 @@ export function AppProvider({ children }: React.PropsWithChildren) {
     const lockJournal = () => {
       if (state.current.mode !== "live" || state.current.locked) return;
       generation.current++;
+      native?.lockAssistantSession().catch(() => {});
       setLocked(true);
       setTransactions([]);
       setRules([]);
       setRecurringDecisions({});
       setCustomCategories([]);
+      setCategoryIcons({});
       setLoans([]);
       setPrevious(null);
       closeLive().catch(() => {});
@@ -1520,6 +1732,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           setRules([]);
           setRecurringDecisions({});
           setCustomCategories([]);
+          setCategoryIcons({});
           setLoans([]);
           setPrevious(null);
           await closeLive();
@@ -1597,6 +1810,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           ]),
         ],
         customCategories,
+        categoryIcons,
         addCategory,
         loans,
         addLoan,
@@ -1639,6 +1853,8 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         previewOverlay,
         notice,
         setNotice,
+        assistantAction,
+        resolveAssistantAction,
       }}
     >
       {children}

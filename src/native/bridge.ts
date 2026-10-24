@@ -34,6 +34,7 @@ export const defaultReviewPreferences: ReviewPreferences = {
   reminder: false,
   reminderTime: 1140,
 };
+export type UnreadAlerts = { count: number; samples: string[] };
 export interface ImportProgress {
   state:
     "idle" | "queued" | "running" | "waiting" | "paused" | "error" | "complete";
@@ -103,6 +104,15 @@ export interface DriveBackupProgress {
   total: number;
 }
 interface KanakkuNative {
+  geminiAccessStatus(): Promise<{ supported: boolean; enabled: boolean }>;
+  setGeminiAccess(enabled: boolean): Promise<{ supported: boolean; enabled: boolean }>;
+  setAssistantSnapshot(snapshot: string): Promise<boolean>;
+  clearAssistantSnapshot(): Promise<boolean>;
+  lockAssistantSession(): Promise<boolean>;
+  assistantWriteSettings(): Promise<{ confirmChanges: boolean }>;
+  setAssistantWriteConfirmation(enabled: boolean): Promise<boolean>;
+  pendingAssistantAction(): Promise<string | null>;
+  completeAssistantAction(id: string): Promise<boolean>;
   /** Uploads a passphrase-encrypted journal archive to this user's Drive. */
   backupToDrive(
     payload: string,
@@ -239,6 +249,12 @@ interface KanakkuNative {
   setCapture(enabled: boolean): Promise<void>;
   importHistory(months: number): Promise<ImportProgress>;
   importStatus(): Promise<ImportProgress>;
+  /** Bank alerts that looked like payments but could not be read; samples are masked shapes only. */
+  unreadAlerts(): Promise<UnreadAlerts>;
+  /** Sealed card statement alerts (JSON) waiting to move into the encrypted journal. */
+  pendingStatements(): Promise<string[]>;
+  acknowledgeStatements(ids: string[]): Promise<void>;
+  clearUnreadAlerts(): Promise<UnreadAlerts>;
   reconcileHistory(): Promise<ImportProgress>;
   pauseImport(): Promise<ImportProgress>;
   resumeImport(): Promise<ImportProgress>;
@@ -281,7 +297,7 @@ export async function requestSms() {
     )
   )
     throw new Error(
-      "SMS permission was not granted. You can keep exploring the sample data.",
+      "Bank alert access wasn’t granted. Allow SMS in phone settings to connect alerts, or keep exploring sample data.",
     );
 }
 export async function requestNotifications() {

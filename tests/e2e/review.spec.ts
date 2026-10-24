@@ -192,14 +192,24 @@ test("a learned rule can be edited and removed without recategorizing past payme
     review.getByRole("switch", { name: "Remember merchant category" }),
     true,
   );
+  // Remembering a payee asks for confirmation of how many payments it affects.
+  const confirmations: string[] = [];
+  page.once("dialog", async (dialog) => {
+    confirmations.push(dialog.message());
+    await dialog.accept();
+  });
   await review
     .getByRole("button", { name: "Save category", exact: true })
     .click();
   await expect(
     review.getByText("✓ Saved. You can close this or make another change."),
   ).toBeVisible();
+  expect(confirmations).toEqual([
+    "Apply to 1 payment?\n\nThis will use “Transport” for 1 matching payment, including this one. Future payments with this same payee will also be covered.",
+  ]);
   await closeReview(page);
   await page.getByRole("button", { name: "Open settings" }).click();
+  await page.getByTestId("settings-menu-tools").click();
   await page.getByRole("button", { name: "Edit rule for Rahul S" }).click();
   const rule = page.getByTestId("rule-sheet");
   await rule
@@ -233,7 +243,7 @@ test("a learned rule can be edited and removed without recategorizing past payme
   ).toBe("Transport");
 });
 
-for (const kind of ["Transfer", "Card repayment"]) {
+for (const kind of ["Self transfer", "Card repayment"]) {
   test(`marking a purchase as ${kind} removes it from net spending and undo restores it`, async ({
     page,
   }) => {
@@ -300,8 +310,12 @@ test("avatar voice entry gives a clear web fallback and the typed answer can sti
   page,
 }) => {
   await home(page);
-  await page
+  const avatar = page.getByTestId("floating-avatar");
+  await avatar
     .getByRole("button", { name: "Review 2 unclear payments", exact: true })
+    .click();
+  await avatar
+    .getByRole("button", { name: "Answer by voice", exact: true })
     .click();
   const review = page.getByTestId("review-form");
   await expect(

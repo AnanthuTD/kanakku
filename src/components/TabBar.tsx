@@ -90,7 +90,10 @@ export function TabBar<T extends string>({
               {...(Platform.OS === "web"
                 ? {
                     tabIndex: active ? (0 as const) : (-1 as const),
-                    onKeyDown: (event: React.KeyboardEvent) => {
+                    onKeyDown: (rawEvent: unknown) => {
+                      // React Native Web passes a DOM keyboard event here; its
+                      // NativeSyntheticEvent peer type is only applicable off-web.
+                      const event = rawEvent as React.KeyboardEvent;
                       let next: number;
                       if (event.key === "ArrowRight")
                         next = (itemIndex + 1) % tabs.length;

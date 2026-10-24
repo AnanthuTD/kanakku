@@ -11,7 +11,7 @@ name: Android Back returns from a settings page to the settings menu
       android.permission.READ_EXTERNAL_STORAGE: deny
       android.permission.WRITE_EXTERNAL_STORAGE: deny
 - extendedWaitUntil:
-    visible: "Room to breathe."
+    visible: "This month"
     timeout: 120000
 - tapOn:
     text: "Open settings"
@@ -23,4 +23,4 @@ name: Android Back returns from a settings page to the settings menu
 - assertVisible: "Email & backup"
 - assertVisible: "Bank alerts & import"
 - pressKey: BACK
-- assertVisible: "Room to breathe."
+- assertVisible: "This month"

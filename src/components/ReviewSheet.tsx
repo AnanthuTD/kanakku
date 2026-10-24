@@ -30,12 +30,14 @@ import {
   Alert,
   TextInput,
   Platform,
+  Keyboard,
 } from "react-native";
 import {
   BottomSheetModal,
   BottomSheetScrollView,
   BottomSheetTextInput,
   BottomSheetBackdrop,
+  type BottomSheetScrollViewMethods,
 } from "@gorhom/bottom-sheet";
 import { Mic, Square, X, Check, ArrowRight } from "lucide-react-native";
 import { useApp } from "../state/AppContext";
@@ -93,9 +95,20 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
       cancelMerchantSearch,
     } = useApp();
     const modal = useRef<BottomSheetModal>(null);
+    const reviewScroll = useRef<BottomSheetScrollViewMethods | null>(null);
+    const noteInputY = useRef(0);
     const openedFrom = useRef<HTMLElement | null>(null);
     const [id, setId] = useState<string | null>(null);
     const [sheetReady, setSheetReady] = useState(false);
+    const [keyboardOpen, setKeyboardOpen] = useState(false);
+    useEffect(() => {
+      const shown = Keyboard.addListener("keyboardDidShow", () => setKeyboardOpen(true));
+      const hidden = Keyboard.addListener("keyboardDidHide", () => setKeyboardOpen(false));
+      return () => {
+        shown.remove();
+        hidden.remove();
+      };
+    }, []);
     useEffect(() => {
       if (sheetReady && id) return beginInteraction();
     }, [sheetReady, id]);
@@ -393,7 +406,11 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
       const result = classify(text);
       setCategory(result.category);
     };
-    const suggestCategory = async (text: string, version: number) => {
+    const suggestCategory = async (
+      text: string,
+      version: number,
+      promptIfUnavailable = false,
+    ) => {
       if (!native) return;
       setSuggesting(true);
       try {
@@ -407,6 +424,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
           setCategory(result.category as Category);
       } catch {
         if (
+          !promptIfUnavailable ||
           version !== suggestionVersion.current ||
           promptedModels.current.has("categories")
         )
@@ -561,6 +579,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
           android_keyboardInputMode="adjustResize"
         >
           <BottomSheetScrollView
+            ref={reviewScroll}
             {...(Platform.OS === "web"
               ? {
                   nativeID: "kanakku-review-dialog",
@@ -604,22 +623,24 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                     <X size={20} color={colors.text} />
                   </Pressable>
                 </View>
-                <View style={{ alignItems: "center", marginBottom: 20 }}>
-                  <Mascot
-                    size={90}
-                    mood={
-                      listening ? "listening" : tx.review ? "thinking" : "happy"
-                    }
-                  />
+                <View style={{ alignItems: "center", marginBottom: keyboardOpen ? 8 : 20 }}>
+                  {!keyboardOpen && (
+                    <Mascot
+                      size={90}
+                      mood={
+                        listening ? "listening" : tx.review ? "thinking" : "happy"
+                      }
+                    />
+                  )}
                   <Text
                     serif
-                    style={{ fontSize: 30, lineHeight: 38, marginTop: 8 }}
+                    style={{ fontSize: keyboardOpen ? 22 : 30, lineHeight: keyboardOpen ? 28 : 38, marginTop: keyboardOpen ? 0 : 8 }}
                   >
                     {tx.review ? "What was this for?" : "All in the details."}
                   </Text>
                   <Text
                     serif
-                    style={{ fontSize: 42, lineHeight: 56, marginTop: 12 }}
+                    style={{ fontSize: keyboardOpen ? 30 : 42, lineHeight: keyboardOpen ? 38 : 56, marginTop: keyboardOpen ? 4 : 12 }}
                   >
                     {transactionMoney(tx, true)}
                   </Text>
@@ -729,7 +750,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                       )}
                   </View>
                 )}
-                <Pressable
+                {!keyboardOpen ? <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={
                     listening
@@ -788,14 +809,14 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                     </Text>
                   </View>
                   {listening && <ActivityIndicator color={colors.accentText} />}
-                </Pressable>
-                <Text muted style={{ fontSize: 11, marginTop: 8 }}>
+                </Pressable> : null}
+                {!keyboardOpen ? <Text muted style={{ fontSize: 11, marginTop: 8 }}>
                   {voiceLanguages.length > 1
                     ? `${voiceLanguageLabel} speech becomes an editable English note.`
                     : `Speak in ${voiceLanguageLabel}; your words become an editable note.`}{" "}
                   Check the words and category before saving. Audio stays on
                   this device.
-                </Text>
+                </Text> : null}
                 {voiceError ? (
                   <Text
                     style={{
@@ -1000,9 +1021,25 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                 </View>
                 <ReviewInput
                   key={`${id}-note-${inputSeeds.noteRevision}`}
+                  testID="payment-note"
                   accessibilityLabel="Payment note"
                   defaultValue={inputSeeds.note}
                   onChangeText={applyText}
+                  onLayout={(event) => {
+                    noteInputY.current = event.nativeEvent.layout.y;
+                  }}
+                  onFocus={() => {
+                    if (Platform.OS === "web") return;
+                    // The review header can push the note below the keyboard on
+                    // smaller phones. Bring the focused field into the visible
+                    // sheet area after Android finishes its keyboard resize.
+                    setTimeout(() => {
+                      reviewScroll.current?.scrollTo({
+                        y: Math.max(0, noteInputY.current - 96),
+                        animated: true,
+                      });
+                    }, 250);
+                  }}
                   placeholder="Or type what it was for…"
                   placeholderTextColor={colors.muted}
                   multiline
@@ -1061,7 +1098,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                         isMixedCategoryText(context)
                       )
                         return;
-                      await suggestCategory(context, version);
+                      await suggestCategory(context, version, true);
                     }}
                   >
                     Suggest category from bill and note
@@ -1098,6 +1135,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
                         alignItems: "center",
                       }}
                     >
+                      <CategoryIcon category={c} size={24} />
                       {category === c && (
                         <Check size={13} color={colors.accent} />
                       )}
@@ -1433,7 +1471,7 @@ export const ReviewSheet = forwardRef<ReviewHandle>(
             modelPrompt === "voice"
               ? () => void record()
               : modelPrompt === "categories"
-                ? () => void suggestCategory(note, suggestionVersion.current)
+                ? () => void suggestCategory(note, suggestionVersion.current, true)
                 : undefined
           }
         />

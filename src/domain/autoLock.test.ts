@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_AUTO_LOCK_DELAY, shouldLockAfterBackground } from "./autoLock";
 
 describe("background auto-lock grace period", () => {
-  it("defaults to a one-minute grace period", () => {
-    expect(DEFAULT_AUTO_LOCK_DELAY).toBe(60_000);
+  it("defaults to a one-hour grace period for app handoffs", () => {
+    expect(DEFAULT_AUTO_LOCK_DELAY).toBe(3_600_000);
   });
 
   it("keeps the journal open before the selected timeout", () => {

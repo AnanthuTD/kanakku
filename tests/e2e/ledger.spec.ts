@@ -184,7 +184,15 @@ test("category total opens the exact purchases and refunds contributing to it", 
 }) => {
   await home(page);
   await page
-    .getByRole("button", { name: "Food & dining ₹250", exact: true })
+    .getByRole("button", {
+      name: "Open the spending mix and category breakdown",
+    })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Food & dining ₹250 15% of net spending",
+      exact: true,
+    })
     .click();
   await expect(page.getByTestId("activity-count")).toHaveText("3 TRANSACTIONS");
   await expect(page.getByTestId("activity-total")).toHaveText("₹250");

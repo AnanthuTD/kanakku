@@ -1,4 +1,15 @@
 import { test, expect, home, savedJournal } from "./fixtures";
+import type { Page } from "@playwright/test";
+
+// The journal is a centred column at most 540px wide; on a desktop browser the
+// companion docks to that column's edges rather than the window's.
+function appColumn(page: Page) {
+  const viewport = page.viewportSize()!;
+  const width = Math.min(viewport.width, 540);
+  return { left: (viewport.width - width) / 2, width };
+}
+// Horizontal drag distance that crosses the column's midpoint from the right edge.
+const leftwardDrag = (page: Page) => Math.round(appColumn(page).width * 0.4);
 
 test("the companion starts as a floating avatar and expands into message and actions", async ({
   page,
@@ -43,7 +54,9 @@ test("the companion stays docked to the same edge while expanding and collapsing
   expect(handle).not.toBeNull();
   await page.mouse.move(handle!.x + 30, handle!.y + 25);
   await page.mouse.down();
-  await page.mouse.move(24, handle!.y + 25, { steps: 12 });
+  await page.mouse.move(appColumn(page).left + 24, handle!.y + 25, {
+    steps: 12,
+  });
   await page.mouse.up();
   await expect
     .poll(() =>
@@ -55,7 +68,8 @@ test("the companion stays docked to the same edge while expanding and collapsing
 
   const compact = await avatar.boundingBox();
   expect(compact).not.toBeNull();
-  expect(compact!.x).toBeLessThan(40);
+  expect(compact!.x).toBeGreaterThanOrEqual(appColumn(page).left);
+  expect(compact!.x).toBeLessThan(appColumn(page).left + 40);
   await page.waitForTimeout(350); // A drag intentionally suppresses taps briefly.
   await collapsed.click();
   await expect(
@@ -97,7 +111,9 @@ test("a quick companion drag snaps using the release position when move events a
   await page.mouse.down();
   // Sparse moves preserve the full drag even when the recognizer activates
   // after the pointer has already left the original card bounds.
-  await page.mouse.move(handle!.x - 140, handle!.y - 160, { steps: 3 });
+  await page.mouse.move(handle!.x - leftwardDrag(page), handle!.y - 160, {
+    steps: 3,
+  });
   await page.mouse.up();
   await expect
     .poll(() =>
@@ -128,7 +144,9 @@ test("dragging the companion does not open voice review and its snapped position
   expect(handle).not.toBeNull();
   await page.mouse.move(handle!.x + 30, handle!.y + 25);
   await page.mouse.down();
-  await page.mouse.move(handle!.x - 140, handle!.y - 160, { steps: 15 });
+  await page.mouse.move(handle!.x - leftwardDrag(page), handle!.y - 160, {
+    steps: 15,
+  });
   await page.mouse.up();
   await expect
     .poll(() =>

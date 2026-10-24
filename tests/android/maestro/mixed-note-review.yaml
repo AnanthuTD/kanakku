@@ -9,20 +9,20 @@ name: Mixed-purpose notes require an explicit category choice
       android.permission.RECORD_AUDIO: deny
       android.permission.POST_NOTIFICATIONS: deny
 - extendedWaitUntil:
-    visible: "Room to breathe."
+    visible: "This month"
     timeout: 120000
 - tapOn:
     text: "Activity"
     waitToSettleTimeoutMs: 1000
 - tapOn:
-    text: "Search transactions"
+    id: "transaction-search"
     waitToSettleTimeoutMs: 1000
 - assertVisible:
-    text: "Search transactions"
+    id: "transaction-search"
     focused: true
 - inputText: "Rahul S"
 - assertVisible:
-    text: "^Rahul S$"
+    id: "transaction-search"
     focused: true
 - assertVisible: "Clear search"
 - assertNotVisible:
@@ -38,11 +38,17 @@ name: Mixed-purpose notes require an explicit category choice
     id: "transaction-sample-1"
     waitToSettleTimeoutMs: 1000
 - tapOn:
-    text: "Payment note"
+    id: "payment-note"
     waitToSettleTimeoutMs: 1000
+- assertVisible:
+    id: "payment-note"
+    focused: true
 - inputText: "Taxi ride and takeaway dinner"
-- assertVisible: "Taxi ride and takeaway dinner"
+- assertVisible:
+    id: "payment-note"
+    focused: true
 - hideKeyboard
+- assertVisible: "Taxi ride and takeaway dinner"
 - scrollUntilVisible:
     element: "Uncategorized"
     direction: UP
@@ -67,20 +73,20 @@ name: Mixed-purpose notes require an explicit category choice
       android.permission.RECORD_AUDIO: deny
       android.permission.POST_NOTIFICATIONS: deny
 - extendedWaitUntil:
-    visible: "Room to breathe."
+    visible: "This month"
     timeout: 120000
 - tapOn:
     text: "Activity"
     waitToSettleTimeoutMs: 1000
 - tapOn:
-    text: "Search transactions"
+    id: "transaction-search"
     waitToSettleTimeoutMs: 1000
 - assertVisible:
-    text: "Search transactions"
+    id: "transaction-search"
     focused: true
 - inputText: "Rahul S"
 - assertVisible:
-    text: "^Rahul S$"
+    id: "transaction-search"
     focused: true
 - assertVisible: "Clear search"
 - assertNotVisible:
@@ -141,20 +147,20 @@ name: Mixed-purpose notes require an explicit category choice
       android.permission.RECORD_AUDIO: deny
       android.permission.POST_NOTIFICATIONS: deny
 - extendedWaitUntil:
-    visible: "Room to breathe."
+    visible: "This month"
     timeout: 120000
 - tapOn:
     text: "Activity"
     waitToSettleTimeoutMs: 1000
 - tapOn:
-    text: "Search transactions"
+    id: "transaction-search"
     waitToSettleTimeoutMs: 1000
 - assertVisible:
-    text: "Search transactions"
+    id: "transaction-search"
     focused: true
 - inputText: "Rahul S"
 - assertVisible:
-    text: "^Rahul S$"
+    id: "transaction-search"
     focused: true
 - assertVisible: "Clear search"
 - assertNotVisible:

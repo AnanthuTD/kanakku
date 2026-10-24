@@ -44,6 +44,7 @@ export function TransactionRow({
           {t.bank} · {t.account}
           {t.excluded ? " · Excluded" : ""}
           {t.source === "email" ? " · Email" : ""}
+          {t.source === "manual" ? " · Manual" : ""}
         </Text>
       </View>
       <View style={{ alignItems: "flex-end", gap: 2 }}>

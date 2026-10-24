@@ -9,9 +9,9 @@ name: Prepare a reviewed publicly listed VPA query without sending it
       android.permission.RECORD_AUDIO: deny
       android.permission.POST_NOTIFICATIONS: deny
 - extendedWaitUntil:
-    visible: "Room to breathe."
+    visible: "This month"
     timeout: 120000
-- assertVisible: "SAMPLE DATA"
+- assertVisible: "A preview with sample transactions"
 - tapOn:
     text: "Activity"
     waitToSettleTimeoutMs: 1000

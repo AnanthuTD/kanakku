@@ -4,8 +4,21 @@ export type RecurringDecision = "confirmed" | "ignored";
 export interface LedgerMetadata {
   recurringDecisions: Record<string, RecurringDecision>;
   customCategories?: string[];
+  categoryIcons?: Record<string, string>;
   loans?: import("../domain/lending").LoanRecord[];
 }
+const CATEGORY_ICON_KEYS = new Set([
+  "Tag",
+  "ShoppingBag",
+  "Coffee",
+  "Plane",
+  "Heart",
+  "BookOpen",
+  "Gift",
+  "Briefcase",
+  "Dumbbell",
+  "PawPrint",
+]);
 export function ledgerMetadata(value?: unknown): LedgerMetadata {
   const valueObject =
     value && typeof value === "object"
@@ -30,10 +43,18 @@ export function ledgerMetadata(value?: unknown): LedgerMetadata {
     ).values(),
   ].slice(0, 40);
   const loans = Array.isArray(valueObject.loans)
-    ? valueObject.loans
-        .filter((loan) => validLoan(loan))
-        .slice(0, 10_000)
+    ? valueObject.loans.filter((loan) => validLoan(loan)).slice(0, 10_000)
     : [];
+  const categoryIcons = Object.fromEntries(
+    valueObject.categoryIcons && typeof valueObject.categoryIcons === "object"
+      ? Object.entries(valueObject.categoryIcons).filter(
+          ([category, icon]) =>
+            uniqueCategories.includes(category) &&
+            typeof icon === "string" &&
+            CATEGORY_ICON_KEYS.has(icon),
+        )
+      : [],
+  ) as Record<string, string>;
   return {
     recurringDecisions: Object.fromEntries(
       input && typeof input === "object"
@@ -46,6 +67,7 @@ export function ledgerMetadata(value?: unknown): LedgerMetadata {
         : [],
     ),
     customCategories: uniqueCategories,
+    ...(Object.keys(categoryIcons).length ? { categoryIcons } : {}),
     loans,
   };
 }

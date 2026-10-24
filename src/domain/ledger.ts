@@ -22,7 +22,7 @@ export interface LedgerFilter {
   awaitingContextOnly?: boolean;
   query?: string;
   merchant?: string | null;
-  source?: "sms" | "email" | null;
+  source?: "sms" | "email" | "manual" | null;
 }
 export const KIND_OPTIONS: { value: Kind; label: string }[] = [
   { value: "purchase", label: "Purchases" },

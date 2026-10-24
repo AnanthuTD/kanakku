@@ -54,6 +54,8 @@ test("browser cannot claim Gmail connection or access mail and leaves the journa
   await page
     .getByRole("button", { name: "Open settings", exact: true })
     .click();
+  await page.getByTestId("settings-menu-accounts").click();
+  await expect(page.getByTestId("settings-accounts-group")).toBeVisible();
   const card = page.getByTestId("gmail-settings");
   await expect(
     card.getByText(/This browser preview cannot access your mailbox/),
