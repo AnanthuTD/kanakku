@@ -35,3 +35,18 @@ export function importRange(months: number, now = new Date()) {
     ? `${format(since)} – ${format(now)}`
     : `All available messages through ${format(now)}`;
 }
+
+/**
+ * The shortest offered history period that reaches back to a restored backup's date, so the
+ * first import after a restore covers everything since the backup (duplicates are skipped).
+ */
+export function periodSinceBackup(createdAt: string, now = new Date()): number {
+  const created = new Date(createdAt);
+  if (!Number.isFinite(created.getTime()) || created > now) return 1;
+  for (const period of IMPORT_PERIODS) {
+    if (period.months === 0) continue;
+    const since = importSince(period.months, now);
+    if (since && since <= created) return period.months;
+  }
+  return 0;
+}

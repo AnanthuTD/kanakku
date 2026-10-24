@@ -10,7 +10,12 @@ name: First-run welcome connects bank SMS with "Open without asking"
 - tapOn:
     id: "lock-choice-open"
 - tapOn: "Continue"
-- assertVisible: "Bring in your bank alerts"
+- assertVisible: "Used Kanakku before?"
+- tapOn: "No, start fresh"
+- assertVisible: "Where do your bank alerts come from?"
+- assertVisible:
+    id: "source-sms"
+    checked: true
 - scrollUntilVisible:
     element: "4 months"
 - tapOn: "4 months"

@@ -2,6 +2,6 @@ appId: app.tinkerbox.kanakku.e2e
 name: Skip the first-run welcome on a cleared app
 ---
 - extendedWaitUntil:
-    visible: "Skip for now"
+    visible: "Skip setup"
     timeout: 120000
-- tapOn: "Skip for now"
+- tapOn: "Skip setup"

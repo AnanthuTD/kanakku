@@ -65,8 +65,13 @@ function BackupProgressView({ progress, operation, colors }: {
 
 export function DriveBackupSettings({
   onLayout,
+  restoreOnly = false,
+  onRestored,
 }: {
   onLayout?: (event: LayoutChangeEvent) => void;
+  /** First-run: only the restore entry point (with the same password, preview and RESTORE checks). */
+  restoreOnly?: boolean;
+  onRestored?: (backup: JournalBackup) => void;
 }) {
   const app = useApp();
   const { colors } = app;
@@ -306,6 +311,7 @@ export function DriveBackupSettings({
       setMessage(
         `Restored ${restore.transactions.length.toLocaleString()} transactions from the encrypted Drive backup.`,
       );
+      onRestored?.(restore);
       setSheet(null);
       setRestore(null);
       setPassword("");
@@ -322,6 +328,23 @@ export function DriveBackupSettings({
       style={{ marginVertical: 24, gap: 12 }}
       testID="drive-backup"
     >
+      {restoreOnly ? (
+        <View style={[ui.card, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, gap: 12 }]}>
+          <View style={[ui.row, { gap: 8 }]}>
+            <Cloud size={19} color={colors.accent} />
+            <Text bold>Restore your encrypted backup</Text>
+          </View>
+          <Text muted style={{ fontSize: 12, lineHeight: 19 }}>
+            Choose the Google account you backed up with and enter your backup password. You'll see what's in the backup before anything is replaced.
+          </Text>
+          {message ? <Text style={{ color: colors.accent, fontSize: 12 }}>{message}</Text> : null}
+          {failure && !sheet ? <Text accessibilityRole="alert" style={{ color: colors.danger, fontSize: 12 }}>{failure}</Text> : null}
+          <Button disabled={!available || app.busy || busy} onPress={() => begin("restore")}>
+            Restore from Google Drive
+          </Button>
+        </View>
+      ) : (
+      <>
       <SectionTitle title="Encrypted Drive backup" />
       <View
         style={[
@@ -457,6 +480,9 @@ export function DriveBackupSettings({
           Restore from Google Drive
         </Button>
       </View>
+
+      </>
+      )}
 
       <Sheet
         visible={sheet === "auto"}

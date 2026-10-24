@@ -182,6 +182,8 @@ interface ContextValue {
   error: string;
   setError: (s: string) => void;
   connect: (months?: number | null, lockMode?: LockMode) => Promise<void>;
+  /** Creates/opens the encrypted journal without SMS (used before a first-run Drive restore). */
+  createJournal: (lockMode?: LockMode) => Promise<void>;
   /** How the journal opens on this phone (Android only). */
   lockMode: LockMode;
   hasRecovery: boolean;
@@ -190,7 +192,10 @@ interface ContextValue {
   clearRecoveryPassword: () => Promise<void>;
   /** Opens the journal with the recovery password after Android removed the screen-lock key. */
   recoverJournal: (password: string) => Promise<boolean>;
-  connectEmail: (months: number) => Promise<GmailStatus | undefined>;
+  connectEmail: (
+    months: number,
+    lockMode?: LockMode,
+  ) => Promise<GmailStatus | undefined>;
   restoreBackup: (backup: {
     transactions: Transaction[];
     rules: MerchantRule[];
@@ -654,6 +659,45 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       refreshSecurity();
       setNotice("Recovery password removed from this phone.");
     });
+  /** Unlocks (or creates) the encrypted journal once; later setup steps reuse the open journal. */
+  const openJournal = async (chosenLock?: LockMode) => {
+    if (!native)
+      throw new Error(
+        "This is the web preview. Bank SMS, encrypted storage, overlays, and offline voice require the Android build.",
+      );
+    if (state.current.mode === "live" && !state.current.locked) return;
+    // The user picks how the journal opens before its key is created.
+    if (chosenLock && !native.status().keyRetired)
+      await native.chooseLockMode(chosenLock).catch(() => undefined);
+    refreshSecurity();
+    const key = await native.unlock();
+    const token = ++generation.current;
+    await openLive(key);
+    const data = await flush(await readLive());
+    await native.saveRules(
+      data.rules
+        .filter(hasSafeRule)
+        .map(({ merchant, category }) => ({ merchant, category })),
+    );
+    if (token !== generation.current)
+      throw new Error("Kanakku locked before setup finished. Try again.");
+    setTransactions(data.transactions);
+    setRules(data.rules);
+    setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
+    setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
+    setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
+    setLoans(ledgerMetadata(data.metadata).loans ?? []);
+    setCardDues(ledgerMetadata(data.metadata).cardDues ?? []);
+    setMode("live");
+    setLocked(false);
+    setPrevious(null);
+    await AsyncStorage.setItem(MODE, "live");
+  };
+  /** First run with a backup: create the encrypted journal without SMS so a Drive restore can fill it. */
+  const createJournal = (chosenLock?: LockMode) =>
+    perform(async () => {
+      await openJournal(chosenLock);
+    });
   const connect = (months: number | null = null, chosenLock?: LockMode) =>
     perform(async () => {
       if (!native)
@@ -663,32 +707,8 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       await requestSms();
       // Import progress and private review prompts are notifications; declining keeps the in-app queue.
       await requestNotifications().catch(() => false);
-      // The user picks how the journal opens before its key is created.
-      if (chosenLock && !native.status().keyRetired)
-        await native.chooseLockMode(chosenLock).catch(() => undefined);
-      refreshSecurity();
-      const key = await native.unlock();
-      const token = ++generation.current;
-      await openLive(key);
-      const data = await flush(await readLive());
-      await native?.saveRules(
-        data.rules
-          .filter(hasSafeRule)
-          .map(({ merchant, category }) => ({ merchant, category })),
-      );
+      await openJournal(chosenLock);
       await native.setCapture(true);
-      if (token !== generation.current) return;
-      setTransactions(data.transactions);
-      setRules(data.rules);
-      setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
-      setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
-      setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
-      setLoans(ledgerMetadata(data.metadata).loans ?? []);
-      setCardDues(ledgerMetadata(data.metadata).cardDues ?? []);
-      setMode("live");
-      setLocked(false);
-      setPrevious(null);
-      await AsyncStorage.setItem(MODE, "live");
       if (months !== null)
         setImportProgress(await native.importHistory(months));
       setNotice(
@@ -697,26 +717,11 @@ export function AppProvider({ children }: React.PropsWithChildren) {
           : "Connected. Recent history will appear first.",
       );
     });
-  const connectEmail = async (months: number) => {
+  const connectEmail = async (months: number, chosenLock?: LockMode) => {
     let result: GmailStatus | undefined;
     await perform(async () => {
       if (!native) throw new Error("Gmail capture requires the Android app.");
-      const key = await native.unlock();
-      const token = ++generation.current;
-      await openLive(key);
-      const data = await flush(await readLive());
-      if (token !== generation.current) return;
-      setTransactions(data.transactions);
-      setRules(data.rules);
-      setRecurringDecisions(ledgerMetadata(data.metadata).recurringDecisions);
-      setCustomCategories(ledgerMetadata(data.metadata).customCategories ?? []);
-      setCategoryIcons(ledgerMetadata(data.metadata).categoryIcons ?? {});
-      setLoans(ledgerMetadata(data.metadata).loans ?? []);
-      setCardDues(ledgerMetadata(data.metadata).cardDues ?? []);
-      setMode("live");
-      setLocked(false);
-      setPrevious(null);
-      await AsyncStorage.setItem(MODE, "live");
+      await openJournal(chosenLock);
       result = await native.connectGmail(months);
     });
     return result;
@@ -1986,6 +1991,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
         settleCardDue,
         lockMode,
         hasRecovery,
+        createJournal,
         setLockMode,
         setRecoveryPassword,
         clearRecoveryPassword,
