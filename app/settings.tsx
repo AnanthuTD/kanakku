@@ -53,6 +53,7 @@ import { Sheet } from "../src/components/Sheet";
 import { Option } from "../src/components/LedgerFilters";
 import { ReviewPreferences } from "../src/components/ReviewPreferences";
 import { ImportPeriodPicker } from "../src/components/ImportPeriodPicker";
+import { UnreadAlertsCard } from "../src/components/UnreadAlerts";
 import { ImportBanner } from "../src/components/ImportProgress";
 import { SettingsGroup } from "../src/components/SettingsGroup";
 import { AUTO_LOCK_OPTIONS } from "../src/domain/autoLock";
@@ -514,6 +515,7 @@ export default function Settings() {
               </>
             )}
           </View>
+          <UnreadAlertsCard />
           </SettingsGroup>
           )}
           {selectedGroup === "companion" && (
