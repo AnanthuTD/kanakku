@@ -51,6 +51,7 @@ See [SECURITY.md](SECURITY.md) for the full policy and how to report a problem p
 - **Catches new payments** as they arrive and files the clear ones automatically.
 - **Asks about the unclear ones** through a small companion: tap it and say what the payment was for, or type, or photograph the bill. A floating version can appear over other apps if you allow it — it listens when tapped and never records on its own.
 - **Reads bills.** A photo becomes editable line items, taxes, discounts, service charge and total, checked against the printed amounts. Tested against real Indian receipts, from restaurant bills to weighed produce and an electricity bill.
+- **Keeps card bills in view.** Credit card statement alerts become a short list of what is due and when, matched against the repayments Kanakku sees, with an optional private reminder three days before.
 - **Finds what repeats.** Likely subscriptions and recurring bills are surfaced as suggestions with their evidence — labels you confirm, never guesses about enrolment or due dates.
 - **Answers questions.** "Food last two months", "total last month", an exact merchant and period — every answer opens the rows behind it.
 - **Looks after itself.** Ivory-and-forest light theme, charcoal-and-green dark theme, reduced-motion and silent-mode aware, keyboard and screen-reader journeys tested.
@@ -96,7 +97,7 @@ Optional Gmail setup, permission scope, reconciliation rules and acceptance step
 
 Kanakku is a personal beta. Honest gaps, all tracked in [CHECKLIST.md](CHECKLIST.md):
 
-- Bank SMS formats are covered by real fixtures for the banks the author uses plus synthetic ones for others; yours may need a parser addition (please open an issue with a redacted sample).
+- Sender IDs for about 60 Indian banks and card issuers are recognised, but message layouts are verified on real alerts only for the banks the author uses; the rest are synthetic. If a payment is missing, Settings › Bank alerts lists messages Kanakku couldn't read and can share a masked version (numbers and names removed) for an issue.
 - Voice accuracy has been checked on one phone with English; Malayalam is planned as an installable language pack.
 - Bill reading is tested on nine real receipts; crumpled or low-light photos degrade.
 - Hardware-backed key storage depends on the device; the app cannot protect data on a rooted phone.

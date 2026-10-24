@@ -1,5 +1,21 @@
 # Kanakku implementation checklist
 
+## 1.0 readiness: M1 "Trust the total" (24 October 2026)
+
+Plan and owner decisions: [docs/ROADMAP-1.0.md](docs/ROADMAP-1.0.md).
+
+- [x] Full regression green again after the SDK 58 / UX rework (21 Playwright journeys repaired; two real regressions fixed: Activity filters lost after Settings, unlabeled sample data). Local: typecheck, 257 unit tests, 261 native checks, 194 Playwright journeys including card dues.
+- [x] Bank coverage: about 60 DLT sender headers; promotional (-P) traffic rejected; unknown bank-like headers parse but always go to review; new synthetic layouts for SBI UPI, ICICI, HDFC, Kotak, IndusInd, PNB, BoB, Canara, Federal, AU, RBL, Axis, YES and KGB. All synthetic: this is not proof of real formats.
+- [x] Masked real-inbox measurement on the owner's phone (in memory, no bodies stored or printed): all 69 Axis card purchases now have payees (previously none); KGB "upcoming mandate" and SBI "scheduled AutoPay" notices are correctly ignored; 10 of 10 card statements parse.
+- [x] Foreign-currency card charges: older parsers took the INR "Avl Limit" as the spend (9 Axis rows on the owner's phone). They now keep their currency, count nothing until the INR amount is confirmed, and re-import corrects the existing rows while keeping notes and category. Backup restore accepts any ISO currency.
+- [x] Card statements: total, minimum and due date are sealed, moved into encrypted metadata and shown on Overview with repayments matched per card, plus a manual paid mark.
+- [x] Unreadable bank alerts: counted, with masked shapes the user can preview and share from Settings.
+- [x] Unlock explains a key retired by a screen-lock change and points to Drive restore.
+- [ ] Re-import on the owner's phone after beta.11 installs; confirm the 9 corrected Axis USD rows and the monthly totals.
+- [ ] Card-due reminder notification (optional, three days before the due date).
+- [ ] Native acceptance of statements, unread-alert sharing and retired-key messaging on the emulator and phone.
+- [ ] npm audit: node-forge (no upstream fix yet) and zod 3 inside @expo/cli are build-time only and not in the app bundle; recheck when Expo updates them.
+
 ## Gemini AppFunctions write actions — in progress (21 October 2026)
 
 ### AppFunctions skill audit (21 October 2026)

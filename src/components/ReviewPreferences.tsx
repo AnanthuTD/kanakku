@@ -22,6 +22,10 @@ export function ReviewPreferences() {
   const [end, setEnd] = useState("08:00");
   const [time, setTime] = useState("19:00");
   const [saving, setSaving] = useState(false);
+  const [cardReminders, setCardReminders] = useState(true);
+  useEffect(() => {
+    native?.cardDueReminders().then(setCardReminders, () => {});
+  }, []);
   useEffect(() => {
     let live = true;
     (native
@@ -195,6 +199,28 @@ export function ReviewPreferences() {
       <Button disabled={saving} onPress={save}>
         {saving ? "Saving…" : "Save review preferences"}
       </Button>
+      {native && (
+        <View style={[ui.between, { gap: 14 }]}>
+          <View style={{ flex: 1 }}>
+            <Text bold>Card bill reminders</Text>
+            <Text muted style={{ fontSize: 11 }}>
+              Three days before a bill from your SMS is due. The notification
+              shows no bank or amount.
+            </Text>
+          </View>
+          <Switch
+            accessibilityLabel="Card bill reminders"
+            value={cardReminders}
+            onValueChange={(value) => {
+              setCardReminders(value);
+              native
+                ?.setCardDueReminders(value)
+                .then(setCardReminders, () => setCardReminders(!value));
+            }}
+            trackColor={{ true: colors.accent, false: colors.line }}
+          />
+        </View>
+      )}
       <Button
         secondary
         onPress={async () => {

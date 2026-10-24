@@ -1,6 +1,6 @@
 # Kanakku privacy policy
 
-Last updated 20 October 2026. Applies to the Kanakku Android app (`app.tinkerbox.kanakku`), published by Tinkerbox (Ananthu T D).
+Last updated 24 October 2026. Applies to the Kanakku Android app (`app.tinkerbox.kanakku`), published by Tinkerbox (Ananthu T D).
 
 ## Your journal stays on your phone
 
@@ -11,6 +11,8 @@ Kanakku turns supported bank SMS alerts into a local spend journal. You do not c
 - **Bank SMS alerts:** with permission, Kanakku reads messages to find supported payment alerts. Parsing happens on the phone. OTPs and unrelated messages are rejected; the full SMS text is not saved. Extracted payment fields, account hints, references and your corrections are retained in the local journal.
 - **Voice notes:** recording begins after your microphone action. An optional downloaded model transcribes speech on the phone; audio is held briefly in native memory and is not saved by the personal app. A transcript becomes part of your journal only when you save it.
 - **Bill photos:** your camera action creates a temporary photo in the app's cache. On-device text recognition produces editable bill details. Normal success, cancellation and error cleanup deletes that temporary photo. Raw OCR text and photos are not saved to the journal or sent for recognition. If you save, the normalized merchant, date, items, prices, tax and adjustment fields are retained with the transaction. A process interruption can leave a temporary cache file until cleanup or app-data deletion.
+- **Card statement alerts:** when a bank SMS states a card bill, Kanakku keeps the bank, the last digits of the card, the total and minimum due and the due date in the encrypted journal, to show what is due. An optional reminder notification three days before shows no bank, card or amount.
+- **Alerts Kanakku couldn't read:** for bank messages that look like payments but don't match a known layout, the app keeps a count and up to five masked shapes on the phone. Every digit becomes 9, and every name, payee or other word outside common banking terms becomes "_". They leave the phone only if you choose **Share masked samples**, which opens Android's share sheet so you pick the destination. Clearing the list deletes them.
 - **Your edits:** saved notes, categories, merchant names, receipt details, personal rules and recurring-payment decisions remain on the phone.
 
 The journal uses SQLCipher. Android Keystore and your device authentication protect its keys. Alerts received while locked are sealed in an encrypted inbox until unlock. Hardware protection varies by device. Android backup of the app's data is disabled.

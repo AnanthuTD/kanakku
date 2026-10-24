@@ -209,6 +209,10 @@ interface KanakkuNative {
   ): Promise<ReviewPreferences>;
   scheduleLendingReminder(id: string, dueAt: number): Promise<boolean>;
   cancelLendingReminder(id: string): Promise<boolean>;
+  /** Private reminders three days before a card bill is due (on by default). */
+  cardDueReminders(): Promise<boolean>;
+  setCardDueReminders(enabled: boolean): Promise<boolean>;
+  cancelCardDueReminder(id: string): Promise<boolean>;
   setReviewCount(count: number): Promise<void>;
   securityStatus(): Promise<{
     deviceSecure: boolean;

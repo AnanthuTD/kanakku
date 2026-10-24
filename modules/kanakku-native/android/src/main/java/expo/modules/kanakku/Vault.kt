@@ -125,7 +125,9 @@ class Vault(private val context: Context) {
     s.minimumDue?.let { j.put("minimumDue", it) }
     inbox().use { db ->
       val values = android.content.ContentValues().apply { put("id", s.id); put("envelope", seal(j.toString().toByteArray())) }
-      return db.insertWithOnConflict("statements", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1L
+      val added = db.insertWithOnConflict("statements", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1L
+      if (added) CardDueReminders.schedule(context, s)
+      return added
     }
   }
   fun statements(): List<String> = inbox().use { db -> db.rawQuery("SELECT envelope FROM statements LIMIT 250", null).use { c -> buildList { while(c.moveToNext()) add(String(unseal(c.getString(0)))) } } }

@@ -31,7 +31,13 @@ import {
   loanOutstanding,
   restoreLentTransaction,
 } from "../domain/lending";
-import { upsertCardDues, validCardDue, type CardDue } from "../domain/cardDues";
+import {
+  cardDueStatus,
+  indiaToday,
+  upsertCardDues,
+  validCardDue,
+  type CardDue,
+} from "../domain/cardDues";
 import { makeJournalBackup } from "../domain/backup";
 import {
   DEFAULT_AUTO_LOCK_DELAY,
@@ -538,6 +544,11 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       transactions = linkedLoans;
       await saveJournalAndSnapshot(transactions, data.rules, data.metadata);
     }
+    // A bill that is now covered by repayments no longer needs its reminder.
+    const today = indiaToday(new Date());
+    for (const due of data.metadata.cardDues ?? [])
+      if (cardDueStatus(due, transactions, today).state === "settled")
+        await native.cancelCardDueReminder(due.id).catch(() => false);
     if (transactions === data.transactions) return data;
     return { ...data, transactions };
   };
@@ -693,6 +704,7 @@ export function AppProvider({ children }: React.PropsWithChildren) {
       const next = state.current.cardDues.map((due) =>
         due.id === id ? { ...due, settledByUser: true } : due,
       );
+      await native?.cancelCardDueReminder(id).catch(() => false);
       await persist(
         state.current.transactions,
         state.current.rules,
